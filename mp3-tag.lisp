@@ -2,5 +2,5 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:mp3-tag)
 
-(defmethod show-tags ((me mp3-file:mp3-file))
-  (format t "~a:~a~%" (base-file:filename me) (mp3-frame:vpprint (mp3-file:header me) nil)))
+(defmethod show-tags ((me mp3-stream))
+  (format t "~a:~a~%" (filename me) (mp3-frame:vpprint (audio-streams:mp3-header me) nil)))

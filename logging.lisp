@@ -15,10 +15,9 @@
 
 
 (defparameter *logging-categories* '(mp4-atom::cat-log-mp4-atom
-									 mp4-file::cat-log-mp4-file
-									 base-file::cat-log-base-file
-									 mp3-frame::cat-log-mp3-frame
-									 mp3-file::cat-log-mp3-file))
+									 audio-streams::cat-log-stream
+									 mp3-frame::cat-log-mp3-frame))
+
 
 (defmacro with-logging ((&key (file nil) (categories *logging-categories*)) &body body)
   (alexandria:with-gensyms (output-stream)

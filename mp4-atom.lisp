@@ -123,7 +123,7 @@
 	(let ((methods))
 	  (dolist (type *itunes-text-atom-types*)
 		(push `(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql ,type)) mp4-file)
-				 (read-string mp4-file :size (- (atom-size atom) 16))) methods))
+				 (stream-read-string mp4-file :size (- (atom-size atom) 16))) methods))
 	  `(progn ,@methods)))
   )
 
@@ -132,50 +132,50 @@
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-disk+)) mp4-file)
   "decode itunes DISK atom"
   (declare (ignore atom))
-  (read-u16 mp4-file)					; throw away
+  (stream-read-u16 mp4-file)					; throw away
   (let ((a) (b))
-	(setf a (read-u16 mp4-file))
-	(setf b (read-u16 mp4-file))
+	(setf a (stream-read-u16 mp4-file))
+	(setf b (stream-read-u16 mp4-file))
 	(list a b)))
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-track+)) mp4-file)
   "decode itunes TRK atom"
   (declare (ignore atom))
-  (read-u16 mp4-file)					; throw away
+  (stream-read-u16 mp4-file)					; throw away
   (let ((a) (b))
-	(setf a (read-u16 mp4-file))
-	(setf b (read-u16 mp4-file))
-	(read-u16 mp4-file)					; throw away
+	(setf a (stream-read-u16 mp4-file))
+	(setf b (stream-read-u16 mp4-file))
+	(stream-read-u16 mp4-file)					; throw away
 	(list a b)))
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-track-n+)) mp4-file)
   "decode itunes TRKN atom"
   (declare (ignore atom))
-  (read-u16 mp4-file)					; throw away
+  (stream-read-u16 mp4-file)					; throw away
   (let ((a) (b))
-	(setf a (read-u16 mp4-file))
-	(setf b (read-u16 mp4-file))
-	(read-u16 mp4-file)					; throw away
+	(setf a (stream-read-u16 mp4-file))
+	(setf b (stream-read-u16 mp4-file))
+	(stream-read-u16 mp4-file)					; throw away
 	(list a b)))
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-tempo+)) mp4-file)
   "decode itunes TMPO atom"
   (declare (ignore atom))
-  (read-u16 mp4-file))
+  (stream-read-u16 mp4-file))
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-genre+)) mp4-file)
   "decode itunes GNRE atom"
   (declare (ignore atom))
-  (read-u16 mp4-file))
+  (stream-read-u16 mp4-file))
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-compilation+)) mp4-file)
   "decode itunes CPIL atom"
   (declare (ignore atom))
-  (read-u8 mp4-file))
+  (stream-read-u8 mp4-file))
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-cover-art+)) mp4-file)
   (let ((blob (make-instance 'mp4-unhandled-data)))
-	(setf (slot-value blob 'blob) (read-octets mp4-file (- (atom-size atom) 16)))
+	(setf (slot-value blob 'blob) (stream-read-octets mp4-file (- (atom-size atom) 16)))
 	blob))
 
 
@@ -194,13 +194,13 @@
   (log5:with-context "mp4-ilst-atom-initializer"
 	(assert (not (null mp4-file)) () "Must pass a stream into this method")
 	(with-slots (atom-size atom-type atom-children) me
-	  (let* ((start (seek mp4-file 0 :current))
+	  (let* ((start (stream-seek mp4-file 0 :current))
 			 (end (+ start (- atom-size 8))))
 		(log-mp4-atom "mp4-ilst-atom-initializer:entry, start = ~:d, end = ~:d" start end)
 		(do* ()
-			 ((>= (seek mp4-file 0 :current) end))
+			 ((>= (stream-seek mp4-file 0 :current) end))
 		  (log-mp4-atom "ilst atom top of loop: start = ~:d, current = ~:d, end = ~:d"
-						start (seek mp4-file 0 :current) end)
+						start (stream-seek mp4-file 0 :current) end)
 		  (let ((child (make-mp4-atom mp4-file atom-type)))
 			 (log-mp4-atom "adding new child ~a" (vpprint child nil))
 			 (add atom-children child)))))
@@ -218,10 +218,10 @@
 	 (assert (not (null mp4-file)) () "Must pass a stream into this method")
 	 (log-mp4-atom "mp4-ilst-generic-data-atom-initializer:entry")
 	 (with-slots (atom-size atom-type atom-version atom-flags atom-value atom-parent-type) me
-	   (setf atom-version (read-u8 mp4-file))
-	   (setf atom-flags (read-u24 mp4-file))
+	   (setf atom-version (stream-read-u8 mp4-file))
+	   (setf atom-flags (stream-read-u24 mp4-file))
 	   (if (= atom-type +itunes-ilst-data+)
-		   (assert (= 0 (read-u32 mp4-file)) () "a data atom lacks the required null field"))
+		   (assert (= 0 (stream-read-u32 mp4-file)) () "a data atom lacks the required null field"))
 	   (log-mp4-atom "size = ~:d, name = ~a, version = ~d, flags = ~x"
 					 atom-size (as-string atom-type) atom-version atom-flags)
 	   (setf atom-value (decode-ilst-data-atom atom-type me atom-parent-type mp4-file))
@@ -243,18 +243,18 @@
 	  (log-mp4-atom "type ~a is container atom of interest; read the nested atoms" (as-string atom-type))
 	  (cond ((= atom-type +mp4-atom-meta+)
 			 (log-mp4-atom "got META, moving file position forward 4 bytes") ;null field
-			 (seek mp4-file 4 :current)))
+			 (stream-seek mp4-file 4 :current)))
 
 	  ;; we are now at the file-position we are need to be at, so start reading those atoms!
-	  (block read-file
-		(log-mp4-atom "starting read-file block with file-position = ~:d and end = ~:d" atom-file-position (+ atom-file-position atom-size))
+	  (block stream-read-file
+		(log-mp4-atom "starting stream-read-file block with file-position = ~:d and end = ~:d" atom-file-position (+ atom-file-position atom-size))
 		(do ()
-			((>= (seek mp4-file 0 :current) (+ atom-file-position atom-size)))
-		  (log-mp4-atom "Top of loop: currently at file-position ~:d (reading up to ~:d)" (seek mp4-file 0 :current) (+ atom-file-position atom-size))
+			((>= (stream-seek mp4-file 0 :current) (+ atom-file-position atom-size)))
+		  (log-mp4-atom "Top of loop: currently at file-position ~:d (reading up to ~:d)" (stream-seek mp4-file 0 :current) (+ atom-file-position atom-size))
 		  (let ((child (make-mp4-atom mp4-file)))
 			(log-mp4-atom "adding new child ~a" (vpprint child nil))
 			(add atom-children child))))
-	  (log-mp4-atom "ended read-file block, file position now ~:d" (seek mp4-file 0 :current)))))
+	  (log-mp4-atom "ended stream-read-file block, file position now ~:d" (stream-seek mp4-file 0 :current)))))
 
 (defun make-mp4-atom (mp4-file &optional atom-parent-type)
   "Get current file position, read in size/type, then construct the correct atom.
@@ -262,9 +262,9 @@
  leave file position as is, since caller will want to read in nested atoms.  Otherwise,
  seek forward past end of this atom."
   (log5:with-context "make-mp4-atom"
-	(let* ((pos (seek mp4-file 0 :current))
-		   (siz (read-u32 mp4-file))
-		   (typ (read-u32 mp4-file))
+	(let* ((pos (stream-seek mp4-file 0 :current))
+		   (siz (stream-read-u32 mp4-file))
+		   (typ (stream-read-u32 mp4-file))
 		   (atom))
 	  (declare (type integer pos siz typ))
 	  (when (= 0 siz)
@@ -283,7 +283,7 @@
 			(t
 			 (log-mp4-atom "~a is an atom we are NOT interested in; seek past it" (as-string typ))
 			 (setf atom (make-instance 'mp4-atom :atom-size siz :atom-type typ :atom-file-position pos))
-			 (seek mp4-file (- siz 8) :current)))
+			 (stream-seek mp4-file (- siz 8) :current)))
 	  (log-mp4-atom "returning ~a" (vpprint atom nil))
 	  atom)))
 
@@ -350,11 +350,11 @@
 
 (defun is-valid-m4-file (mp4-file)
   "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?"
-  (seek mp4-file 0 :start)
-  (let* ((size (read-u32 mp4-file))
-		 (header (read-u32 mp4-file)))
+  (stream-seek mp4-file 0 :start)
+  (let* ((size (stream-read-u32 mp4-file))
+		 (header (stream-read-u32 mp4-file)))
 	(declare (ignore size))
-	(seek mp4-file 0 :start)
+	(stream-seek mp4-file 0 :start)
 	(= header +m4-ftyp+)))
 
 (defun find-mp4-atoms (mp4-file)
@@ -367,11 +367,11 @@ The 'right' atoms are those in *atoms-of-interest*"
 	(let ((atom-collection (make-mp4-atom-collection))
 		  (new-atom))
 
-	  (log-mp4-atom "before read-file loop, file-position = ~:d, end = ~:d" (seek mp4-file 0 :current) (file-size mp4-file))
-	  (block read-file
+	  (log-mp4-atom "before read-file loop, file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (file-size mp4-file))
+	  (block stream-read-file
 		(do ()
-			((> (+ 8 (seek mp4-file 0 :current)) (file-size mp4-file)))
-		  (log-mp4-atom "top of read-file loop, current file-position = ~:d, end = ~:d" (seek mp4-file 0 :current) (file-size mp4-file))
+			((> (+ 8 (stream-seek mp4-file 0 :current)) (file-size mp4-file)))
+		  (log-mp4-atom "top of read-file loop, current file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (file-size mp4-file))
 		  (setf new-atom (make-mp4-atom mp4-file))
 		  (add atom-collection new-atom)))
 	  (log-mp4-atom "returning atom-collection of size ~d" (size atom-collection))

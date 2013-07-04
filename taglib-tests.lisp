@@ -3,7 +3,7 @@
 (in-package #:cl-user)
 
 (defpackage #:taglib-tests
-  (:use #:common-lisp #:logging))
+  (:use #:common-lisp #:logging #:audio-streams))
 
 (in-package #:taglib-tests)
 
@@ -34,8 +34,8 @@
 (defun mp4-test0 (file)
   (let (foo)
 	(unwind-protect 
-		 (setf foo (mp4-file:make-mp4-file file t))
-	  (when foo (base-file:close-audio-file foo)))
+		 (setf foo (make-mp4-stream file t))
+	  (when foo (stream-close foo)))
 	foo))
 
 (defun mp4-test1 ()
@@ -51,8 +51,8 @@
 (defun mp3-test0 (file)
   (let (foo)
 	(unwind-protect 
-		 (setf foo (mp3-file:make-mp3-file file t))
-	  (when foo (base-file:close-audio-file foo)))
+		 (setf foo (make-mp3-stream file t))
+	  (when foo (stream-close foo)))
 	foo))
 
 (defun mp3-test1 ()

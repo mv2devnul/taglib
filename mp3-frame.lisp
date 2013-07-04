@@ -38,13 +38,13 @@
 (defun is-valid-mp3-file (mp3-file)
   "Make sure this is an MP3 file. Look for frames at begining and/or end"
   (log5:with-context "is-valid-mp3-file"
-	(seek mp3-file 0 :start)
-	(let* ((id3 (read-string mp3-file :size 3))
-		   (version (read-u8 mp3-file))
+	(stream-seek mp3-file 0 :start)
+	(let* ((id3 (stream-read-string mp3-file :size 3))
+		   (version (stream-read-u8 mp3-file))
 		   (tag))
-	  (seek mp3-file 128 :end)
-	  (setf tag (read-string mp3-file :size 3))
-	  (seek mp3-file 0 :start)
+	  (stream-seek mp3-file 128 :end)
+	  (setf tag (stream-read-string mp3-file :size 3))
+	  (stream-seek mp3-file 0 :start)
 
 	  (log-mp3-frame "id3 = ~a, version = ~d" id3 version)
 
@@ -74,16 +74,16 @@
 				songname artist album year comment genre))))
 
 (defmethod initialize-instance ((me v21-tag-header) &key instream)
-  "Read in a V2.1 tag.  Caller will have seek'ed file to correct location and ensured that TAG was present"
+  "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (log5:with-context "v21-frame-initializer"
 	(log-mp3-frame "reading v2.1 tag")
 	(with-slots (songname artist album year comment genre) me
-	  (setf songname (read-string instream :size 30 :terminators '(0)))
-	  (setf artist   (read-string instream :size 30 :terminators '(0)))
-	  (setf album    (read-string instream :size 30 :terminators '(0)))
-	  (setf year     (read-string instream :size 4  :terminators '(0)))
-	  (setf comment  (read-string instream :size 30 :terminators '(0)))
-	  (setf genre    (read-u8 instream))
+	  (setf songname (stream-read-string instream :size 30 :terminators '(0)))
+	  (setf artist   (stream-read-string instream :size 30 :terminators '(0)))
+	  (setf album    (stream-read-string instream :size 30 :terminators '(0)))
+	  (setf year     (stream-read-string instream :size 4  :terminators '(0)))
+	  (setf comment  (stream-read-string instream :size 30 :terminators '(0)))
+	  (setf genre    (stream-read-u8 instream))
 	  (log-mp3-frame "v21 tag: ~a" (vpprint me nil)))))
 
 (defclass mp3-ext-header ()
@@ -101,13 +101,13 @@
 (defmacro ext-header-crc-p (flags)	 `(logbitp 15 ,flags))
 
 (defmethod initialize-instance ((me mp3-ext-header) &key instream)
-  "Read in the extended header.  Caller will have seek'ed to correct location in file."
+  "Read in the extended header.  Caller will have stream-seek'ed to correct location in file."
   (with-slots (size flags padding crc) me
-	(setf size (read-u32 instream))
-	(setf flags (read-u16 instream))
-	(setf padding (read-u32 instream))
+	(setf size (stream-read-u32 instream))
+	(setf flags (stream-read-u16 instream))
+	(setf padding (stream-read-u32 instream))
 	(when (ext-header-crc-p flags)
-	  (setf crc (read-u32 instream)))))
+	  (setf crc (stream-read-u32 instream)))))
 
 (defmethod print-object ((me mp3-ext-header) stream)
   (if (null *pprint-mp3-frame*)
@@ -148,20 +148,20 @@
   "Fill in an mp3-header from file."
   (log5:with-context "mp3-id3-header-initializer"
 	(with-slots (version revision flags size ext-header frames v21-tag-header) me
-	  (seek instream 128 :end)
-	  (when (string= "TAG" (read-string instream :size 3))
-		(log-mp3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (seek instream 0 :current))
+	  (stream-seek instream 128 :end)
+	  (when (string= "TAG" (stream-read-string instream :size 3))
+		(log-mp3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream 0 :current))
 		(handler-case
 			(setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
 		  (condition (c)
 			(log-mp3-frame "reading v21 got condition: ~a" c))))
 
-	  (seek instream 0 :start)
-	  (when (string= "ID3" (read-string instream :size 3))
-		(setf version (read-u8 instream))
-		(setf revision (read-u8 instream))
-		(setf flags (read-u8 instream))
-		(setf size (mp3-file:read-sync-safe-u32 instream))
+	  (stream-seek instream 0 :start)
+	  (when (string= "ID3" (stream-read-string instream :size 3))
+		(setf version (stream-read-u8 instream))
+		(setf revision (stream-read-u8 instream))
+		(setf flags (stream-read-u8 instream))
+		(setf size (stream-read-sync-safe-u32 instream))
 		(when (header-unsynchronized-p flags) (log-mp3-frame "unsync"))
 		(assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet")
 		(when (header-extended-p flags)
@@ -232,8 +232,8 @@
 (defmethod initialize-instance :after ((me raw-frame) &key instream)
   (log5:with-context "raw-frame"
 	(with-slots (len octets) me
-	  (log-mp3-frame "reading ~:d bytes from position ~:d" len (seek instream 0 :current))
-	  (setf octets (read-octets instream len)))))
+	  (log-mp3-frame "reading ~:d bytes from position ~:d" len (stream-seek instream 0 :current))
+	  (setf octets (stream-read-octets instream len)))))
 
 (defmethod print-object :after ((me raw-frame) stream)
   (if (null *pprint-mp3-frame*)
@@ -244,40 +244,6 @@
 			   (printable-array (make-array print-len :displaced-to (slot-value me 'octets))))
 		  (format stream "[~:d of ~:d bytes] <~x>" print-len len printable-array)))))
 
-(defun find-id3-frames (header instream)
-  "Loop thru all the frames in INSTREAM based on information from HEADER"
-  (labels ((read-and-de-sync (instream len)
-			 "Used to undo sync-safe when the header says false syncs have been removed from the tags"
-			 (let* ((last-byte-was-FF nil)
-					(byte nil)
-					(synced-frame-data (with-binary-output-to-vector (out)
-										 (dotimes (i len)
-										   (setf byte (read-byte instream))
-										   (if last-byte-was-FF
-											   (if (not (zerop byte))
-												   (write-byte byte out))
-											   (write-byte byte out))
-										   (setf last-byte-was-FF (= byte #xFF))))))
-			   synced-frame-data)))
-
-	(log5:with-context "find-id3-frames"
-	  nil)))
-
-;; 	  (let ((mem-stream)
-;; 			(first-byte))
-;; 		(if (header-unsynchronized-p header)
-;; 			(setf mem-stream (read-and-desync instream (size header)))
-;; 	   (log-mp3-frame "Looking for frames: header = ~a, starting position = ~:d" (mp3-frame:vpprint header nil) (seek instream 0 :current))
-;; 	 (loop
-;; 	   (let ((first-byte (read-u8 instream)))
-;; 		 (when (
-;; ;	 (if (header-unsynchronized-p (flags header))
-;; 	 (do* ((pos (seek instream 0 :current))
-;; 		   (frame)
-;; 		   (end (+ pos (size header))))
-;; 		  ((>= pos end))
-
-;; 	nil))
 
 (defun find-mp3-frames (mp3-file)
   "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames, returning both"
@@ -286,10 +252,27 @@
 	  (log-mp3-frame "~a is not an mp3 file" (filename mp3-file))
 	  (error 'mp3-frame-condition :location "find-mp3-frames" :object (filename mp3-file) :message "is not an mp3 file"))
 
- 	(log-mp3-frame "~a is a valid mp3 file" (filename mp3-file))
+	(log-mp3-frame "~a is a valid mp3 file" (filename mp3-file))
 
-	(let* ((header (make-instance 'mp3-id3-header :instream mp3-file))
-		   (frames (find-id3-frames header mp3-file)))
-	  (log-mp3-frame "Header: ~a, frames = ~a" header frames)
-	  (setf (slot-value header 'frames) frames))))
+	(let ((header (make-instance 'mp3-id3-header :instream mp3-file))
+		  (mem-stream)
+		  (this-frame)
+		  (frames))
+	  (declare (ignore mem-stream this-frame frames))
+	  (setf (slot-value mp3-file 'mp3-header) header)
+	  (assert header () "Must have a header to continue!")
+	  header)))
 
+	  ;; (if (header-unsynchronized-p header)
+	  ;; 	  (setf mem-stream (stream-read-sync-safe-octets instream (size header)))
+	  ;; 		(setf mem-stream instream))
+
+	  ;; 	;; NB from this point, always read from mem-stream (see IF above)
+	  ;; 	(block read-loop
+	  ;; 	  (loop
+	  ;; 		(setf this-frame (make-frame header mem-stream))
+	  ;; 		(when (null this-frame)
+	  ;; 		  (return-from read-loop nil))
+	  ;; 		(push this-frame frames)))
+	  ;; 	(setf (slot-value (slot-value mp3-header 'header) 'frames) frames)
+	  ;; 	(log-mp3-frame "~a" (vpprint (slot-value mp3-header 'header) nil))))))
