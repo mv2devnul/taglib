@@ -23,7 +23,6 @@
 	(setf instream (if read-only
 					   (open filename :direction :input :element-type 'octet)
 					   (open filename :direction :io :if-exists :overwrite :element-type 'octet)))
-	(setf binary-types:*endian* endian)
 	(setf file-size (file-length instream))
 	(log-stream "stream = ~a, name = ~a, size = ~:d~%endian = ~a"
 				   instream filename file-size endian))))
@@ -51,41 +50,58 @@ Returns the current offset into the stream"
 	  (:end
 	   (file-position instream (- file-size offset))))))
 
+;;
+;; From Practical Common Lisp by Peter Seibel.
+(defun read-octets (instream bytes &key (bits-per-byte 8) (endian :little-endian))
+  (ecase endian 
+	(:big-endian
+	 (loop with value = 0
+		   for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte do
+			 (setf (ldb (byte bits-per-byte low-bit) value) (read-byte instream))
+		   finally (return value)))
+	(:little-endian
+	 (loop with value = 0
+		   for low-bit downfrom (* bits-per-byte (1- bytes)) to 0 by bits-per-byte do
+			 (setf (ldb (byte bits-per-byte low-bit) value) (read-byte instream))
+		   finally (return value)))))
+
 (defmethod stream-read-u8 ((me base-stream))
   "read 1 byte from file"
-  (multiple-value-bind (value size) (binary-types:read-binary 'u8 (slot-value me 'instream))
-	(assert (= size 1) () "Expected to read 1 byte, got ~d instead" size)
-	value))
+  (with-slots (endian instream) me
+	(read-octets instream 1 :endian endian)))
 
 (defmethod stream-read-u16 ((me base-stream))
   "read 2 bytes from file"
-  (multiple-value-bind (value size) (binary-types:read-binary 'u16 (slot-value me 'instream))
-	(assert (= size 2) () "Expected to read 2 bytes, got ~d instead" size)
-	value))
-
-;;; read 3-bytes
-(binary-types:define-unsigned u24 3)
+  (with-slots (endian instream) me
+	(read-octets instream 2 :endian endian)))
 
 (defmethod stream-read-u24 ((me base-stream))
   "read 3 bytes from file"
-  (multiple-value-bind (value size) (binary-types:read-binary 'u24 (slot-value me 'instream))
-	(assert (= size 3) () "Expected to read 3 bytes, got ~d instead" size)
-	value))
+  (with-slots (endian instream) me
+	(read-octets instream 3 :endian endian)))
 
 (defmethod stream-read-u32 ((me base-stream))
   "read 4 bytes from file"
-  (multiple-value-bind (value size) (binary-types:read-binary 'u32 (slot-value me 'instream))
-	(assert (= size 4) () "Expected to read 4 bytes, got ~d instead" size)
-	value))
+  (with-slots (endian instream) me
+	(read-octets instream 4 :endian endian)))
 
 (defmethod stream-read-string ((me base-stream) &key size (terminators nil))
   "Read normal string from file. If size is provided, read exactly that many octets.
 If terminators is supplied, it is a list of characters that can terminate a string (and hence stop read)"
-  (multiple-value-bind (value read-size)
-	  (binary-types:read-binary-string (slot-value me 'instream) :size size :terminators terminators)
-	(declare (ignore read-size))
-	;; what checks should happen here?
-	value))
+  (with-output-to-string (s)
+	(with-slots (instream) me
+	  (let ((terminated nil)
+			(count 0)
+			(byte))
+		(loop
+		  (when (if size (= count size) terminated) (return))
+		  (setf byte (read-byte instream))
+		  (incf count)
+		  (log-stream "count = ~d, terminators = ~a, byte-read was ~c" count terminators (code-char byte))
+		  (when (member byte terminators :test #'=)
+			(setf terminated t))
+		  (when (not terminated)
+			(write-char (code-char byte) s)))))))
 
 (defmethod stream-read-octets ((me base-stream) size)
   "Read SIZE octets from input-file"
@@ -137,7 +153,7 @@ NB: we assume non-syncsafe as default"
 	(let (handle)
 	  (handler-case 
 		  (progn
-			(setf handle (make-instance 'mp3-stream :filename filename :endian :little-endian :read-only read-only))
+			(setf handle (make-instance 'mp3-stream :filename filename :endian :big-endian :read-only read-only))
 			(with-slots (mp3-header) handle
 			  (log-mp3-stream "getting frames")
 			  (setf mp3-header (mp3-frame:find-mp3-frames handle))))
@@ -160,7 +176,7 @@ NB: we assume non-syncsafe as default"
   "Used to undo sync-safe read of file"
   (let* ((last-byte-was-FF nil)
 		 (byte nil)
-		 (de-synced-data (binary-types:with-binary-output-to-vector (out)
+		 (de-synced-data (flexi-streams:with-output-to-sequence (out :element-type 'octet)
 						   (dotimes (i len)
 							 (setf byte (stream-read-u8 me))
 							 (if last-byte-was-FF
