@@ -258,9 +258,9 @@
 
 (defun make-mp4-atom (mp4-file &optional atom-parent-type)
   "Get current file position, read in size/type, then construct the correct atom.
- If type is an ilst type, read it all it.  If it is a container atom of interest,
- leave file position as is, since caller will want to read in nested atoms.  Otherwise,
- seek forward past end of this atom."
+If type is an ilst type, read it all it.  If it is a container atom of interest,
+leave file position as is, since caller will want to read in nested atoms.  Otherwise,
+seek forward past end of this atom."
   (log5:with-context "make-mp4-atom"
 	(let* ((pos (stream-seek mp4-file 0 :current))
 		   (siz (stream-read-u32 mp4-file))
@@ -368,6 +368,7 @@ The 'right' atoms are those in *atoms-of-interest*"
 		  (new-atom))
 
 	  (log-mp4-atom "before read-file loop, file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (file-size mp4-file))
+
 	  (block stream-read-file
 		(do ()
 			((> (+ 8 (stream-seek mp4-file 0 :current)) (file-size mp4-file)))

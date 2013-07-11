@@ -4,14 +4,14 @@
 
 (defpackage #:audio-streams
   (:export #:octets #:make-octets
-		   #:base-stream
+		   #:base-file-stream
 		   #:filename #:instream #:file-size #:endian
 		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32
 		   #:stream-read-string #:stream-read-octets
 		   #:stream-seek #:stream-close
 		   #:mp4-stream #:make-mp4-stream #:mp4-atoms
 		   #:mp3-stream #:make-mp3-stream #:mp3-header
-		   #:stream-read-sync-safe-u32 #:stream-read-sync-safe-octets)
+		   #:stream-read-sync-safe-u32)
   (:use #:common-lisp))
 
 (defpackage #:mp4-atom

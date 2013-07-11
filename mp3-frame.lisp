@@ -162,7 +162,8 @@
 		(setf revision (stream-read-u8 instream))
 		(setf flags (stream-read-u8 instream))
 		(setf size (stream-read-sync-safe-u32 instream))
-		(when (header-unsynchronized-p flags) (log-mp3-frame "unsync"))
+		(when (header-unsynchronized-p flags)
+		  (log-mp3-frame "unsync"))
 		(assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet")
 		(when (header-extended-p flags)
 		  (setf ext-header (make-instance 'mp3-extended-header :instream instream))))
@@ -175,7 +176,7 @@
    (id      :accessor id      :initarg :id)
    (len     :accessor len     :initarg :len)
    (flags   :accessor flags   :initarg :flags :initform nil))
-  (:documentation   "Base class for an ID3 frame"))
+  (:documentation "Base class for an ID3 frame"))
 
 (defmacro frame-23-altertag-p  (frame-flags) `(logbitp 15 ,frame-flags))
 (defmacro frame-23-alterfile-p (frame-flags) `(logbitp 14 ,frame-flags))
@@ -246,7 +247,7 @@
 
 
 (defun find-mp3-frames (mp3-file)
-  "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames, returning both"
+  "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames"
   (log5:with-context "find-mp3-frames"
 	(when (not (is-valid-mp3-file mp3-file))
 	  (log-mp3-frame "~a is not an mp3 file" (filename mp3-file))
@@ -254,25 +255,13 @@
 
 	(log-mp3-frame "~a is a valid mp3 file" (filename mp3-file))
 
-	(let ((header (make-instance 'mp3-id3-header :instream mp3-file))
-		  (mem-stream)
-		  (this-frame)
-		  (frames))
-	  (declare (ignore mem-stream this-frame frames))
-	  (setf (slot-value mp3-file 'mp3-header) header)
-	  (assert header () "Must have a header to continue!")
-	  header)))
+	(setf (mp3-header mp3-file) (make-instance 'mp3-id3-header :instream mp3-file))
+	(ccl:with-input-from-vector (v (stream-read-octets mp3-file (size (mp3-header mp3-file))
+													   :bits-per-byte (if (header-unsynchronized-p (flags (mp3-header mp3-file))) 7 8)))
 
-	  ;; (if (header-unsynchronized-p header)
-	  ;; 	  (setf mem-stream (stream-read-sync-safe-octets instream (size header)))
-	  ;; 		(setf mem-stream instream))
-
-	  ;; 	;; NB from this point, always read from mem-stream (see IF above)
-	  ;; 	(block read-loop
-	  ;; 	  (loop
-	  ;; 		(setf this-frame (make-frame header mem-stream))
-	  ;; 		(when (null this-frame)
-	  ;; 		  (return-from read-loop nil))
-	  ;; 		(push this-frame frames)))
-	  ;; 	(setf (slot-value (slot-value mp3-header 'header) 'frames) frames)
-	  ;; 	(log-mp3-frame "~a" (vpprint (slot-value mp3-header 'header) nil))))))
+	  (block read-loop
+		(loop
+	  		(let ((this-frame (make-frame v)))
+			  (when (null this-frame)
+				(return-from read-loop nil))
+			  (push this-frame (frames (mp3-header mp3-file)))))))))
