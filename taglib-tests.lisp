@@ -34,7 +34,7 @@
 (defun mp4-test0 (file)
   (let (foo)
 	(unwind-protect 
-		 (setf foo (make-mp4-stream file t))
+		 (setf foo (parse-mp4-file file))
 	  (when foo (stream-close foo)))
 	foo))
 
@@ -51,7 +51,7 @@
 (defun mp3-test0 (file)
   (let (foo)
 	(unwind-protect 
-		 (setf foo (make-mp3-stream file t))
+		 (setf foo (parse-mp3-file file))
 	  (when foo (stream-close foo)))
 	foo))
 
@@ -66,6 +66,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun test2 (&key (dir "Queen"))
+  (set-pathname-encoding-for-osx)
   (osicat:walk-directory dir (lambda (f)
 							   (if (has-extension f "mp3")
 								   (let ((file (mp3-test0 f)))

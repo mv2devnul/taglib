@@ -123,7 +123,7 @@
 	(let ((methods))
 	  (dolist (type *itunes-text-atom-types*)
 		(push `(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql ,type)) mp4-file)
-				 (stream-read-string mp4-file :size (- (atom-size atom) 16))) methods))
+				 (stream-read-string-with-len mp4-file (- (atom-size atom) 16))) methods))
 	  `(progn ,@methods)))
   )
 
@@ -175,7 +175,7 @@
 
 (defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-cover-art+)) mp4-file)
   (let ((blob (make-instance 'mp4-unhandled-data)))
-	(setf (slot-value blob 'blob) (stream-read-octets mp4-file (- (atom-size atom) 16)))
+	(setf (slot-value blob 'blob) (stream-read-sequence mp4-file (- (atom-size atom) 16)))
 	blob))
 
 
@@ -268,7 +268,7 @@ seek forward past end of this atom."
 		   (atom))
 	  (declare (type integer pos siz typ))
 	  (when (= 0 siz)
-		(warn "trying to make an atom ~a with size of 0 at offset ~:d in ~a, ammending size to be 8" (as-string typ) pos (filename mp4-file))
+		(warn "trying to make an atom ~a with size of 0 at offset ~:d in ~a, ammending size to be 8" (as-string typ) pos (stream-filename mp4-file))
 		(setf siz 8))
 	  (log-mp4-atom "pos = ~:d, size = ~:d, type = ~a" pos siz (as-string typ))
 	  (cond ((member typ *atoms-of-interest*)
@@ -296,7 +296,7 @@ seek forward past end of this atom."
 	  ;; else
 	  (format stream "~a" (with-output-to-string (s)
 							(with-slots (atom-children atom-file-position atom-size atom-type) me
-							  (format s "Atom <~a> @ ~:d of size ~:d with ~d children"
+							  (format s "Atom <~a> @ ~:d of size ~:d and child count of ~d"
 									  (as-string atom-type) atom-file-position atom-size (size atom-children)))
 							(if (typep me 'mp4-ilst-generic-data-atom)
 								(with-slots (atom-version atom-flags atom-value atom-type atom-parent-type) me
@@ -362,21 +362,19 @@ seek forward past end of this atom."
 The 'right' atoms are those in *atoms-of-interest*"
   (log5:with-context "find-mp4-atoms"
 	(when (not (is-valid-m4-file mp4-file))
-	  (error 'mp4-atom-condition :location "find-mp4-atoms" :object (filename mp4-file) :message "is not an mp4-file" ))
+	  (error 'mp4-atom-condition :location "find-mp4-atoms" :object mp4-file :message "is not an mp4-file" ))
 
-	(let ((atom-collection (make-mp4-atom-collection))
-		  (new-atom))
+	(log-mp4-atom "before read-file loop, file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (stream-size mp4-file))
 
-	  (log-mp4-atom "before read-file loop, file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (file-size mp4-file))
+	(setf (mp4-atoms mp4-file) (make-mp4-atom-collection))
+	(do ((new-atom))
+		((> (+ 8 (stream-seek mp4-file 0 :current)) (stream-size mp4-file)))
+	  (log-mp4-atom "top of read-file loop, current file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (stream-size mp4-file))
+	  (setf new-atom (make-mp4-atom mp4-file))
+	  (when new-atom (add (mp4-atoms mp4-file) new-atom)))
 
-	  (block stream-read-file
-		(do ()
-			((> (+ 8 (stream-seek mp4-file 0 :current)) (file-size mp4-file)))
-		  (log-mp4-atom "top of read-file loop, current file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (file-size mp4-file))
-		  (setf new-atom (make-mp4-atom mp4-file))
-		  (add atom-collection new-atom)))
-	  (log-mp4-atom "returning atom-collection of size ~d" (size atom-collection))
-	  atom-collection)))
+	(log-mp4-atom "returning atom-collection of size ~d" (size (mp4-atoms mp4-file)))))
+
 
 (defmethod map-mp4-atom ((me mp4-atom) &key (func nil) (depth nil))
   "traverse all atoms under a given atom"
@@ -435,3 +433,7 @@ call traverse atom (unless length of path == 1, in which case, we've found out m
 	(if atom
 		(atom-value atom)
 		nil)))
+
+(defun mp4-show-raw-tag-atoms (mp4-file-stream)
+  (map-mp4-atom (mp4-atom::traverse  (mp4-atoms mp4-file-stream) (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+)))))
+

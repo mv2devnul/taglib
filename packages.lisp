@@ -4,20 +4,26 @@
 
 (defpackage #:audio-streams
   (:export #:octets #:make-octets
-		   #:base-file-stream
-		   #:filename #:instream #:file-size #:endian
+		   #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
+		   #:parse-mp3-file #:parse-mp4-file #:mp3-frame-condition
+		   #:make-mem-stream #:stream-filename
+		   #:mp4-atoms #:mp3-header
 		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32
-		   #:stream-read-string #:stream-read-octets
-		   #:stream-seek #:stream-close
-		   #:mp4-stream #:make-mp4-stream #:mp4-atoms
-		   #:mp3-stream #:make-mp3-stream #:mp3-header
-		   #:stream-read-sync-safe-u32)
+		   #:stream-decode-iso-string #:stream-deocode-ucs-string #:stream-decode-ucs-be-string
+		   #:stream-decode-utf-8-string #:stream-decode-string #:stream-read-iso-string-with-len
+		   #:stream-read-ucs-string-with-len #:stream-read-ucs-be-string-with-len
+		   #:stream-read-utf-8-string-with-len #:stream-read-string-with-len
+		   #:stream-read-iso-string #:stream-read-ucs-string #:stream-read-ucs-be-string
+		   #:stream-read-utf-8-string #:stream-read-string #:trim-string
+		   #:stream-read-string #:stream-read-sequence #:stream-size
+		   #:stream-seek #:stream-close)
   (:use #:common-lisp))
 
 (defpackage #:mp4-atom
   (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse #:mp4-atom-condition
 		   #:atom-file-position #:atom-children #:atom-size #:atom-of-interest #:atom-decoded
-		   #:atom-type #:vpprint #:*tag-path* #:tag-get-value
+		   #:atom-type #:vpprint #:*tag-path* #:tag-get-value #:mp4-atom-condition
+		   #:mp4-show-raw-tag-atoms
 		   #:+itunes-album+
 		   #:+itunes-album-artist+
 		   #:+itunes-artist+
@@ -43,12 +49,13 @@
   (:use #:common-lisp #:audio-streams))
 
 (defpackage :mp3-frame
-  (:export :mp3-frame #:find-mp3-frames #:mp3-frame-condition #:vpprint #:header)
+  (:export :mp3-frame #:find-mp3-frames #:mp3-frame-condition #:vpprint #:header :get-frame-info
+		   :v21-tag-header :info :version)
   (:use :common-lisp :audio-streams))
 
 (defpackage :mp3-tag
   (:export :show-tags)
-  (:use :common-lisp :audio-streams))
+  (:use :common-lisp :audio-streams :mp3-frame))
 
 (defpackage #:tag
   (:export #:get-genre-text)

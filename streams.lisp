@@ -9,179 +9,294 @@
 (deftype octet () '(unsigned-byte 8))
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
-(defclass base-file-stream ()
-  ((filename  :accessor filename  :initarg :filename)
-   (instream  :accessor instream  :initform nil)
-   (endian    :accessor endian    :initarg :endian :initform nil)   ; controls endian-ness of read/writes
-   (modified  :accessor modified  :initform nil)					; for when we implement writing tags
-   (file-size :accessor file-size))
-  (:documentation "Base class for all audio file types"))
+(defclass base-stream ()
+  ((stream :accessor stream)))
 
-(defmethod initialize-instance :after ((me base-file-stream) &key read-only &allow-other-keys)
-  (log5:with-context "base-file-stream-initializer"
-  (with-slots (instream filename file-size endian) me
-	(setf instream (if read-only
-					   (open filename :direction :input :element-type 'octet)
-					   (open filename :direction :io :if-exists :overwrite :element-type 'octet)))
-	(setf file-size (file-length instream))
-	(log-stream "base-file-stream-initializer built stream = ~a, name = ~a, size = ~:d, endian = ~a"
-				instream filename file-size endian))))
+(defclass base-file-stream (base-stream)
+  ((stream-filename :accessor stream-filename)))
 
-(defmethod stream-close ((me base-file-stream))
-  "Close an open stream."
-  (with-slots (instream modified) me
-	(when modified
-	  (warn "at some point, should I add code to auto-write modified audio-files?")
-	  (setf modified nil))
-	(when instream
-	  (close instream)
-	  (setf instream nil))))
+(defclass mp3-file-stream (base-file-stream)
+  ((mp3-header  :accessor mp3-header)))
 
-(defmethod stream-seek ((me base-file-stream) offset from)
-  "C-library like seek function. from can be one of :current, :start, :end.
-Returns the current offset into the stream"
-  (with-slots (instream file-size) me
+(defclass mp4-file-stream (base-file-stream)
+  ((mp4-atoms :accessor mp4-atoms :initform nil)))
+
+(defun make-file-stream (class-name filename &key (read-only t))
+  (let ((new-stream (make-instance (find-class class-name))))
+	(setf (stream new-stream) (if read-only
+								  (open filename :direction :input :element-type 'octet)
+								  (open filename :direction :io :if-exists :overwrite :element-type 'octet)))
+	(setf (stream-filename new-stream) filename)
+	new-stream))
+
+(defclass base-mem-stream (base-stream) ())
+
+(defun make-mem-stream (vector)
+  (let ((new-stream (make-instance 'base-mem-stream)))
+	(setf (stream new-stream) (ccl:make-vector-input-stream vector))
+	new-stream))
+
+
+(defmethod stream-close ((in-stream base-file-stream))
+  (with-slots (stream) in-stream
+	(when stream
+	  (close stream)
+	  (setf stream nil))))
+
+(defmethod stream-close ((in-stream base-mem-stream))
+  (with-slots (stream) in-stream
+	(setf stream nil)))
+
+(defmethod stream-size ((in-stream base-stream))
+  (ccl::stream-length (stream in-stream)))
+
+(defmethod stream-seek ((in-stream base-stream) offset from)
+  (with-slots (stream) in-stream
 	(ecase from
-	  (:start (file-position instream offset))
-	  (:current (file-position instream (+ (file-position instream) offset)))
-	  (:end (file-position instream (- file-size offset))))))
+	  (:start (ccl::stream-position stream offset))
+	  (:current (if (zerop offset)
+					(ccl::stream-position stream)
+					(ccl::stream-position stream (+ (ccl::stream-position stream) offset))))
+	  (:end (ccl::stream-position stream (- (ccl::stream-length stream) offset))))))
 
-;;
-;; Based on a function from Practical Common Lisp by Peter Seibel.
-(defun read-octets (instream bytes &key (bits-per-byte 8) (endian :little-endian))
-  (ecase endian
-	(:big-endian
-	 (loop with value = 0
-		   for low-bit from 0 to (* bits-per-byte (1- bytes)) by bits-per-byte do
-			 (setf (ldb (byte bits-per-byte low-bit) value) (read-byte instream))
-		   finally (return value)))
-	(:little-endian
-	 (loop with value = 0
-		   for low-bit downfrom (* bits-per-byte (1- bytes)) to 0 by bits-per-byte do
-			 (setf (ldb (byte bits-per-byte low-bit) value) (read-byte instream))
-		   finally (return value)))))
+(defun stream-read-octets (instream bytes &key (bits-per-byte 8))
+  (loop with value = 0
+		for low-bit downfrom (* bits-per-byte (1- bytes)) to 0 by bits-per-byte do
+		  (setf (ldb (byte bits-per-byte low-bit) value) (read-byte instream))
+		finally (return value)))
 
-(defmethod stream-read-u8 ((me base-file-stream))
+(defmethod stream-read-u8 ((in-stream base-stream) &key (bits-per-byte 8))
   "read 1 byte from file"
-  (with-slots (endian instream) me
-	(read-octets instream 1 :endian endian)))
+  (with-slots (stream) in-stream
+	(stream-read-octets stream 1 :bits-per-byte bits-per-byte)))
 
-(defmethod stream-read-u16 ((me base-file-stream))
+(defmethod stream-read-u16 ((in-stream base-stream) &key (bits-per-byte 8))
   "read 2 bytes from file"
-  (with-slots (endian instream) me
-	(read-octets instream 2 :endian endian)))
+  (with-slots (stream) in-stream
+	(stream-read-octets stream 2 :bits-per-byte bits-per-byte)))
 
-(defmethod stream-read-u24 ((me base-file-stream))
+(defmethod stream-read-u24 ((in-stream base-stream) &key (bits-per-byte 8))
   "read 3 bytes from file"
-  (with-slots (endian instream) me
-	(read-octets instream 3 :endian endian)))
+  (with-slots (stream) in-stream
+	(stream-read-octets stream 3 :bits-per-byte bits-per-byte)))
 
-(defmethod stream-read-u32 ((me base-file-stream))
+(defmethod stream-read-u32 ((in-stream base-stream) &key (bits-per-byte 8))
   "read 4 bytes from file"
-  (with-slots (endian instream) me
-	(read-octets instream 4 :endian endian)))
+  (with-slots (stream) in-stream
+	(stream-read-octets stream 4 :bits-per-byte bits-per-byte)))
 
-(defmethod stream-read-string ((me base-file-stream) &key size (terminators nil))
-  "Read normal string from file. If size is provided, read exactly that many octets.
-If terminators is supplied, it is a list of characters that can terminate a string (and hence stop read)"
-  (with-output-to-string (s)
-	(with-slots (instream) me
-	  (let ((terminated nil)
-			(count 0)
-			(byte))
-		(loop
-		  (when (if size (= count size) terminated) (return))
-		  (setf byte (read-byte instream))
-		  (incf count)
-		  ;;;(log-stream "count = ~d, terminators = ~a, byte-read was ~c" count terminators (code-char byte))
-		  (when (member byte terminators :test #'=)
-			(setf terminated t))
-		  (when (not terminated)
-			(write-char (code-char byte) s)))))))
+;; (defmethod stream-read-string ((stream base-stream) &key size (terminators nil))
+;;   "Read normal string from stream. If size is provided, read exactly that many octets.
+;; If terminators is supplied, it is a list of characters that can terminate a string (and hence stop read)"
+;;   (with-output-to-string (s)
+;; 	(with-slots (stream) stream
+;; 	  (let ((terminated nil)
+;; 			(count 0)
+;; 			(byte))
+;; 		(loop
+;; 		  (when (if size (= count size) terminated) (return))
+;; 		  (setf byte (read-byte stream))
+;; 		  (incf count)
+;; 		  (when (member byte terminators :test #'=)
+;; 			(setf terminated t))
+;; 		  (when (not terminated)
+;; 			(write-char (code-char byte) s)))))))
 
-(defmethod stream-read-octets ((me base-file-stream) size &key (bits-per-byte 8))
-  "Read SIZE octets from input-file.  If bits-per-byte"
+(defmethod stream-read-sequence ((stream base-stream) size &key (bits-per-byte 8))
+  "Read SIZE octets from input-file in BIT-PER-BYTE sizes"
   (ecase bits-per-byte
 	(8
 	 (let ((octets (make-octets size)))
-	   (read-sequence octets (slot-value me 'instream))))
+	   (read-sequence octets (slot-value stream 'stream))
+	   octets))
 	(7
 	 (let* ((last-byte-was-FF nil)
 			(byte nil)
 			(octets (ccl:with-output-to-vector (out)
 					  (dotimes (i size)
-						(setf byte (stream-read-u8 me))
+						(setf byte (stream-read-u8 stream))
 						(if last-byte-was-FF
 							(if (not (zerop byte))
 								(write-byte byte out))
 							(write-byte byte out))
 						(setf last-byte-was-FF (= byte #xFF))))))
+	   (format t "file pos is now: ~:d~%" (stream-seek stream 0 :current))
+	   (format t "length of data is ~:d~%" (length octets))
 	   octets))))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; STRINGS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; MP4 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; get rid of trailing nulls and blanks
+(defmacro trim-string (s) `(string-trim '(#\Null #\Space) ,s))
 
-(defclass mp4-stream (base-file-stream)
-  ((mp4-atoms :accessor mp4-atoms :initform nil))
-  (:documentation "Class to access m4a/mp4 files"))
+;;
+;; decode octets as an iso-8859-1 string (encoding == 0)
+(defun stream-decode-iso-string (octets &key (start 0) (end nil))
+  (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1))
 
-(defun make-mp4-stream (filename read-only &key)
-  "Convenience function to create an instance of MP4-FILE with appropriate init args"
-  (log5:with-context "make-mp4-stream"
-	(log-stream "make-mp4-stream is opening ~a" filename)
-	(let (handle)
-	  (handler-case 
-		  (progn
-			(setf handle (make-instance 'mp4-stream :filename filename :endian :little-endian :read-only read-only))
-			(with-slots (mp4-atoms) handle
-			  (log-stream "getting atoms")
-			  (setf mp4-atoms (mp4-atom:find-mp4-atoms handle))))
-		(condition (c)
-		  (warn "make-mp4-stream got condition: ~a" c)
-		  (when handle (stream-close handle))
-		  (setf handle nil)))
-		handle)))
+;;
+;; decode octets as a ucs string (encoding == 1)
+;; XXX: Coded this way because I can't seem to get a simple :external-format :ucs-2 to work correctly 
+;; AND some taggers encode a UCS-2 empty string w/o a byte-order mark (i.e. null strings are
+;; sometimes encoded as #(00 00))
+(defun stream-decode-ucs-string (octets &key (start 0) (end nil))
+	(labels ((get-byte-order-mark (octets)
+			   (let ((retval 0))
+				 (setf (ldb (byte 8 0) retval) (aref octets 1))
+				 (setf (ldb (byte 8 8) retval) (aref octets 0))
+				 (assert (or (= #xfffe retval) (= #xfeff retval)) () "decode-ucs: invalid byte order mark ~x" retval)
+				 retval)))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; MP3 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defclass mp3-stream (base-file-stream)
-  ((mp3-header :accessor mp3-header :initform nil))
-  (:documentation "Class to access mp3 files"))
+	  ;; special case: empty (and mis-coded) string
+	  (cond ((zerop (length octets))
+			 (make-string 0))
+			(t
+			 ;;
+			 ;; else, we have a (hopefully) properly encoded string
+			 (let ((bom (get-byte-order-mark octets)))
+			   (ecase (the fixnum bom)
+				 (#xfffe (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2le))
+				 (#xfeff (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2be))
+				 (0      (make-string 0))))))))
 
-(defun make-mp3-stream (filename read-only &key)
-  "Convenience function to create an instance of MP3-FILE with appropriate init args.
-NB: we assume non-syncsafe as default"
-  (log5:with-context "make-mp3-stream"
-	(log-stream "opening ~a, read-only = ~a" filename read-only)
-	(let (handle)
+;;
+;; decode octets as a ucs-be string (encoding == 2)
+(defun stream-decode-ucs-be-string (octets &key (start 0) (end nil))
+  (ccl:decode-string-from-octets octets :start start :end end :external-format :ucs-2be))
+
+;;
+;; decode octets as a utf-8 string
+(defun stream-decode-utf-8-string (octets &key (start 0) (end nil))
+  (ccl:decode-string-from-octets octets :start start :end end :external-format :utf-8))
+
+;;
+;; decode octets depending on encoding
+(defun stream-decode-string (octets &key (start 0) (end nil) (encoding 0))
+  (ecase encoding
+	(0 (stream-decode-iso-string octets :start start :end end))
+	(1 (stream-decode-ucs-string octets :start start :end end))
+	(2 (stream-decode-ucs-be-string octets :start start :end end))
+	(3 (stream-decode-utf-8-string octets :start start :end end))))
+
+;;
+;; read an iso-8859-1 string of length 'len' (encoding = 0)
+(defmethod stream-read-iso-string-with-len ((instream base-stream) len)
+  (let ((octets (stream-read-sequence instream len)))
+	(stream-decode-iso-string octets)))
+
+;;
+;; read an ucs-2 string of length 'len' (encoding = 1)
+(defmethod stream-read-ucs-string-with-len ((instream base-stream) len)
+  (let ((octets (stream-read-sequence instream len)))
+	  (stream-decode-ucs-string octets)))
+
+;;
+;; read an ucs-2-be string of length 'len' (encoding = 2)
+(defmethod stream-read-ucs-be-string-with-len ((instream base-stream) len)
+  (let ((octets (stream-read-sequence instream len)))
+	(stream-decode-ucs-be-string octets)))
+
+;;
+;; read an utf-8 string of length 'len' (encoding = 3)
+(defmethod stream-read-utf-8-string-with-len ((instream base-stream) len)
+  (let ((octets (stream-read-sequence instream len)))
+	(stream-decode-utf-8-string octets)))
+
+;;
+;; Read in a string of a given encoding of length 'len'
+(defmethod stream-read-string-with-len ((instream base-stream) len &key (encoding 0))
+  ;(format t "s-wth-len: ~a, ~d, ~d~%" instream len encoding)
+  (ecase encoding
+	(0 (stream-read-iso-string-with-len instream len))
+	(1 (stream-read-ucs-string-with-len instream len))
+	(2 (stream-read-ucs-be-string-with-len instream len))
+	(3 (stream-read-utf-8-string-with-len instream len))))
+
+;;
+;; Read in a null terminated iso-8859-1 string
+(defmethod stream-read-iso-string ((instream base-stream))
+  (let ((octets (ccl:with-output-to-vector (out)
+				  (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
+					  (nil)
+					(when (zerop b)
+					  (return))			; leave loop w/o writing
+					(write-byte b out)))))
+	(stream-decode-iso-string octets)))
+
+;;
+;; Read in a null terminated ucs string 
+(defmethod stream-read-ucs-string ((instream base-stream))
+  (let ((octets (ccl:with-output-to-vector (out)
+				  (do* ((b0 (stream-read-u8 instream)
+							(stream-read-u8 instream))
+						(b1 (stream-read-u8 instream)
+							(stream-read-u8 instream)))
+					   (nil)
+					(when (and (zerop b0) (zerop b1))
+					  (return))
+					(write-byte b0 out)
+					(write-byte b1 out)))))
+	(stream-decode-ucs-string octets)))
+
+;;
+;; Read in a null terminated ucs-be string
+(defmethod stream-read-ucs-be-string ((instream base-stream))
+  (let ((octets (ccl:with-output-to-vector (out)
+				  (do* ((b0 (stream-read-u8 instream)
+							(stream-read-u8 instream))
+						(b1 (stream-read-u8 instream)
+							(stream-read-u8 instream)))
+					   (nil)
+					(when (and (zerop b0) (zerop b1))
+					  (return))
+					(write-byte b0 out)
+					(write-byte b1 out)))))
+	(stream-decode-ucs-be-string octets)))
+
+;;
+;; Read in a null terminated utf-8 string (encoding == 3)
+(defmethod stream-read-utf-8-string ((instream base-stream))
+  (let ((octets (ccl:with-output-to-vector (out)
+				  (do ((b (stream-read-u8 instream)
+						  (stream-read-u8 instream)))
+					  (nil)
+					(when (zerop b)
+					  (return))
+					(write-byte b out)))))
+	(stream-decode-utf-8-string octets)))
+
+;;
+;; Read in a null terminated string of a given encoding
+(defmethod stream-read-string ((instream base-stream) &key (encoding 0))
+  (ecase encoding
+	(0 (stream-read-iso-string instream))
+	(1 (stream-read-ucs-string instream))
+	(2 (stream-read-ucs-be-string instream))
+	(3 (stream-read-utf-8-string instream))))
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; FILES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defun parse-mp4-file (filename)
+  (let (stream)
+	(handler-case
+		(progn
+		  (setf stream (make-file-stream 'mp4-file-stream filename))
+		  (mp4-atom:find-mp4-atoms stream))
+	  (mp4-atom:mp4-atom-condition (c)
+		(warn "make-mp4-stream got condition: ~a" c)
+		(when stream (stream-close stream))
+		(setf stream nil)))
+	stream))
+
+(defun parse-mp3-file (filename)
+  (let (stream)
 	  (handler-case
 		  (progn
-			(setf handle (make-instance 'mp3-stream :filename filename :endian :big-endian :read-only read-only))
-			(with-slots (mp3-header) handle
-			  (log-stream "getting frames")
-			  (setf mp3-header (mp3-frame:find-mp3-frames handle))))
-		(condition (c)
+			(setf stream (make-file-stream 'mp3-file-stream filename))
+			(mp3-frame:find-mp3-frames stream))
+		(mp3-frame:mp3-frame-condition (c)
 		  (warn "make-mp3-stream got condition: ~a" c)
-		  (when handle (stream-close handle))
-		  (setf handle nil)))
-	  handle)))
-
-(defmethod stream-read-sync-safe-u32 ((me mp3-stream))
-  "Read a sync-safe integer from file.  Used by mp3 files"
-  (read-octets (slot-value me 'instream) 4 :bits-per-byte 7 :endian :little-endian))
-
-
-#|
-(defun tst ()
-  (let ((foo (ccl:with-output-to-vector (f) 
-			   (write-byte #xDE f)
-			   (write-byte #xAD f)
-			   (write-byte #xBE f)
-			   (write-byte #xEF f))))
-	(ccl:with-input-from-vector (f foo)
-	  (format t "Length is ~d~%" (ccl::stream-length f))
-	  (dotimes (j 2)
-		(format t "Iteration ~d~%" j)
-		(ccl::stream-position f 0)
-		(dotimes (i (ccl::stream-length f))
-		  (format t "~d: ~x~%" i (read-byte f)))))))
-|#
+		  (when stream (stream-close stream))
+		  (setf stream nil)))
+	stream))
