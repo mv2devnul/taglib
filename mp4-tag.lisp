@@ -39,6 +39,7 @@
 
 (defmethod show-tags ((me mp4-file-stream) &key (raw nil))
   "Show the tags for an MP4-FILE"
+  (format t "~a~%" (stream-filename me))
   (if raw
 	  (mp4-atom:mp4-show-raw-tag-atoms me)
 	  (let ((album (album me))
@@ -60,7 +61,6 @@
 			(track (track me))
 			(writer (writer me))
 			(year (year me)))
-		(format t "~a~%" (stream-filename me))
 		(when album (format t "~4talbum: ~a~%" album))
 		(when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
 		(when artist (format t "~4tartist: ~a~%" artist))

@@ -53,7 +53,7 @@
 		  (string= tag "TAG")))))
 
 (defclass v21-tag-header ()
-  ((songname :accessor songname :initarg :songname :initform nil)
+  ((title :accessor title :initarg :title :initform nil)
    (artist   :accessor artist   :initarg :artist   :initform nil)
    (album    :accessor album    :initarg :album    :initform nil)
    (year     :accessor year     :initarg :year     :initform nil)
@@ -69,16 +69,16 @@
 (defmethod print-object ((me v21-tag-header) stream)
   (if (null *pprint-mp3-frame*)
 	  (call-next-method)
-	  (with-slots (songname artist album year comment genre) me
-		(format stream "songname = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, genre = ~d"
-				songname artist album year comment genre))))
+	  (with-slots (title artist album year comment genre) me
+		(format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, genre = ~d"
+				title artist album year comment genre))))
 
 (defmethod initialize-instance ((me v21-tag-header) &key instream)
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (log5:with-context "v21-frame-initializer"
 	(log-mp3-frame "reading v2.1 tag")
-	(with-slots (songname artist album year comment genre) me
-	  (setf songname (trim-string (stream-read-string-with-len instream 30)))
+	(with-slots (title artist album year comment genre) me
+	  (setf title (trim-string (stream-read-string-with-len instream 30)))
 	  (setf artist   (trim-string (stream-read-string-with-len instream 30)))
 	  (setf album    (trim-string (stream-read-string-with-len instream 30)))
 	  (setf year     (trim-string (stream-read-string-with-len instream 4)))
@@ -280,7 +280,6 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-rev (raw-frame) ())
 (defclass frame-rva (raw-frame) ())
 (defclass frame-slt (raw-frame) ())
-(defclass frame-ult (raw-frame) ())
 (defclass frame-waf (raw-frame) ())
 (defclass frame-war (raw-frame) ())
 (defclass frame-was (raw-frame) ())
@@ -301,17 +300,17 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
   ((encoding :accessor encoding)
    (lang     :accessor lang)
    (desc	 :accessor desc)
-   (text	 :accessor text)))
+   (val	     :accessor val)))
 
 (defmethod initialize-instance :after ((me frame-com) &key instream)
   (log5:with-context "frame-com"
-	(with-slots (len encoding lang desc text) me
+	(with-slots (len encoding lang desc val) me
 	  (setf encoding (stream-read-u8 instream))
 	  (setf lang (stream-read-iso-string-with-len instream 3))
 	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
 		(setf desc n)
-		(setf text v))
-	  (log-mp3-frame "encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc text))))
+		(setf val v))
+	  (log-mp3-frame "encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc val))))
 
 
 (defmethod print-object :after ((me frame-com) stream)
@@ -397,22 +396,22 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-txx (id3-frame)
   ((encoding :accessor encoding)
    (desc     :accessor desc)
-   (value    :accessor value)))
+   (val      :accessor val)))
 
 (defmethod initialize-instance :after ((me frame-txx) &key instream)
   (log5:with-context "frame-txx"
-	(with-slots (len encoding desc value) me
+	(with-slots (len encoding desc val) me
 	  (setf encoding (stream-read-u8 instream))
 	  (multiple-value-bind (n v) (get-name-value-pair instream (1- len) encoding encoding)
 		(setf desc n)
-		(setf value v)
-		(log-mp3-frame "encoding = ~d, desc = <~a>, value = <~a>" encoding desc value)))))
+		(setf val v)
+		(log-mp3-frame "encoding = ~d, desc = <~a>, val = <~a>" encoding desc val)))))
 
 (defmethod print-object :after ((me frame-txx) stream)
   (if (null *pprint-mp3-frame*)
 	  (call-next-method)
-	  (with-slots (len encoding desc value) me
-		(format stream "frame-txx, encoding = ~d, desc = <~a>, value = <~a>" encoding desc value))))
+	  (with-slots (len encoding desc val) me
+		(format stream "frame-txx, encoding = ~d, desc = <~a>, val = <~a>" encoding desc val))))
 (defmethod vpprint ((me frame-txx) stream &key (indent 0))
   (let ((*pprint-mp3-frame* t))
 	(format stream "~vt~a" (* indent 1) me)))
@@ -475,6 +474,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-txt (frame-text-info) ())
 (defclass frame-tye (frame-text-info) ())
 
+(defclass frame-ult (frame-com) ())
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; V2.3/4 frames
@@ -512,7 +513,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-sylt (raw-frame) ())
 (defclass frame-sytc (raw-frame) ())
 (defclass frame-user (raw-frame) ())
-(defclass frame-uslt (raw-frame) ())
+
 
 ;; APIC
 ;; <Header for 'Attached picture', ID: "APIC">
@@ -640,29 +641,30 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-txxx (id3-frame)
   ((encoding :accessor encoding)
    (desc     :accessor desc)
-   (value    :accessor value)))
+   (val      :accessor val)))
 
 (defmethod initialize-instance :after ((me frame-txxx) &key instream)
   (log5:with-context "frame-txxx"
-	(with-slots (encoding len desc value) me
+	(with-slots (encoding len desc val) me
 	  (setf encoding (stream-read-u8 instream))
 	  (multiple-value-bind (n v) (get-name-value-pair instream
 													  (- len 1)
 													  encoding
 													  encoding)
 		(setf desc n)
-		(setf value v))
-	  (log-mp3-frame "encoding = ~d, desc = <~a>, value = <~a>" encoding desc value))))
+		(setf val v))
+	  (log-mp3-frame "encoding = ~d, desc = <~a>, value = <~a>" encoding desc val))))
 
 (defmethod print-object :after ((me frame-txxx) stream)
   (if (null *pprint-mp3-frame*)
 	  (call-next-method)
-	  (format stream "frame-txxx: <~s/~s>" (desc me) (value me))))
+	  (format stream "frame-txxx: <~s/~s>" (desc me) (val me))))
 (defmethod vpprint ((me frame-txxx) stream &key (indent 0))
   "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
   (let ((*pprint-mp3-frame* t))
 	(format stream "~vt~a" (* indent 1) me)))
 
+(defclass frame-uslt (frame-comm) ())
 
 ;; UFID frames
 ;; <Header for 'Unique file identifier', ID: "UFID">
@@ -894,8 +896,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 	(log5:with-context "find-mp3-frames"
 	  (when (not (is-valid-mp3-file mp3-file))
-		(log-mp3-frame "~a is not an mp3 file" mp3-file)
-		(error 'mp3-frame-condition :location "find-mp3-frames" :object mp3-file :message "is not an mp3 file"))
+		(log-mp3-frame "~a is not an mp3 file" (stream-filename mp3-file))
+		(error 'mp3-frame-condition :location "find-mp3-frames" :object (stream-filename mp3-file) :message "is not an mp3 file"))
 
 	  (log-mp3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
 
@@ -910,13 +912,16 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 			  (setf ext-header (make-instance 'mp3-extended-header :instream mem-stream)))
 			(multiple-value-bind (_ok _frames) (read-loop version mem-stream)
 			  (if (not _ok)
-				  (warn "had an error finding mp3 frames. potentially missed frames!"))
-			  (log-mp3-frame "ok = ~a, returing ~d frames" _ok (length _frames))
+				  (warn "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
+			  (log-mp3-frame "ok = ~a, returning ~d frames" _ok (length _frames))
 			  (setf frames _frames)
 			  _ok)))))))
 
 (defun get-frame-info (mp3-file frame-id)
-  (with-slots (frames version) (mp3-header mp3-file)
+  (with-slots (frames) (mp3-header mp3-file)
 	(dolist (f frames)
 	  (if (string= frame-id (id f))
 		  (return-from get-frame-info f)))))
+
+(defun mp3-map-frames (mp3-file &key (func (constantly t)))
+  (mapcar func (frames (mp3-header mp3-file))))

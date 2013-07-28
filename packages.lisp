@@ -49,8 +49,9 @@
   (:use #:common-lisp #:audio-streams))
 
 (defpackage :mp3-frame
-  (:export :mp3-frame #:find-mp3-frames #:mp3-frame-condition #:vpprint #:header :get-frame-info
-		   :v21-tag-header :info :version)
+  (:export :mp3-frame #:find-mp3-frames :mp3-frame-condition #:vpprint #:header :get-frame-info
+		   :encoding :lang :desc :val :comment :artist :album :year :comment :year
+		   :mp3-map-frames :frames :year :title :genre :id :v21-tag-header :info :version)
   (:use :common-lisp :audio-streams))
 
 (defpackage :mp3-tag

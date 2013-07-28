@@ -65,12 +65,12 @@
 								   (when file (mp3-tag:show-tags file)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defun test2 (&key (dir "Queen"))
+(defun test2 (&key (dir "Queen") (raw nil))
   (set-pathname-encoding-for-osx)
   (osicat:walk-directory dir (lambda (f)
 							   (if (has-extension f "mp3")
 								   (let ((file (mp3-test0 f)))
-									 (when file (mp3-tag:show-tags file)))
+									 (when file (mp3-tag:show-tags file :raw raw)))
 								   (if (has-extension f "m4a")
 									   (let ((file (mp4-test0 f)))
-										 (when file (mp4-tag:show-tags file))))))))
+										 (when file (mp4-tag:show-tags file :raw raw))))))))

@@ -145,7 +145,10 @@
 			   (let ((retval 0))
 				 (setf (ldb (byte 8 0) retval) (aref octets 1))
 				 (setf (ldb (byte 8 8) retval) (aref octets 0))
-				 (assert (or (= #xfffe retval) (= #xfeff retval)) () "decode-ucs: invalid byte order mark ~x" retval)
+				 (when (not (or (= #xfffe retval) (= #xfeff retval)))
+				   (warn "got an invalid byte-order mark of ~x" retval)
+				   ; what do I do here... XXX
+				   )
 				 retval)))
 
 	  ;; special case: empty (and mis-coded) string
