@@ -17,9 +17,6 @@
 (defmethod print-object ((me mp3-frame-condition) stream)
   (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
 
-(defparameter *pprint-mp3-frame* nil
-  "Controls whether we pretty print frame data")
-
 (defclass mp3-id3-header ()
   ((version        :accessor version        :initarg :version        :initform 0)
    (revision       :accessor revision       :initarg :revision       :initform 0)
@@ -217,6 +214,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defparameter *max-raw-bytes-print-len* 10)
 (defun printable-array (array)
+  "given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
   (let* ((len (length array))
 		 (print-len (min len *max-raw-bytes-print-len*))
 		 (printable-array (make-array print-len :displaced-to array)))
@@ -278,7 +276,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (setf lang (stream-read-iso-string-with-len instream 3))
 	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
 		(setf desc n)
-		(setf val v))
+		(let ((len (1- (length v))))
+		  (if (and (> len 0) (eq #\Null (aref v len))) ; iTunes broken-ness... maybe this should be done on rendering the comment instead of here?
+			  (setf val (make-array len :displaced-to v))
+			  (setf val v))))
 	  (log-mp3-frame "encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc val))))
 
 (defmethod vpprint ((me frame-com) stream)
@@ -507,9 +508,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (setf lang (stream-read-iso-string-with-len instream 3))
 	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
 		(setf desc n)
-		(if (eq #\Null (aref v (1- (length v)))) ; iTunes broken-ness... maybe this should be done on rendering the comment instead of here?
-			(setf val (make-array (1- (length v)) :displaced-to v))
-			(setf val v)))
+		(let ((len (1- (length v))))
+		  (if (and (> len 0) (eq #\Null (aref v len))) ; iTunes broken-ness... maybe this should be done on rendering the comment instead of here?
+			  (setf val (make-array len :displaced-to v))
+			  (setf val v))))
 	  (log-mp3-frame "encoding = ~d, lang = <~a>, desc = <~a>, val = <~a>" encoding lang desc val))))
 
 (defmethod vpprint ((me frame-comm) stream)

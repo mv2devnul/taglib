@@ -12,6 +12,7 @@
   (:report (lambda (condition stream)
 			 (format stream "mp4-atom condition at location: <~a> with object: <~a>: message: <~a>"
 					 (location condition) (object condition) (message condition)))))
+
 (defmethod print-object ((me mp4-atom-condition) stream)
   (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
 
@@ -287,26 +288,15 @@ seek forward past end of this atom."
 	  (log-mp4-atom "returning ~a" (vpprint atom nil))
 	  atom)))
 
-(defparameter *pprint-mp4-atom* nil
-  "Controls whether we pretty print an atom")
-
-(defmethod print-object ((me mp4-atom) stream)
-  (if (null *pprint-mp4-atom*)
-	  (call-next-method)
-	  ;; else
-	  (format stream "~a" (with-output-to-string (s)
-							(with-slots (atom-children atom-file-position atom-size atom-type) me
-							  (format s "Atom <~a> @ ~:d of size ~:d and child count of ~d"
-									  (as-string atom-type) atom-file-position atom-size (size atom-children)))
-							(if (typep me 'mp4-ilst-generic-data-atom)
-								(with-slots (atom-version atom-flags atom-value atom-type atom-parent-type) me
-								  (format s " having ilst fields: atom-parent-type = ~a, verison = ~d, flags = ~x, data = ~x"
-										  (as-string atom-parent-type) atom-version atom-flags atom-value)))))))
-
-(defmethod vpprint ((me mp4-atom) stream &key (indent 0))
-  "set *pprint-mp4-atom* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp4-atom* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me mp4-atom) stream)
+  (format stream "~a" (with-output-to-string (s)
+						(with-slots (atom-children atom-file-position atom-size atom-type) me
+						  (format s "Atom <~a> @ ~:d of size ~:d and child count of ~d"
+								  (as-string atom-type) atom-file-position atom-size (size atom-children)))
+						(if (typep me 'mp4-ilst-generic-data-atom)
+							(with-slots (atom-version atom-flags atom-value atom-type atom-parent-type) me
+							  (format s " having ilst fields: atom-parent-type = ~a, verison = ~d, flags = ~x, data = ~x"
+									  (as-string atom-parent-type) atom-version atom-flags atom-value))))))
 
 (defclass mp4-unhandled-data ()
   ((blob :accessor blob :initarg :blob :initform nil))
@@ -380,7 +370,7 @@ The 'right' atoms are those in *atoms-of-interest*"
   "traverse all atoms under a given atom"
   (log5:with-context "map-mp4-atom(single)"
 	(labels ((_indented-atom (atom depth)
-			   (format t "~a~%" (vpprint atom nil :indent (if (null depth) 0 depth)))))
+			   (format t "~vt~a~%"  (if (null depth) 0 depth) (vpprint atom nil))))
 	  (with-slots (atom-type atom-children) me
 		(log-mp4-atom "Begining traversal with ~a, I have ~d children" (as-string atom-type) (size atom-children))
 		(when (null func)
@@ -438,8 +428,8 @@ call traverse atom (unless length of path == 1, in which case, we've found out m
   (map-mp4-atom (mp4-atom::traverse (mp4-atoms mp4-file-stream)
 									(list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+))
 				:depth 0
-				:func (lambda (atom depth)
+				:func (lambda (atom)
 						(when (= (atom-type atom) +itunes-ilst-data+)
-						  (format t "~4t~a~%" (vpprint atom nil :indent (if (null depth) 0 depth)))))))
+						  (format t "~4t~a~%" (vpprint atom nil))))))
 
 

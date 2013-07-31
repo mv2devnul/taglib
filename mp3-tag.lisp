@@ -221,7 +221,7 @@
 	  (let ((count)
 			(end)
 			(str (info (first frames))))
-		(when (eq #\( (aref str 0))
+		(when (and (>= (length str) 1) (eq #\( (aref str 0)))
 		  (setf count (count #\( str))
 		  (when (> count 1) (warn "Don't support genre refinement yet, found ~d genres" count))
 		  (setf end (position #\) str))
@@ -323,7 +323,7 @@
   nil)
 
 (defmethod show-tags ((me mp3-file-stream) &key (raw nil))
-  "Show the tags for an mp3-file"
+  "Show the tags for an mp3-file.  If RAW is non-nil, dump all the frames; else, print out a subset."
   (if raw
 	  (format t "~a:~a~%" (stream-filename me) (with-output-to-string (s) (mp3-frame:vpprint (audio-streams:mp3-header me) s)))
 	  (let ((album (album me))
