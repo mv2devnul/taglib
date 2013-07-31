@@ -58,11 +58,11 @@
 (defun mp3-test1 ()
   (mp3-test0 *song-mp3*))
 
-(defun mp3-test2 (&key (dir "Queen"))
+(defun mp3-test2 (&key (dir "Queen") (raw nil))
   (osicat:walk-directory dir (lambda (f)
 							   (when (has-extension f "mp3")
 								 (let ((file (mp3-test0 f)))
-								   (when file (mp3-tag:show-tags file)))))))
+								   (when file (mp3-tag:show-tags file :raw raw)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun test2 (&key (dir "Queen") (raw nil))

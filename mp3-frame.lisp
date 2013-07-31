@@ -30,11 +30,6 @@
    (v21-tag-header :accessor v21-tag-header :initarg :v21-tag-header :initform nil))
   (:documentation "The ID3 header, found at start of file"))
 
-(defmethod vpprint ((me mp3-id3-header) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
-
 (defun is-valid-mp3-file (mp3-file)
   "Make sure this is an MP3 file. Look for frames at begining and/or end"
   (log5:with-context "is-valid-mp3-file"
@@ -61,17 +56,10 @@
    (genre    :accessor genre    :initarg :genre    :initform nil))
   (:documentation "ID3 V2.1 old-style tag.  If present, found in last 128 bytes of file."))
 
-(defmethod vpprint ((me v21-tag-header) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
-
-(defmethod print-object ((me v21-tag-header) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (title artist album year comment genre) me
-		(format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, genre = ~d"
-				title artist album year comment genre))))
+(defmethod vpprint ((me v21-tag-header) stream)
+  (with-slots (title artist album year comment genre) me
+	(format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, genre = ~d (~a)"
+			title artist album year comment genre (mp3-tag::get-id3v1-genre genre))))
 
 (defmethod initialize-instance ((me v21-tag-header) &key instream)
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
@@ -93,11 +81,6 @@
    (crc	    :accessor crc     :initarg :crc     :initform nil))
   (:documentation "class representing a V2.3/4 extended header"))
 
-;; (defmethod vpprint ((me mp3-ext-header) stream &key (indent 0))
-;;   "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-;;   (let ((*pprint-mp3-frame* t))
-;; 	(format stream "~vt~a" (* indent 1) me)))
-
 (defmacro ext-header-crc-p (flags)	 `(logbitp 15 ,flags))
 
 (defmethod initialize-instance ((me mp3-ext-header) &key instream)
@@ -110,20 +93,14 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	(when (ext-header-crc-p flags)
 	  (setf crc (stream-read-u32 instream)))))
 
-(defmethod print-object ((me mp3-ext-header) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (size flags padding crc) me
-		(format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x~%"
-				size flags padding crc))))
-(defmethod vpprint ((me mp3-ext-header) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me mp3-ext-header) stream)
+  (with-slots (size flags padding crc) me
+	(format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x~%"
+			size flags padding crc)))
 
 (defmacro header-unsynchronized-p (flags) `(logbitp 7 ,flags))
 (defmacro header-extended-p (flags)       `(logbitp 6 ,flags))
-(defmacro header-experimental-p (flags)   `(logbitp 5 ,flags)) 
+(defmacro header-experimental-p (flags)   `(logbitp 5 ,flags))
 (defmacro header-footer-p (flags)		  `(logbitp 4 ,flags)) ;; N.B. *NOT* defined for 2.3 tags
 
 (defmacro print-header-flags (stream flags)
@@ -134,20 +111,20 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		   (header-experimental-p ,flags)
 		   (header-footer-p ,flags)))
 
-(defmethod print-object ((me mp3-id3-header) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (version revision flags v21-tag-header size ext-header frames) me
-		(format stream "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
-				version revision (print-header-flags nil flags) size
-				(if (header-extended-p flags)
-					(concatenate 'string "Extended header: " (vpprint ext-header nil))
-					"No extended header")
-				(if v21-tag-header
-					(concatenate 'string "V21 tag:" (vpprint v21-tag-header nil))
-					"No v21 tag"))
+(defmethod vpprint ((me mp3-id3-header) stream)
+  (with-slots (version revision flags v21-tag-header size ext-header frames) me
+	(format stream "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
+			version revision (print-header-flags nil flags) size
+			(if (header-extended-p flags)
+				(concatenate 'string "Extended header: " (vpprint ext-header nil))
+				"No extended header")
+			(if v21-tag-header
+				(concatenate 'string "V21 tag: " (vpprint v21-tag-header nil))
+				"No v21 tag"))
 		(when frames
-		  (format stream "~&~4tFrames[~d]:~%~{~8t~a~^~%~}" (length frames) frames)))))
+		  (format stream "~&~4tFrames[~d]:~%" (length frames))
+		  (dolist (f frames)
+			(format stream "~8t~a~%" (vpprint f nil))))))
 
 (defmethod initialize-instance :after ((me mp3-id3-header) &key instream &allow-other-keys)
   "Fill in an mp3-header from INSTREAM."
@@ -202,39 +179,37 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	(3 (zerop (logand #b0001111100011111 frame-flags)))
 	(4 (zerop (logand #b1000111110110000 frame-flags)))))
 
-(defmethod print-object ((me id3-frame) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (pos version id len flags) me
-		(format stream "@offset: ~:d, <version = ~d, id: ~s, len: ~:d "
-				pos version id len)
-		(if flags
-			(ecase version
-			  (3 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~], "
-						 flags
-						 (frame-23-altertag-p flags)
-						 (frame-23-alterfile-p flags)
-						 (frame-23-readonly-p flags)
-						 (frame-23-compress-p flags)
-						 (frame-23-encrypt-p flags)
-						 (frame-23-group-p flags)))
-			  (4 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
-						 flags
-						 (frame-24-altertag-p flags)
-						 (frame-24-alterfile-p flags)
-						 (frame-24-readonly-p flags)
-						 (frame-24-groupid-p flags)
-						 (frame-24-compress-p flags)
-						 (frame-24-encrypt-p flags)
-						 (frame-24-unsynch-p flags)
-						 (frame-24-datalen-p flags))))))))
+(defun vpprint-frame-header (id3-frame)
+  (with-output-to-string (stream)
+	(with-slots (pos version id len flags) id3-frame
+	  (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d " pos version id len)
+	  (if flags
+		  (ecase version
+			(3 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~]"
+					   flags
+					   (frame-23-altertag-p flags)
+					   (frame-23-alterfile-p flags)
+					   (frame-23-readonly-p flags)
+					   (frame-23-compress-p flags)
+					   (frame-23-encrypt-p flags)
+					   (frame-23-group-p flags)))
+			(4 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
+					   flags
+					   (frame-24-altertag-p flags)
+					   (frame-24-alterfile-p flags)
+					   (frame-24-readonly-p flags)
+					   (frame-24-groupid-p flags)
+					   (frame-24-compress-p flags)
+					   (frame-24-encrypt-p flags)
+					   (frame-24-unsynch-p flags)
+					   (frame-24-datalen-p flags))))))))
 
-(defclass raw-frame (id3-frame)
+(defclass frame-raw (id3-frame)
   ((octets :accessor octets :initform nil))
   (:documentation "Frame class that slurps in frame contents"))
 
-(defmethod initialize-instance :after ((me raw-frame) &key instream)
-  (log5:with-context "raw-frame"
+(defmethod initialize-instance :after ((me frame-raw) &key instream)
+  (log5:with-context "frame-raw"
 	(with-slots (pos len octets) me
 	  (log-mp3-frame "reading ~:d bytes from position ~:d" len pos)
 	  (setf octets (stream-read-sequence instream len))
@@ -250,44 +225,38 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defun upto-null (string)
   (subseq string 0 (position #\Null string)))
 
-(defmethod print-object :after ((me raw-frame) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (octets) me
-		(format stream "~a" (printable-array octets)))))
-(defmethod vpprint ((me raw-frame) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-raw) stream)
+  (with-slots (octets) me
+	(format stream "frame-raw: ~a, ~a" (vpprint-frame-header me) (printable-array octets))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; V22 frames
 ;;
 
 ;;; frame I haven't parsed (or don't need to parse)
-(defclass frame-buf (raw-frame) ())
-(defclass frame-cnt (raw-frame) ())
-(defclass frame-cra (raw-frame) ())
-(defclass frame-crm (raw-frame) ())
-(defclass frame-equ (raw-frame) ())
-(defclass frame-etc (raw-frame) ())
-(defclass frame-geo (raw-frame) ())
-(defclass frame-ipl (raw-frame) ())
-(defclass frame-lnk (raw-frame) ())
-(defclass frame-mci (raw-frame) ())
-(defclass frame-mll (raw-frame) ())
-(defclass frame-pop (raw-frame) ())
-(defclass frame-rev (raw-frame) ())
-(defclass frame-rva (raw-frame) ())
-(defclass frame-slt (raw-frame) ())
-(defclass frame-waf (raw-frame) ())
-(defclass frame-war (raw-frame) ())
-(defclass frame-was (raw-frame) ())
-(defclass frame-wcm (raw-frame) ())
-(defclass frame-wcp (raw-frame) ())
-(defclass frame-wpb (raw-frame) ())
-(defclass frame-wxx (raw-frame) ())
-(defclass frame-stc (raw-frame) ())
+(defclass frame-buf (frame-raw) ())
+(defclass frame-cnt (frame-raw) ())
+(defclass frame-cra (frame-raw) ())
+(defclass frame-crm (frame-raw) ())
+(defclass frame-equ (frame-raw) ())
+(defclass frame-etc (frame-raw) ())
+(defclass frame-geo (frame-raw) ())
+(defclass frame-ipl (frame-raw) ())
+(defclass frame-lnk (frame-raw) ())
+(defclass frame-mci (frame-raw) ())
+(defclass frame-mll (frame-raw) ())
+(defclass frame-pop (frame-raw) ())
+(defclass frame-rev (frame-raw) ())
+(defclass frame-rva (frame-raw) ())
+(defclass frame-slt (frame-raw) ())
+(defclass frame-waf (frame-raw) ())
+(defclass frame-war (frame-raw) ())
+(defclass frame-was (frame-raw) ())
+(defclass frame-wcm (frame-raw) ())
+(defclass frame-wcp (frame-raw) ())
+(defclass frame-wpb (frame-raw) ())
+(defclass frame-wxx (frame-raw) ())
+(defclass frame-stc (frame-raw) ())
 
 ;; COM frames
 ;; Comment                   "COM"
@@ -312,15 +281,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf val v))
 	  (log-mp3-frame "encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc val))))
 
-
-(defmethod print-object :after ((me frame-com) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (len encoding lang desc text) me
-		(format stream "frame-com, encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc text))))
-(defmethod vpprint ((me frame-com) stream &key (indent 0))
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-com) stream)
+  (with-slots (len encoding lang desc val) me
+	(format stream "frame-com: ~a,  encoding = ~d, lang = <~a>, desc = <~a>, val = <~a>" (vpprint-frame-header me) encoding lang desc val)))
 
 ;; v22 PIC
 ;; Attached picture   "PIC"
@@ -349,15 +312,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(log-mp3-frame "encoding: ~d, img-format = <~a>, type = ~d, desc = <~a>, value = ~a"
 				   encoding img-format type desc (printable-array data))))))
 
-(defmethod print-object :after ((me frame-pic) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (encoding img-format type desc data) me
-		(format stream "frame-pic: encoding ~d, img-format type: <~a>, picture type: ~d, description <~s>, data: ~a"
-				encoding img-format type desc (printable-array data)))))
-(defmethod vpprint ((me frame-pic) stream &key (indent 0))
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-pic) stream)
+  (with-slots (encoding img-format type desc data) me
+	(format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d, description <~a>, data: ~a"
+			(vpprint-frame-header me) encoding img-format type desc (printable-array data))))
 
 ;; Generic text-info frames
 ;; Text information identifier  "T00" - "TZZ" , excluding "TXX", or "T000 - TZZZ", excluding "TXXX"
@@ -378,15 +336,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 	  (log-mp3-frame "encoding = ~d, info = <~a>" encoding info))))
 
-(defmethod print-object :after ((me frame-text-info) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (len encoding info) me
-		(format stream "frame-text-info, encoding = ~d, info = <~a>" encoding info))))
-(defmethod vpprint ((me frame-text-info) stream &key (indent 0))
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
 
+(defmethod vpprint ((me frame-text-info) stream)
+  (with-slots (len encoding info) me
+	(format stream "frame-text-info: ~a, encoding = ~d, info = <~a>" (vpprint-frame-header me) encoding info)))
 
 ;; v22 User defined...   "TXX" frames
 ;; Frame size        $xx xx xx
@@ -407,14 +360,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf val v)
 		(log-mp3-frame "encoding = ~d, desc = <~a>, val = <~a>" encoding desc val)))))
 
-(defmethod print-object :after ((me frame-txx) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (len encoding desc val) me
-		(format stream "frame-txx, encoding = ~d, desc = <~a>, val = <~a>" encoding desc val))))
-(defmethod vpprint ((me frame-txx) stream &key (indent 0))
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-txx) stream)
+  (with-slots (len encoding desc val) me
+	(format stream "frame-txx: ~a, encoding = ~d, desc = <~a>, val = <~a>" (vpprint-frame-header me) encoding desc val)))
 
 (defclass frame-ufi (id3-frame)
   ((name  :accessor name)
@@ -428,14 +376,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf value v))
 	  (log-mp3-frame "name = <~a>, value = ~a" name (printable-array value)))))
 
-(defmethod print-object :after ((me frame-ufi) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (id len name value) me
-		(format stream "frame-ufi: name: <~s>, value: ~a" name (printable-array value)))))
-(defmethod vpprint ((me frame-ufi) stream &key (indent 0))
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-ufi) stream)
+  (with-slots (id len name value) me
+	(format stream "frame-ufi: ~a, name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 (defclass frame-tal (frame-text-info) ())
 (defclass frame-tbp (frame-text-info) ())
@@ -486,33 +429,33 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;; Preview start           $xx xx
 ;; Preview length          $xx xx
 ;; Encryption info         <binary data>
-(defclass frame-aenc (raw-frame) ())
+(defclass frame-aenc (frame-raw) ())
 
-(defclass frame-aspi (raw-frame) ())
-(defclass frame-comr (raw-frame) ())
-(defclass frame-encr (raw-frame) ())
-(defclass frame-equ2 (raw-frame) ())
-(defclass frame-equa (raw-frame) ())
-(defclass frame-etco (raw-frame) ())
-(defclass frame-geob (raw-frame) ())
-(defclass frame-grid (raw-frame) ())
-(defclass frame-ipls (raw-frame) ())
-(defclass frame-link (raw-frame) ())
-(defclass frame-mcdi (raw-frame) ())
-(defclass frame-mllt (raw-frame) ())
-(defclass frame-ncon (raw-frame) ())
-(defclass frame-owne (raw-frame) ())
-(defclass frame-popm (raw-frame) ())
-(defclass frame-poss (raw-frame) ())
-(defclass frame-rbuf (raw-frame) ())
-(defclass frame-rva2 (raw-frame) ())
-(defclass frame-rvad (raw-frame) ())
-(defclass frame-rvrb (raw-frame) ())
-(defclass frame-seek (raw-frame) ())
-(defclass frame-sign (raw-frame) ())
-(defclass frame-sylt (raw-frame) ())
-(defclass frame-sytc (raw-frame) ())
-(defclass frame-user (raw-frame) ())
+(defclass frame-aspi (frame-raw) ())
+(defclass frame-comr (frame-raw) ())
+(defclass frame-encr (frame-raw) ())
+(defclass frame-equ2 (frame-raw) ())
+(defclass frame-equa (frame-raw) ())
+(defclass frame-etco (frame-raw) ())
+(defclass frame-geob (frame-raw) ())
+(defclass frame-grid (frame-raw) ())
+(defclass frame-ipls (frame-raw) ())
+(defclass frame-link (frame-raw) ())
+(defclass frame-mcdi (frame-raw) ())
+(defclass frame-mllt (frame-raw) ())
+(defclass frame-ncon (frame-raw) ())
+(defclass frame-owne (frame-raw) ())
+(defclass frame-popm (frame-raw) ())
+(defclass frame-poss (frame-raw) ())
+(defclass frame-rbuf (frame-raw) ())
+(defclass frame-rva2 (frame-raw) ())
+(defclass frame-rvad (frame-raw) ())
+(defclass frame-rvrb (frame-raw) ())
+(defclass frame-seek (frame-raw) ())
+(defclass frame-sign (frame-raw) ())
+(defclass frame-sylt (frame-raw) ())
+(defclass frame-sytc (frame-raw) ())
+(defclass frame-user (frame-raw) ())
 
 
 ;; APIC
@@ -540,16 +483,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf data v)
 		(log-mp3-frame "enoding = ~d, mime = <~a>, type = ~d, descx = <~a>, data = ~a" encoding mime type desc (printable-array data))))))
 
-(defmethod print-object :after ((me frame-apic) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (encoding mime type desc data) me
-		(format stream "frame-apic: encoding ~d, mime type: ~s, picture type: ~d, description <~s>, data: ~a"
-				encoding mime type desc (printable-array data)))))
-(defmethod vpprint ((me frame-apic) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-apic) stream)
+  (with-slots (encoding mime type desc data) me
+	(format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d, description <~a>, data: ~a"
+			(vpprint-frame-header me) encoding mime type desc (printable-array data))))
 
 ;; COMM frames
 ;; <Header for 'Comment', ID: "COMM">
@@ -570,20 +507,17 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (setf lang (stream-read-iso-string-with-len instream 3))
 	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
 		(setf desc n)
-		(setf val v))
+		(if (eq #\Null (aref v (1- (length v)))) ; iTunes broken-ness... maybe this should be done on rendering the comment instead of here?
+			(setf val (make-array (1- (length v)) :displaced-to v))
+			(setf val v)))
 	  (log-mp3-frame "encoding = ~d, lang = <~a>, desc = <~a>, val = <~a>" encoding lang desc val))))
 
-(defmethod print-object :after ((me frame-comm) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (encoding lang desc val) me
-		(format stream "frame-comm: encoding: ~d, lang: ~x, desc: ~s, val ~s"
-				encoding lang desc val))))
-(defmethod vpprint ((me frame-comm) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-comm) stream)
+  (with-slots (encoding lang desc val) me
+	(format stream "frame-comm: ~a,  encoding: ~d, lang: ~x, desc: ~a, val ~a"
+			(vpprint-frame-header me) encoding lang desc val)))
 
+(defclass frame-uslt (frame-comm) ())
 
 ;; PCNT frames
 ;; <Header for 'Play counter', ID: "PCNT">
@@ -594,18 +528,13 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defmethod initialize-instance :after ((me frame-pcnt) &key instream)
   (log5:with-context "frame-pcnt"
 	(with-slots (play-count len) me
-	  (setf play-count (stream-read-sequence instream len)) ;; XXX read this as a number???
-	  (log-mp3-frame "play count = <~a>" play-count))))
+	  (assert (= 4 len) () "Ran into a play count with ~d bytes" len)
+	  (setf play-count (stream-read-u32 instream)) ; probably safe---play count *can* be longer than 4 bytes, but...
+	  (log-mp3-frame "play count = <~d>" play-count))))
 
-(defmethod print-object :after ((me frame-pcnt) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (play-count) me
-		(format stream "frame-pcnt: ~d" play-count))))
-(defmethod vpprint ((me frame-pcnt) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-pcnt) stream)
+  (with-slots (play-count) me
+	(format stream "frame-pcnt: ~a, count = ~d" (vpprint-frame-header me) play-count)))
 
 ;; PRIV frames
 ;; <Header for 'Private frame', ID: "PRIV">
@@ -623,15 +552,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf value v)
 		(log-mp3-frame "name = <~a>, value = <~a>" name value)))))
 
-(defmethod print-object :after ((me frame-priv) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (id len name value) me
-		(format stream "frame-priv: name: <~s>, data: ~a" name (printable-array value)))))
-(defmethod vpprint ((me frame-priv) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-priv) stream)
+  (with-slots (id len name value) me
+	(format stream "frame-priv: ~a, name: <~a>, data: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 ;; TXXX frames
 ;; <Header for 'User defined text information frame', ID: "TXXX">
@@ -655,16 +578,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf val v))
 	  (log-mp3-frame "encoding = ~d, desc = <~a>, value = <~a>" encoding desc val))))
 
-(defmethod print-object :after ((me frame-txxx) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (format stream "frame-txxx: <~s/~s>" (desc me) (val me))))
-(defmethod vpprint ((me frame-txxx) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
-
-(defclass frame-uslt (frame-comm) ())
+(defmethod vpprint ((me frame-txxx) stream)
+  (format stream "frame-txxx: ~a, <~a/~a>" (vpprint-frame-header me) (desc me) (val me)))
 
 ;; UFID frames
 ;; <Header for 'Unique file identifier', ID: "UFID">
@@ -682,15 +597,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf value v))
 	  (log-mp3-frame "name = <~a>, value = ~a" name (printable-array value)))))
 
-(defmethod print-object :after ((me frame-ufid) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (id len name value) me
-		(format stream "frame-ufid: name: <~s>, value: ~a" name (printable-array value)))))
-(defmethod vpprint ((me frame-ufid) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
+(defmethod vpprint ((me frame-ufid) stream)
+  (with-slots (id len name value) me
+	(format stream "frame-ufid: ~a,  name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 ;; URL frame
 ;; <Header for 'URL link frame', ID: "W000" - "WZZZ", excluding "WXXX" described in 4.3.2.>
@@ -704,16 +613,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (setf url (stream-read-iso-string-with-len instream len))
 	  (log-mp3-frame "url = <~a>" url))))
 
-(defmethod print-object :after ((me frame-url-link) stream)
-  (if (null *pprint-mp3-frame*)
-	  (call-next-method)
-	  (with-slots (url) me
-		(format stream "frame-url-link: url: ~s" url))))
-(defmethod vpprint ((me frame-url-link) stream &key (indent 0))
-  "Set *pprint-mp3-frame* to get pretty printing and call print-object via format"
-  (let ((*pprint-mp3-frame* t))
-	(format stream "~vt~a" (* indent 1) me)))
-
+(defmethod vpprint ((me frame-url-link) stream)
+  (with-slots (url) me
+	(format stream "frame-url-link: ~a, url: ~a" (vpprint-frame-header me) url)))
 
 (defclass frame-talb (frame-text-info) ())
 (defclass frame-tbpm (frame-text-info) ())
@@ -755,7 +657,6 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-tpos (frame-text-info) ())
 (defclass frame-tpro (frame-text-info) ())
 (defclass frame-tpub (frame-text-info) ())
-(defclass frame-trck (frame-text-info) ()) ; XXX should change string of eg "1/10" to be (values 1 10)?
 (defclass frame-trda (frame-text-info) ())
 (defclass frame-trsn (frame-text-info) ())
 (defclass frame-trso (frame-text-info) ())
@@ -767,6 +668,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-tsrc (frame-text-info) ())
 (defclass frame-tsiz (frame-text-info) ())
 (defclass frame-tyer (frame-text-info) ())
+(defclass frame-trck (frame-text-info) ())
 
 (defclass frame-wcom (frame-url-link) ())
 (defclass frame-wcop (frame-url-link) ())
@@ -837,7 +739,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 						   ;; then just read it raw
 						   (when (possibly-valid-frame-id? id)
 							 (log-mp3-frame "just reading raw")
-							 (find-class (find-symbol "RAW-FRAME" :MP3-FRAME))))))
+							 (find-class (find-symbol "FRAME-RAW" :MP3-FRAME))))))
 
 	  (log-mp3-frame "general case for id <~a> is ~a" id found-class)
 	  found-class)))
