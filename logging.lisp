@@ -16,6 +16,7 @@
 
 (defparameter *logging-categories* '(mp4-atom::cat-log-mp4-atom
 									 audio-streams::cat-log-stream
+									 mpeg::cat-log-mpeg-frame
 									 mp3-frame::cat-log-mp3-frame))
 
 

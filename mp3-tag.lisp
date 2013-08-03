@@ -165,7 +165,7 @@
 					:func (lambda (f)
 							(when (member (id f) names :test #'string=)
 							  (push f found-frames))))
-	found-frames))
+	(nreverse found-frames)))
 
 (defmethod album ((me mp3-file-stream))
   (let ((frames (get-frames me '("TAL" "TALB"))))
@@ -217,7 +217,8 @@
 (defmethod genre ((me mp3-file-stream))
   (let ((frames (get-frames me '("TCO" "TCON"))))
 	(when frames
-	  (assert (= 1 (length frames)) () "There can be only one genre tag")
+	  (when (> (length frames) 1)
+		(warn "file ~a has more than one genre frame, will only use the first" (stream-filename me)))
 	  (let ((count)
 			(end)
 			(str (info (first frames))))
@@ -325,7 +326,12 @@
 (defmethod show-tags ((me mp3-file-stream) &key (raw nil))
   "Show the tags for an mp3-file.  If RAW is non-nil, dump all the frames; else, print out a subset."
   (if raw
-	  (format t "~a:~a~%" (stream-filename me) (with-output-to-string (s) (mp3-frame:vpprint (audio-streams:mp3-header me) s)))
+	  (format t "~a: ~a~%" (stream-filename me)
+			  (with-output-to-string (s)
+				(when (audio-streams:mpeg-info me)
+				  (mpeg:vpprint (audio-streams:mpeg-info me) s)
+				  (format s "~%"))
+				(mp3-frame:vpprint (audio-streams:mp3-header me) s)))
 	  (let ((album (album me))
 			(album-artist (album-artist me))
 			(artist (artist me))
@@ -345,7 +351,9 @@
 			(track (track me))
 			(writer (writer me))
 			(year (year me)))
-		(format t "~a~%" (stream-filename me))
+		(format t "~a: ~a~%" (stream-filename me) 
+				(if (audio-streams:mpeg-info me)
+					(mpeg:vpprint (audio-streams:mpeg-info me) nil) ""))
 		(when album (format t "~4talbum: ~a~%" album))
 		(when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
 		(when artist (format t "~4tartist: ~a~%" artist))

@@ -110,18 +110,20 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod vpprint ((me mp3-id3-header) stream)
   (with-slots (version revision flags v21-tag-header size ext-header frames) me
-	(format stream "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
-			version revision (print-header-flags nil flags) size
-			(if (header-extended-p flags)
-				(concatenate 'string "Extended header: " (vpprint ext-header nil))
-				"No extended header")
-			(if v21-tag-header
-				(concatenate 'string "V21 tag: " (vpprint v21-tag-header nil))
-				"No v21 tag"))
-		(when frames
-		  (format stream "~&~4tFrames[~d]:~%" (length frames))
-		  (dolist (f frames)
-			(format stream "~8t~a~%" (vpprint f nil))))))
+	(format stream "~a"
+			(with-output-to-string (s)
+			  (format s "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
+					  version revision (print-header-flags nil flags) size
+					  (if (header-extended-p flags)
+						  (concatenate 'string "Extended header: " (vpprint ext-header nil))
+						  "No extended header")
+					  (if v21-tag-header
+						  (concatenate 'string "V21 tag: " (vpprint v21-tag-header nil))
+						  "No v21 tag"))
+			  (when frames
+				(format s "~&~4tFrames[~d]:~%" (length frames))
+				(dolist (f frames)
+				  (format s "~8t~a~%" (vpprint f nil))))))))
 
 (defmethod initialize-instance :after ((me mp3-id3-header) &key instream &allow-other-keys)
   "Fill in an mp3-header from INSTREAM."
@@ -142,10 +144,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf flags (stream-read-u8 instream))
 		(setf size (stream-read-u32 instream :bits-per-byte 7))
 		(when (header-unsynchronized-p flags)
-		  (log-mp3-frame "unsync"))
-		(assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet"))
-
-	  (log-mp3-frame "~a" (vpprint me nil)))))
+		  (log-mp3-frame "header flags indicate unsync"))
+		(assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet")
+		(log-mp3-frame "id3 header = ~a" (vpprint me nil))))))
 
 (defclass id3-frame ()
   ((pos     :accessor pos     :initarg :pos)
@@ -176,30 +177,32 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	(3 (zerop (logand #b0001111100011111 frame-flags)))
 	(4 (zerop (logand #b1000111110110000 frame-flags)))))
 
+(defun print-frame-flags (version flags stream)
+  (ecase version
+	(3 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~]"
+			   flags
+			   (frame-23-altertag-p flags)
+			   (frame-23-alterfile-p flags)
+			   (frame-23-readonly-p flags)
+			   (frame-23-compress-p flags)
+			   (frame-23-encrypt-p flags)
+			   (frame-23-group-p flags)))
+	(4 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
+			   flags
+			   (frame-24-altertag-p flags)
+			   (frame-24-alterfile-p flags)
+			   (frame-24-readonly-p flags)
+			   (frame-24-groupid-p flags)
+			   (frame-24-compress-p flags)
+			   (frame-24-encrypt-p flags)
+			   (frame-24-unsynch-p flags)
+			   (frame-24-datalen-p flags)))))
+
 (defun vpprint-frame-header (id3-frame)
   (with-output-to-string (stream)
 	(with-slots (pos version id len flags) id3-frame
 	  (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d " pos version id len)
-	  (if flags
-		  (ecase version
-			(3 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~]"
-					   flags
-					   (frame-23-altertag-p flags)
-					   (frame-23-alterfile-p flags)
-					   (frame-23-readonly-p flags)
-					   (frame-23-compress-p flags)
-					   (frame-23-encrypt-p flags)
-					   (frame-23-group-p flags)))
-			(4 (format stream "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
-					   flags
-					   (frame-24-altertag-p flags)
-					   (frame-24-alterfile-p flags)
-					   (frame-24-readonly-p flags)
-					   (frame-24-groupid-p flags)
-					   (frame-24-compress-p flags)
-					   (frame-24-encrypt-p flags)
-					   (frame-24-unsynch-p flags)
-					   (frame-24-datalen-p flags))))))))
+	  (if flags (print-frame-flags version flags stream)))))
 
 (defclass frame-raw (id3-frame)
   ((octets :accessor octets :initform nil))
@@ -213,6 +216,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (log-mp3-frame "frame: ~a" (vpprint me nil)))))
 
 (defparameter *max-raw-bytes-print-len* 10)
+
 (defun printable-array (array)
   "given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
   (let* ((len (length array))
@@ -328,11 +332,17 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-text-info) &key instream)
   (log5:with-context "frame-text-info"
-	(with-slots (len encoding info) me
-	  (setf encoding (stream-read-u8 instream))
-	  (setf info (stream-read-string-with-len instream (1- len) :encoding encoding))
+	(with-slots (version flags len encoding info) me
+	  (let ((read-len len))
+		(when (and (= version 4) (frame-24-unsynch-p flags))
+		  (if (frame-24-datalen-p flags)
+			  (setf read-len (stream-read-u32 instream :bits-per-byte 7))))
+
+		(setf encoding (stream-read-u8 instream))
+		(setf info (stream-read-string-with-len instream (1- read-len) :encoding encoding)))
 
 	  ;; a null is ok, but according to the "spec", you're supposed to ignore anything after a 'Null'
+	  (log-mp3-frame "made text-info-frame: ~a" (vpprint me nil))
 	  (setf info (upto-null info))
 
 	  (log-mp3-frame "encoding = ~d, info = <~a>" encoding info))))
@@ -767,9 +777,13 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 						(4 (stream-read-u32 instream :bits-per-byte 7))))
 
 	  (when (or (= version 3) (= version 4))
-		(setf frame-flags (stream-read-u16 instream)))
+		(setf frame-flags (stream-read-u16 instream))
+		(if (not (valid-frame-flags version frame-flags))
+			(warn "Invalid frame flags found ~a" (print-frame-flags version frame-flags nil))))
 
-	  (log-mp3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~x" frame-name version frame-len frame-flags)
+	  (log-mp3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"
+					 frame-name version frame-len
+					 (print-frame-flags version frame-flags nil))
 	  (setf frame-class (find-frame-class frame-name))
 	  (when (or (> (+ (stream-seek instream 0 :current) frame-len) (stream-size instream))
 				(null frame-class))

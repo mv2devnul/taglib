@@ -25,8 +25,8 @@
 		(genre-x (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-genre-x+)))
 	(assert (not (and genre genre-x)))
 	(cond
-	  (genre (tag:get-genre-text genre))
-	  (genre-x (tag:get-genre-text genre-x))
+	  (genre (mp3-tag:get-id3v1-genre genre))
+	  (genre-x (mp3-tag:get-id3v1-genre genre-x))
 	  (t nil))))
 
 (defmethod track ((me mp4-file-stream))

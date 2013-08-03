@@ -3,12 +3,12 @@
 (in-package #:cl-user)
 
 (defpackage #:audio-streams
-  (:export #:octets #:make-octets
+  (:export #:octets #:make-octets *get-mpeg-info*
 		   #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
 		   #:parse-mp3-file #:parse-mp4-file #:mp3-frame-condition
 		   #:make-mem-stream #:stream-filename
-		   #:mp4-atoms #:mp3-header
-		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32
+		   #:mp4-atoms #:mp3-header #:mpeg-info
+		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-octets
 		   #:stream-decode-iso-string #:stream-deocode-ucs-string #:stream-decode-ucs-be-string
 		   #:stream-decode-utf-8-string #:stream-decode-string #:stream-read-iso-string-with-len
 		   #:stream-read-ucs-string-with-len #:stream-read-ucs-be-string-with-len
@@ -49,18 +49,14 @@
   (:use #:common-lisp #:audio-streams))
 
 (defpackage :mp3-frame
-  (:export :mp3-frame #:find-mp3-frames :mp3-frame-condition #:vpprint #:header :get-frame-info
-		   :encoding :lang :desc :val :comment :artist :album :year :comment :year
-		   :mp3-map-frames :frames :year :title :genre :id :v21-tag-header :info :version)
-  (:use :common-lisp :audio-streams))
+  (:export #:mp3-frame #:find-mp3-frames #:mp3-frame-condition #:vpprint #:header #:get-frame-info
+		   #:encoding #:lang #:desc #:val #:comment #:artist #:album #:year #:comment #:year
+		   #:mp3-map-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
+  (:use #:common-lisp #:audio-streams))
 
-(defpackage :mp3-tag
-  (:export :show-tags)
-  (:use :common-lisp :audio-streams :mp3-frame))
-
-(defpackage #:tag
-  (:export #:get-genre-text)
-  (:use #:common-lisp))
+(defpackage #:mp3-tag
+  (:export #:show-tags #:get-id3v1-genre)
+  (:use #:common-lisp #:audio-streams #:mp3-frame))
 
 (defpackage #:mp4-tag
   (:export #:show-tags #:album #:album-artist #:artist #:comment #:composer #:copyright #:created
@@ -70,3 +66,8 @@
 (defpackage #:logging
   (:export #:with-logging)
   (:use #:common-lisp))
+
+(defpackage #:mpeg
+  (:export #:get-mpeg-info #:vpprint)
+  (:use #:common-lisp #:audio-streams))
+

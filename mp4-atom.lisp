@@ -428,8 +428,8 @@ call traverse atom (unless length of path == 1, in which case, we've found out m
   (map-mp4-atom (mp4-atom::traverse (mp4-atoms mp4-file-stream)
 									(list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+))
 				:depth 0
-				:func (lambda (atom)
+				:func (lambda (atom depth)
 						(when (= (atom-type atom) +itunes-ilst-data+)
-						  (format t "~4t~a~%" (vpprint atom nil))))))
+						  (format t "~vt~a~%" depth (vpprint atom nil))))))
 
 

@@ -16,7 +16,8 @@
   ((stream-filename :accessor stream-filename)))
 
 (defclass mp3-file-stream (base-file-stream)
-  ((mp3-header  :accessor mp3-header)))
+  ((mp3-header  :accessor mp3-header)
+   (mpeg-info   :accessor mpeg-info :initform nil)))
 
 (defclass mp4-file-stream (base-file-stream)
   ((mp4-atoms :accessor mp4-atoms :initform nil)))
@@ -35,7 +36,6 @@
   (let ((new-stream (make-instance 'base-mem-stream)))
 	(setf (stream new-stream) (ccl:make-vector-input-stream vector))
 	new-stream))
-
 
 (defmethod stream-close ((in-stream base-file-stream))
   (with-slots (stream) in-stream
@@ -104,25 +104,28 @@
 
 (defmethod stream-read-sequence ((stream base-stream) size &key (bits-per-byte 8))
   "Read SIZE octets from input-file in BIT-PER-BYTE sizes"
-  (ecase bits-per-byte
-	(8
-	 (let ((octets (make-octets size)))
-	   (read-sequence octets (slot-value stream 'stream))
-	   octets))
-	(7
-	 (let* ((last-byte-was-FF nil)
-			(byte nil)
-			(octets (ccl:with-output-to-vector (out)
-					  (dotimes (i size)
-						(setf byte (stream-read-u8 stream))
-						(if last-byte-was-FF
-							(if (not (zerop byte))
-								(write-byte byte out))
-							(write-byte byte out))
-						(setf last-byte-was-FF (= byte #xFF))))))
-	   (format t "file pos is now: ~:d~%" (stream-seek stream 0 :current))
-	   (format t "length of data is ~:d~%" (length octets))
-	   octets))))
+  (log5:with-context "stream-read-sequence"
+	(ecase bits-per-byte
+	  (8
+	   (log-stream "reading ~:d bytes as 8-bit sequence" size)
+	   (let ((octets (make-octets size)))
+		 (read-sequence octets (slot-value stream 'stream))
+		 octets))
+	  (7
+	   (log-stream "reading ~:d bytes as 7-bit sequence" size)
+	   (let* ((last-byte-was-FF nil)
+			  (byte nil)
+			  (octets (ccl:with-output-to-vector (out)
+						(dotimes (i size)
+						  (setf byte (stream-read-u8 stream))
+						  (if last-byte-was-FF
+							  (if (not (zerop byte))
+								  (write-byte byte out))
+							  (write-byte byte out))
+						  (setf last-byte-was-FF (= byte #xFF))))))
+		 (log-stream "file pos is now: ~:d" (stream-seek stream 0 :current))
+		 (log-stream "~a" (mp3-frame::printable-array octets))
+		 octets)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; STRINGS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -292,12 +295,15 @@
 		(setf stream nil)))
 	stream))
 
-(defun parse-mp3-file (filename)
+(defvar *get-mpeg-info* nil)
+
+(defun parse-mp3-file (filename &key (get-mpeg-info *get-mpeg-info*))
   (let (stream)
 	  (handler-case
 		  (progn
 			(setf stream (make-file-stream 'mp3-file-stream filename))
-			(mp3-frame:find-mp3-frames stream))
+			(mp3-frame:find-mp3-frames stream)
+			(when get-mpeg-info (setf (mpeg-info stream) (mpeg:get-mpeg-info stream))))
 		(mp3-frame:mp3-frame-condition (c)
 		  (warn "make-mp3-stream got condition: ~a" c)
 		  (when stream (stream-close stream))
