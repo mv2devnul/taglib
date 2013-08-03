@@ -17,7 +17,7 @@
 (defparameter *logging-categories* '(mp4-atom::cat-log-mp4-atom
 									 audio-streams::cat-log-stream
 									 mpeg::cat-log-mpeg-frame
-									 mp3-frame::cat-log-mp3-frame))
+									 id3-frame::cat-log-id3-frame))
 
 
 (defmacro with-logging ((&key (file nil) (categories *logging-categories*)) &body body)

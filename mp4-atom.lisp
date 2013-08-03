@@ -356,7 +356,7 @@ The 'right' atoms are those in *atoms-of-interest*"
 
 	(log-mp4-atom "before read-file loop, file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (stream-size mp4-file))
 
-	(setf (mp4-atoms mp4-file) (make-mp4-atom-collection))
+	(setf (audio-streams:mp4-atoms mp4-file) (make-mp4-atom-collection))
 	(do ((new-atom))
 		((> (+ 8 (stream-seek mp4-file 0 :current)) (stream-size mp4-file)))
 	  (log-mp4-atom "top of read-file loop, current file-position = ~:d, end = ~:d" (stream-seek mp4-file 0 :current) (stream-size mp4-file))

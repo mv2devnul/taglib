@@ -5,9 +5,9 @@
 (defpackage #:audio-streams
   (:export #:octets #:make-octets *get-mpeg-info*
 		   #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
-		   #:parse-mp3-file #:parse-mp4-file #:mp3-frame-condition
+		   #:id3-header #:mpeg-info #:mp4-atoms
+		   #:parse-mp3-file #:parse-mp4-file
 		   #:make-mem-stream #:stream-filename
-		   #:mp4-atoms #:mp3-header #:mpeg-info
 		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-octets
 		   #:stream-decode-iso-string #:stream-deocode-ucs-string #:stream-decode-ucs-be-string
 		   #:stream-decode-utf-8-string #:stream-decode-string #:stream-read-iso-string-with-len
@@ -48,15 +48,16 @@
 		   #:+itunes-track-n+)
   (:use #:common-lisp #:audio-streams))
 
-(defpackage :mp3-frame
-  (:export #:mp3-frame #:find-mp3-frames #:mp3-frame-condition #:vpprint #:header #:get-frame-info
+(defpackage :id3-frame
+  (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header #:get-frame-info
 		   #:encoding #:lang #:desc #:val #:comment #:artist #:album #:year #:comment #:year
-		   #:mp3-map-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
+		   #:printable-array
+		   #:map-id3-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
   (:use #:common-lisp #:audio-streams))
 
 (defpackage #:mp3-tag
   (:export #:show-tags #:get-id3v1-genre)
-  (:use #:common-lisp #:audio-streams #:mp3-frame))
+  (:use #:common-lisp #:audio-streams #:id3-frame))
 
 (defpackage #:mp4-tag
   (:export #:show-tags #:album #:album-artist #:artist #:comment #:composer #:copyright #:created
@@ -70,4 +71,3 @@
 (defpackage #:mpeg
   (:export #:get-mpeg-info #:vpprint)
   (:use #:common-lisp #:audio-streams))
-

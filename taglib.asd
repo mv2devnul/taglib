@@ -7,12 +7,12 @@
   :license "Public Domain"
   :depends-on (#:log5 #:alexandria)
   :components ((:file "packages")
-			   (:file "streams"   :depends-on ("packages"))
-			   (:file "mpeg"      :depends-on ("packages" "streams"))
-			   (:file "mp3-frame" :depends-on ("packages"))
-			   (:file "mp3-tag"   :depends-on ("packages" "mp3-frame" "streams"))
-			   (:file "logging"   :depends-on ("packages" "mp4-atom" "streams"))
-			   (:file "mp4-atom"  :depends-on ("packages"))
-			   (:file "mp4-tag"   :depends-on ("packages"))))
+			   (:file "audio-streams" :depends-on ("packages"))
+			   (:file "mpeg"          :depends-on ("packages" "audio-streams"))
+			   (:file "id3-frame"     :depends-on ("packages"))
+			   (:file "mp3-tag"       :depends-on ("packages" "id3-frame" "audio-streams"))
+			   (:file "logging"       :depends-on ("packages" "mp4-atom" "audio-streams"))
+			   (:file "mp4-atom"      :depends-on ("packages"))
+			   (:file "mp4-tag"       :depends-on ("packages"))))
 
 

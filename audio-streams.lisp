@@ -16,7 +16,7 @@
   ((stream-filename :accessor stream-filename)))
 
 (defclass mp3-file-stream (base-file-stream)
-  ((mp3-header  :accessor mp3-header)
+  ((id3-header  :accessor id3-header)
    (mpeg-info   :accessor mpeg-info :initform nil)))
 
 (defclass mp4-file-stream (base-file-stream)
@@ -124,7 +124,7 @@
 							  (write-byte byte out))
 						  (setf last-byte-was-FF (= byte #xFF))))))
 		 (log-stream "file pos is now: ~:d" (stream-seek stream 0 :current))
-		 (log-stream "~a" (mp3-frame::printable-array octets))
+		 (log-stream "~a" (id3-frame:printable-array octets))
 		 octets)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; STRINGS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -302,9 +302,10 @@
 	  (handler-case
 		  (progn
 			(setf stream (make-file-stream 'mp3-file-stream filename))
-			(mp3-frame:find-mp3-frames stream)
-			(when get-mpeg-info (setf (mpeg-info stream) (mpeg:get-mpeg-info stream))))
-		(mp3-frame:mp3-frame-condition (c)
+			(id3-frame:find-id3-frames stream)
+			(when get-mpeg-info
+			  (setf (mpeg-info stream) (mpeg:get-mpeg-info stream))))
+		(id3-frame:id3-frame-condition (c)
 		  (warn "make-mp3-stream got condition: ~a" c)
 		  (when stream (stream-close stream))
 		  (setf stream nil)))

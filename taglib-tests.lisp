@@ -26,7 +26,7 @@
 	  (string= (string-downcase e) (string-downcase ext))
 	  nil)))
 
-(defmacro redirect ((filename) &rest body)
+(defmacro redirect (filename &rest body)
   `(let ((*standard-output* (open ,filename :direction :output :if-does-not-exist :create :if-exists :supersede)))
 	 ,@body
 	 (finish-output *standard-output*)))

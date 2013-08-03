@@ -161,7 +161,7 @@
 
 (defun get-frames (stream names)
   (let (found-frames)
-	(mp3-map-frames stream
+	(map-id3-frames stream
 					:func (lambda (f)
 							(when (member (id f) names :test #'string=)
 							  (push f found-frames))))
@@ -172,8 +172,8 @@
 	(when frames
 	  (assert (= 1 (length frames)) () "There can be only one album tag")
 	  (return-from album (info (first frames)))))
-  (if (v21-tag-header (mp3-header me))
-	  (album (v21-tag-header (mp3-header me)))
+  (if (v21-tag-header (id3-header me))
+	  (album (v21-tag-header (id3-header me)))
 	  nil))
 
 (defmethod artist ((me mp3-file-stream))
@@ -181,8 +181,8 @@
 	(when frames
 	  (assert (= 1 (length frames)) () "There can be only one artist tag")
 	  (return-from artist (info (first frames)))))
-  (if (v21-tag-header (mp3-header me))
-	  (artist (v21-tag-header (mp3-header me)))
+  (if (v21-tag-header (id3-header me))
+	  (artist (v21-tag-header (id3-header me)))
 	  nil))
 
 (defmethod comment ((me mp3-file-stream))
@@ -192,8 +192,8 @@
 		(dolist (f frames)
 		  (push (list (encoding f) (lang f) (desc f) (val f)) new-frames))
 		(return-from comment new-frames))))
-  (if (v21-tag-header (mp3-header me))
-	  (comment (v21-tag-header (mp3-header me)))
+  (if (v21-tag-header (id3-header me))
+	  (comment (v21-tag-header (id3-header me)))
 	  nil))
 
 (defmethod year ((me mp3-file-stream))
@@ -201,8 +201,8 @@
 	(when frames
 	  (assert (= 1 (length frames)) () "There can be only one year tag")
 	  (return-from year (info (first frames)))))
-  (if (v21-tag-header (mp3-header me))
-	  (year (v21-tag-header (mp3-header me)))
+  (if (v21-tag-header (id3-header me))
+	  (year (v21-tag-header (id3-header me)))
 	  nil))
 
 (defmethod title ((me mp3-file-stream))
@@ -210,8 +210,8 @@
 	(when frames
 	  (assert (= 1 (length frames)) () "There can be only one title tag")
 	  (return-from title (info (first frames)))))
-  (if (v21-tag-header (mp3-header me))
-	  (title (v21-tag-header (mp3-header me)))
+  (if (v21-tag-header (id3-header me))
+	  (title (v21-tag-header (id3-header me)))
 	  nil))
 
 (defmethod genre ((me mp3-file-stream))
@@ -230,8 +230,8 @@
 		  (setf str (get-id3v1-genre (parse-integer (subseq str 1 end)))))
 		(return-from genre str))))
 
-  (if (v21-tag-header (mp3-header me))
-	  (get-id3v1-genre (genre (v21-tag-header (mp3-header me))))
+  (if (v21-tag-header (id3-header me))
+	  (get-id3v1-genre (genre (v21-tag-header (id3-header me))))
 	  nil))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; no V2.1 tags for any of these ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -328,10 +328,10 @@
   (if raw
 	  (format t "~a: ~a~%" (stream-filename me)
 			  (with-output-to-string (s)
-				(when (audio-streams:mpeg-info me)
-				  (mpeg:vpprint (audio-streams:mpeg-info me) s)
+				(when (mpeg-info me)
+				  (vpprint (mpeg-info me) s)
 				  (format s "~%"))
-				(mp3-frame:vpprint (audio-streams:mp3-header me) s)))
+				(vpprint (id3-header me) s)))
 	  (let ((album (album me))
 			(album-artist (album-artist me))
 			(artist (artist me))
@@ -352,8 +352,8 @@
 			(writer (writer me))
 			(year (year me)))
 		(format t "~a: ~a~%" (stream-filename me) 
-				(if (audio-streams:mpeg-info me)
-					(mpeg:vpprint (audio-streams:mpeg-info me) nil) ""))
+				(if (mpeg-info me)
+					(vpprint (mpeg-info me) nil) ""))
 		(when album (format t "~4talbum: ~a~%" album))
 		(when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
 		(when artist (format t "~4tartist: ~a~%" artist))
