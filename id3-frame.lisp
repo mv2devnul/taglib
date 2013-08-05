@@ -17,7 +17,7 @@
 (defmethod print-object ((me id3-frame-condition) stream)
   (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
 
-(defclass mp3-id3-header ()
+(defclass id3-header ()
   ((version        :accessor version        :initarg :version        :initform 0)
    (revision       :accessor revision       :initarg :revision       :initform 0)
    (flags          :accessor flags          :initarg :flags          :initform 0)
@@ -71,26 +71,29 @@
 	  (setf genre    (stream-read-u8 instream))
 	  (log-id3-frame "v21 tag: ~a" (vpprint me nil)))))
 
-(defclass mp3-ext-header ()
+(defclass id3-ext-header ()
   ((size    :accessor size    :initarg :size    :initform 0)
    (flags   :accessor flags   :initarg :flags   :initform 0)
    (padding :accessor padding :initarg :padding :initform 0)
    (crc	    :accessor crc     :initarg :crc     :initform nil))
   (:documentation "class representing a V2.3/4 extended header"))
 
-(defmacro ext-header-crc-p (flags)	 `(logbitp 15 ,flags))
+;;; XXX I almost certainly don't have handling of extended headers complete/correct
+(defmacro ext-header-crc-p    (flags) `(logbitp 14 ,flags))
 
-(defmethod initialize-instance ((me mp3-ext-header) &key instream)
+(defmethod initialize-instance ((me id3-ext-header) &key instream)
   "Read in the extended header.  Caller will have stream-seek'ed to correct location in file.
 Note: extended headers are subject to unsynchronization, so make sure that INSTREAM has been made sync-safe."
   (with-slots (size flags padding crc) me
-	(setf size (stream-read-u32 instream)) ; this is sync-safe in 2.4?
+	(setf size (stream-read-u32 instream))
 	(setf flags (stream-read-u16 instream))
-	(setf padding (stream-read-u32 instream)) ; this is sync-safe and 35 bits in 2.4?
+	(setf padding (stream-read-u32 instream))
+	(when (not (zerop flags))
+	  (error "non-zero extended header flags = ~x, check validity" flags))
 	(when (ext-header-crc-p flags)
 	  (setf crc (stream-read-u32 instream)))))
 
-(defmethod vpprint ((me mp3-ext-header) stream)
+(defmethod vpprint ((me id3-ext-header) stream)
   (with-slots (size flags padding crc) me
 	(format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x~%"
 			size flags padding crc)))
@@ -108,7 +111,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		   (header-experimental-p ,flags)
 		   (header-footer-p ,flags)))
 
-(defmethod vpprint ((me mp3-id3-header) stream)
+(defmethod vpprint ((me id3-header) stream)
   (with-slots (version revision flags v21-tag-header size ext-header frames) me
 	(format stream "~a"
 			(with-output-to-string (s)
@@ -125,9 +128,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 				(dolist (f frames)
 				  (format s "~8t~a~%" (vpprint f nil))))))))
 
-(defmethod initialize-instance :after ((me mp3-id3-header) &key instream &allow-other-keys)
+(defmethod initialize-instance :after ((me id3-header) &key instream &allow-other-keys)
   "Fill in an mp3-header from INSTREAM."
-  (log5:with-context "mp3-id3-header-initializer"
+  (log5:with-context "id3-header-initializer"
 	(with-slots (version revision flags size ext-header frames v21-tag-header) me
 	  (stream-seek instream 128 :end)
 	  (when (string= "TAG" (stream-read-string-with-len instream 3))
@@ -153,7 +156,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
    (id      :accessor id      :initarg :id)
    (len     :accessor len     :initarg :len)
    (version :accessor version :initarg :version)
-   (flags   :accessor flags   :initarg :flags :initform nil)) ; unused in v2.2
+   (flags   :accessor flags   :initarg :flags :initform nil))
   (:documentation "Base class for an ID3 frame"))
 
 (defmacro frame-23-altertag-p  (frame-flags) `(logbitp 15 ,frame-flags))
@@ -201,7 +204,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defun vpprint-frame-header (id3-frame)
   (with-output-to-string (stream)
 	(with-slots (pos version id len flags) id3-frame
-	  (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d " pos version id len)
+	  (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d, " pos version id len)
 	  (if flags (print-frame-flags version flags stream)))))
 
 (defclass frame-raw (id3-frame)
@@ -819,7 +822,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 	  (log-id3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
 
-	  (setf (id3-header mp3-file) (make-instance 'mp3-id3-header :instream mp3-file))
+	  (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
 	  (with-slots (size ext-header frames flags version) (id3-header mp3-file)
 		(when (not (zerop size))
 		  (let ((mem-stream (make-mem-stream (stream-read-sequence mp3-file size
@@ -827,7 +830,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 			;; must make extended header here since it is subject to unsynchronization.
 			(when (header-extended-p flags)
-			  (setf ext-header (make-instance 'mp3-extended-header :instream mem-stream)))
+			  (setf ext-header (make-instance 'id3-extended-header :instream mem-stream)))
 			(multiple-value-bind (_ok _frames) (read-loop version mem-stream)
 			  (if (not _ok)
 				  (warn "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
@@ -843,3 +846,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defun map-id3-frames (mp3-file &key (func (constantly t)))
   (mapcar func (frames (id3-header mp3-file))))
+
+
+#|
+Random ideas for rewrite:
+-might be simplest to read in frame payloads (sync'ed appropriately) for all frames and then move parsing into
+ accessor methods? This might be easier to handle sync/compression/etc.
+|#
