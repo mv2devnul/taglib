@@ -130,17 +130,13 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; STRINGS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;
-;; get rid of trailing nulls and blanks
-(defmacro trim-string (s) `(string-trim '(#\Null #\Space) ,s))
-
-;;
 ;; decode octets as an iso-8859-1 string (encoding == 0)
 (defun stream-decode-iso-string (octets &key (start 0) (end nil))
   (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1))
 
 ;;
 ;; decode octets as a ucs string (encoding == 1)
-;; XXX: Coded this way because I can't seem to get a simple :external-format :ucs-2 to work correctly 
+;; XXX: Coded this way because I can't seem to get a simple :external-format :ucs-2 to work correctly
 ;; AND some taggers encode a UCS-2 empty string w/o a byte-order mark (i.e. null strings are
 ;; sometimes encoded as #(00 00))
 (defun stream-decode-ucs-string (octets &key (start 0) (end nil))

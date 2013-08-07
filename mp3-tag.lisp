@@ -152,14 +152,24 @@
 	"Jpop"
 	"Synthpop"))
 
-(defun get-id3v1-genre (n) 
-  (let ((idx (- n 1))) ; arrays are zero-based
-	(if (or (> idx (length *id3v1-genres*))
-			(< idx 0))
-		"BAD GENRE!?!?!?"
-		(aref *id3v1-genres* idx))))
+(defun find-genre (name)
+  "For debug purpose only: test function to return index of genre, given a name. ignores case and returns first complete match"
+  (let ((i 0)
+		(match-str (string-downcase name)))
+	(loop for s across *id3v1-genres* do
+	  (if (string= (string-downcase s) match-str)
+		  (return-from find-genre i))
+	  (incf i))))
+
+(defun get-id3v1-genre (n)
+  "Given N, a supposed ID3 genre, range check it to make sure it is > 0 and < (sizeof *ID3V1-GENRES*)"
+  (if (or (> n (length *id3v1-genres*))
+		  (< n 0))
+	  "BAD GENRE"
+	  (aref *id3v1-genres* n)))
 
 (defun get-frames (stream names)
+  "Given a MP3-STREAM, search its frames for NAMES.  Return file-order list of matching frames"
   (let (found-frames)
 	(map-id3-frames stream
 					:func (lambda (f)
@@ -167,6 +177,8 @@
 							  (push f found-frames))))
 	(nreverse found-frames)))
 
+;;; Abstract TAG interface
+;;; The following probably should be macro-ized in the future---lots of cut/paste going on...
 (defmethod album ((me mp3-file-stream))
   (let ((frames (get-frames me '("TAL" "TALB"))))
 	(when frames
@@ -191,6 +203,7 @@
 	  (let ((new-frames))
 		(dolist (f frames)
 		  (push (list (encoding f) (lang f) (desc f) (val f)) new-frames))
+		;; XXX need to render this into text
 		(return-from comment new-frames))))
   (if (v21-tag-header (id3-header me))
 	  (comment (v21-tag-header (id3-header me)))
@@ -222,6 +235,13 @@
 	  (let ((count)
 			(end)
 			(str (info (first frames))))
+
+		;; XXX for V23/V24 TCON frames, a genre can be pretty gnarly.
+		;; if the first byte of the TCON INFO field is a '(', this is interpreted 
+		;; as an ID3v2.1 genre number.  These can stack up (called "refinements") too.
+		;; The INFO field can also just be a string.
+		;; We're taking a simplistic approach here: we can hand the '(' case, but
+		;; only allow one (no refinements) or we can handle the simple string case
 		(when (and (>= (length str) 1) (eq #\( (aref str 0)))
 		  (setf count (count #\( str))
 		  (when (> count 1) (warn "Don't support genre refinement yet, found ~d genres" count))
@@ -277,9 +297,8 @@
 	  (return-from lyrics (val (first frames)))))
   nil)
 
-(defmethod purchased-date ((me mp3-file-stream)) "NIY")
-
-(defmethod tool ((me mp3-file-stream)) "NIY")
+;;;(defmethod purchased-date ((me mp3-file-stream)) "NIY")
+;;;(defmethod tool ((me mp3-file-stream)) "NIY")
 
 (defmethod writer ((me mp3-file-stream))
   (let ((frames (get-frames me '("TCM" "TCOM"))))
@@ -344,10 +363,10 @@
 			(genre (genre me))
 			(groups (groups me))
 			(lyrics (lyrics me))
-			(purchased-date (purchased-date me))
+			;;(purchased-date (purchased-date me))
 			(tempo (tempo me))
 			(title (title me))
-			(tool (tool me))
+			;;(tool (tool me))
 			(track (track me))
 			(writer (writer me))
 			(year (year me)))
@@ -366,10 +385,10 @@
 		(when genre (format t "~4tgenre: ~a~%" genre))
 		(when groups (format t "~4tgroups: ~a~%" groups))
 		(when lyrics (format t "~4tlyrics: ~a~%" lyrics))
-		(when purchased-date (format t "~4tpurchased date: ~a~%" purchased-date))
+		;;(when purchased-date (format t "~4tpurchased date: ~a~%" purchased-date))
 		(when tempo (format t "~4ttempo: ~a~%" tempo))
 		(when title (format t "~4ttitle: ~a~%" title))
-		(when tool (format t "~4ttool: ~a~%" tool))
+		;;(when tool (format t "~4ttool: ~a~%" tool))
 		(when track (format t "~4ttrack: ~a~%" track))
 		(when writer (format t "~4twriter: ~a~%" writer))
 		(when year (format t "~4tyear: ~a~%" year)))))

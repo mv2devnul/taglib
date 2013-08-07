@@ -14,7 +14,7 @@
 		   #:stream-read-ucs-string-with-len #:stream-read-ucs-be-string-with-len
 		   #:stream-read-utf-8-string-with-len #:stream-read-string-with-len
 		   #:stream-read-iso-string #:stream-read-ucs-string #:stream-read-ucs-be-string
-		   #:stream-read-utf-8-string #:stream-read-string #:trim-string
+		   #:stream-read-utf-8-string #:stream-read-string
 		   #:stream-read-string #:stream-read-sequence #:stream-size
 		   #:stream-seek #:stream-close)
   (:use #:common-lisp))
