@@ -211,7 +211,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
    (len     :accessor len     :initarg :len                 :documentation "the length of this frame")
    (version :accessor version :initarg :version             :documentation "the ID3-HEADER version number stored here for convenience")
    (flags   :accessor flags   :initarg :flags :initform nil :documentation "the frame's flags"))
-  (:documentation "Base class for an ID3 frame.  Used for versions 2.2, 3.3, and 2.4"))
+  (:documentation "Base class for an ID3 frame.  Used for versions 2.2, 2.3, and 2.4"))
 
 ;;; The frame flags are the same for V22/V23
 (defmacro frame-23-altertag-p  (frame-flags) `(logbitp 15 ,frame-flags))
@@ -390,13 +390,13 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 5) encoding -1)
 		(setf desc n)
 		(setf data v)
-		(log-id3-frame "encoding: ~d, img-format = <~a>, type = ~d, desc = <~a>, value = ~a"
-				   encoding img-format type desc (printable-array data))))))
+		(log-id3-frame "encoding: ~d, img-format = <~a>, type = ~d (~a), desc = <~a>, value = ~a"
+				   encoding img-format type (get-picture-type type) desc (printable-array data))))))
 
 (defmethod vpprint ((me frame-pic) stream)
   (with-slots (encoding img-format type desc data) me
-	(format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d, description <~a>, data: ~a"
-			(vpprint-frame-header me) encoding img-format type desc (printable-array data))))
+	(format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d (~a), description <~a>, data: ~a"
+			(vpprint-frame-header me) encoding img-format type (get-picture-type type) desc (printable-array data))))
 
 ;; Version 2, 3, or 4 generic text-info frames
 ;; Text information identifier  "T00" - "TZZ", excluding "TXX", or "T000 - TZZZ", excluding "TXXX"
@@ -594,6 +594,35 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-tyer (frame-text-info) ())
 (defclass frame-trck (frame-text-info) ())
 
+(defparameter *picture-type*
+  '("Other"
+	"32x32 pixels 'file icon' (PNG only)"
+	"Other file icon"
+	"Cover (front)"
+	"Cover (back)"
+	"Leaflet page"
+	"Media (e.g. lable side of CD)"
+	"Lead artist/lead performer/soloist"
+	"Artist/performer"
+	"Conductor"
+	"Band/Orchestra"
+	"Composer"
+	"Lyricist/text writer"
+	"Recording Location"
+	"During recording"
+	"During performance"
+	"Movie/video screen capture"
+	"A bright coloured fish"	; how do you know the fish is smart :)
+	"Illustration"
+	"Band/artist logotype"
+	"Publisher/Studio logotype"))
+
+(defun get-picture-type (n)
+  "Function to return picture types for APIC frames"
+  (if (and (>= n 0) (< n (length *picture-type*)))
+	  (nth n *picture-type*)
+	  "Unknown"))
+
 ;; V23/V24 APIC frames
 ;; <Header for 'Attached picture', ID: "APIC">
 ;; Text encoding   $xx
@@ -603,7 +632,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;; Picture data    <binary data>
 (defclass frame-apic (id3-frame)
   ((encoding :accessor encoding)
-   (mime     :accessor mime)
+   (mime     :accessor mime)<
    (type     :accessor type)
    (desc     :accessor desc)
    (data     :accessor data))
@@ -618,12 +647,12 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 (length mime) 1 1) encoding -1)
 		(setf desc n)
 		(setf data v)
-		(log-id3-frame "enoding = ~d, mime = <~a>, type = ~d, descx = <~a>, data = ~a" encoding mime type desc (printable-array data))))))
+		(log-id3-frame "enoding = ~d, mime = <~a>, type = ~d (~a), desc = <~a>, data = ~a" encoding mime type (get-picture-type type) desc (printable-array data))))))
 
 (defmethod vpprint ((me frame-apic) stream)
   (with-slots (encoding mime type desc data) me
-	(format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d, description <~a>, data: ~a"
-			(vpprint-frame-header me) encoding mime type desc (printable-array data))))
+	(format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d (~a), description <~a>, data: ~a"
+			(vpprint-frame-header me) encoding mime type (get-picture-type type) desc (printable-array data))))
 
 ;;; V23/V24 COMM frames
 ;;; <Header for 'Comment', ID: "COMM">
