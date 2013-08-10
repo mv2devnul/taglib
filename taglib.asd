@@ -9,6 +9,7 @@
   :components ((:file "packages")
 			   (:file "audio-streams" :depends-on ("packages"))
 			   (:file "mpeg"          :depends-on ("packages" "audio-streams"))
+			   (:file "iso-639-2"     :depends-on ("packages"))
 			   (:file "id3-frame"     :depends-on ("packages"))
 			   (:file "mp3-tag"       :depends-on ("packages" "id3-frame" "audio-streams"))
 			   (:file "logging"       :depends-on ("packages" "mp4-atom" "audio-streams"))

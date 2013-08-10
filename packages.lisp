@@ -2,6 +2,10 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:cl-user)
 
+(defpackage #:iso-639-2
+  (:export #:get-iso-639-2-language)
+  (:use #:common-lisp))
+
 (defpackage #:audio-streams
   (:export #:octets #:make-octets *get-mpeg-info*
 		   #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
@@ -53,7 +57,7 @@
 		   #:encoding #:lang #:desc #:val #:comment #:artist #:album #:year #:comment #:year
 		   #:printable-array
 		   #:map-id3-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
-  (:use #:common-lisp #:audio-streams))
+  (:use #:common-lisp #:audio-streams #:iso-639-2))
 
 (defpackage #:mp3-tag
   (:export #:show-tags #:get-id3v1-genre)

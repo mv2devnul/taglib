@@ -240,6 +240,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defun print-frame-flags (version flags stream)
   (ecase version
+	(2 (format stream "None"))
 	(3 (format stream
 			   "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~]"
 			   flags
@@ -357,7 +358,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod vpprint ((me frame-com) stream)
   (with-slots (len encoding lang desc val) me
-	(format stream "frame-com: ~a, encoding = ~d, lang = <~a>, desc = <~a>, val = <~a>" (vpprint-frame-header me) encoding lang desc val)))
+	(format stream "frame-com: ~a, encoding = ~d, lang = <~a> (~a), desc = <~a>, val = <~a>"
+			(vpprint-frame-header me) encoding lang (get-iso-639-2-language lang) desc val)))
 
 ;;; ULT's are same format as COM's... XXX rewrite this as suggested in comment at bottom of this file
 ;;; V22 unsynced lyrics/text "ULT"
@@ -681,8 +683,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod vpprint ((me frame-comm) stream)
   (with-slots (encoding lang desc val) me
-	(format stream "frame-comm: ~a,  encoding: ~d, lang: ~x, desc = <~a>, val = <~a>"
-			(vpprint-frame-header me) encoding lang desc val)))
+	(format stream "frame-comm: ~a,  encoding: ~d, lang: <~a> (~a), desc = <~a>, val = <~a>"
+			(vpprint-frame-header me) encoding lang (get-iso-639-2-language lang) desc val)))
 
 ;;; Unsynchronized lyrics frames look very much like comment frames...
 (defclass frame-uslt (frame-comm) ())
@@ -852,15 +854,15 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defun make-frame (version instream)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
-  (log5:with-context "find-id3-frames"
+  (log5:with-context "make-frame"
 	(let* ((pos (stream-seek instream 0 :current))
 		   (byte (stream-read-u8 instream))
 		   frame-name frame-len frame-flags frame-class)
 
-	  (log-id3-frame "reading from position ~:d (size of stream = ~:d" pos (stream-size instream))
+	  (log-id3-frame "reading from position ~:d (size of stream = ~:d)" pos (stream-size instream))
 
 	  (when (zerop byte)				; XXX should this be correlated to PADDING in the extended header???
-		(log-id3-frame "hit padding while making a frame")
+		(log-id3-frame "hit padding of size ~:d while making a frame" 9999) ;(- (stream-size instream) pos))
 		(return-from make-frame nil))	; hit padding
 
 	  (setf frame-name
@@ -873,7 +875,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 	  (when (or (= version 3) (= version 4))
 		(setf frame-flags (stream-read-u16 instream))
-		(if (not (valid-frame-flags version frame-flags))
+		(when (not (valid-frame-flags version frame-flags))
 			(warn "Invalid frame flags found ~a" (print-frame-flags version frame-flags nil))))
 
 	  (log-id3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"
@@ -893,25 +895,26 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
   "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames"
 
   (labels ((read-loop (version stream)
-			 (log-id3-frame "Starting loop through ~:d bytes" (stream-size stream))
-			 (let (frames this-frame)
-			   (do ()
-				   ((>= (stream-seek stream 0 :current) (stream-size stream)))
-				 (handler-case
-					 (progn
-					   (setf this-frame (make-frame version stream))
-					   (when (null this-frame)
-						 (log-id3-frame "hit padding: returning ~d frames" (length frames))
-						 (return-from read-loop (values t (nreverse frames))))
+			 (log5:with-context "read-loop-in-find-id3-frames"
+			   (log-id3-frame "Starting loop through ~:d bytes" (stream-size stream))
+			   (let (frames this-frame)
+				 (do ()
+					 ((>= (stream-seek stream 0 :current) (stream-size stream)))
+				   (handler-case
+					   (progn
+						 (setf this-frame (make-frame version stream))
+						 (when (null this-frame)
+						   (log-id3-frame "hit padding: returning ~d frames" (length frames))
+						   (return-from read-loop (values t (nreverse frames))))
 
-					   (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
-					   (push this-frame frames))
-				   (condition (c)
-					 (log-id3-frame "got condition ~a when making frame" c)
-					 (return-from read-loop (values nil (nreverse frames))))))
+						 (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
+						 (push this-frame frames))
+					 (condition (c)
+					   (log-id3-frame "got condition ~a when making frame" c)
+					   (return-from read-loop (values nil (nreverse frames))))))
 
-			   (log-id3-frame "Succesful read: returning ~d frames" (length frames))
-			   (values t (nreverse frames))))) ; reverse this so we have frames in "file order"
+				 (log-id3-frame "Succesful read: returning ~d frames" (length frames))
+				 (values t (nreverse frames)))))) ; reverse this so we have frames in "file order"
 
 	(log5:with-context "find-id3-frames"
 	  (when (not (is-valid-mp3-file mp3-file))
