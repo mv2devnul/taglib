@@ -241,9 +241,9 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defun print-frame-flags (version flags stream)
   (ecase version
-	(2 (format stream "None"))
+	(2 (format stream "None, "))
 	(3 (format stream
-			   "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~]"
+			   "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~], "
 			   flags
 			   (frame-23-altertag-p flags)
 			   (frame-23-alterfile-p flags)

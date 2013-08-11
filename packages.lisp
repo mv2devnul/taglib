@@ -2,6 +2,10 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:cl-user)
 
+(defpackage #:utils
+  (:export #:warn-user)
+  (:use #:common-lisp))
+
 (defpackage #:iso-639-2
   (:export #:get-iso-639-2-language)
   (:use #:common-lisp))
@@ -52,9 +56,6 @@
 		   #:+itunes-track-n+)
   (:use #:common-lisp #:audio-streams #:utils))
 
-(defpackage #:utils
-  (:export #:warn-user)
-  (:use #:common-lisp))
 
 (defpackage #:id3-frame
   (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header #:get-frame-info
