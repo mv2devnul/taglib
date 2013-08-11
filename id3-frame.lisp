@@ -66,6 +66,7 @@ and/or end (version 2.1)"
   (log5:with-context "v21-frame-initializer"
 	(log-id3-frame "reading v2.1 tag")
 	(with-slots      (title artist album year comment genre track) me
+	  (setf track nil)
 	  (setf title    (upto-null (stream-read-string-with-len instream 30)))
 	  (setf artist   (upto-null (stream-read-string-with-len instream 30)))
 	  (setf album    (upto-null (stream-read-string-with-len instream 30)))
@@ -876,7 +877,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (when (or (= version 3) (= version 4))
 		(setf frame-flags (stream-read-u16 instream))
 		(when (not (valid-frame-flags version frame-flags))
-			(warn "Invalid frame flags found ~a" (print-frame-flags version frame-flags nil))))
+		  (warn-user "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))))
 
 	  (log-id3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"
 					 frame-name version frame-len
@@ -910,6 +911,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 						 (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
 						 (push this-frame frames))
 					 (condition (c)
+					   ;; XXX need to 'handle' warnings here...
 					   (log-id3-frame "got condition ~a when making frame" c)
 					   (return-from read-loop (values nil (nreverse frames))))))
 
@@ -939,7 +941,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 			;; start reading frames from memory stream
 			(multiple-value-bind (_ok _frames) (read-loop version mem-stream)
 			  (if (not _ok)
-				  (warn "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
+				  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
 			  (log-id3-frame "ok = ~a, returning ~d frames" _ok (length _frames))
 			  (setf frames _frames)
 			  _ok)))))))

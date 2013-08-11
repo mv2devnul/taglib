@@ -7,6 +7,7 @@
   :license "Public Domain"
   :depends-on (#:log5 #:alexandria)
   :components ((:file "packages")
+			   (:file "utils"         :depends-on ("packages"))
 			   (:file "audio-streams" :depends-on ("packages"))
 			   (:file "mpeg"          :depends-on ("packages" "audio-streams"))
 			   (:file "iso-639-2"     :depends-on ("packages"))

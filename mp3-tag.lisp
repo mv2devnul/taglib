@@ -231,7 +231,7 @@
   (let ((frames (get-frames me '("TCO" "TCON"))))
 	(when frames
 	  (when (> (length frames) 1)
-		(warn "file ~a has more than one genre frame, will only use the first" (stream-filename me)))
+		(warn-user "file ~a has more than one genre frame, will only use the first" (stream-filename me)))
 	  (let ((count)
 			(end)
 			(str (info (first frames))))
@@ -244,9 +244,9 @@
 		;; only allow one (no refinements) or we can handle the simple string case
 		(when (and (>= (length str) 1) (eq #\( (aref str 0)))
 		  (setf count (count #\( str))
-		  (when (> count 1) (warn "Don't support genre refinement yet, found ~d genres" count))
+		  (when (> count 1) (warn-user "Don't support genre refinement yet, found ~d genres" count))
 		  (setf end (position #\) str))
-		  (when (null end) (warn "Bad format for genre, ending paren is missing"))
+		  (when (null end) (warn-user "Bad format for genre, ending paren is missing"))
 		  (setf str (get-id3v1-genre (parse-integer (subseq str 1 end)))))
 		(return-from genre str))))
 

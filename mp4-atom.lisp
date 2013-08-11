@@ -269,7 +269,7 @@ seek forward past end of this atom."
 		   (atom))
 	  (declare (type integer pos siz typ))
 	  (when (= 0 siz)
-		(warn "trying to make an atom ~a with size of 0 at offset ~:d in ~a, ammending size to be 8" (as-string typ) pos (stream-filename mp4-file))
+		(warn-user "trying to make an atom ~a with size of 0 at offset ~:d in ~a, ammending size to be 8" (as-string typ) pos (stream-filename mp4-file))
 		(setf siz 8))
 	  (log-mp4-atom "pos = ~:d, size = ~:d, type = ~a" pos siz (as-string typ))
 	  (cond ((member typ *atoms-of-interest*)

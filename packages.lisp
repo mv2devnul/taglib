@@ -21,7 +21,7 @@
 		   #:stream-read-utf-8-string #:stream-read-string
 		   #:stream-read-string #:stream-read-sequence #:stream-size
 		   #:stream-seek #:stream-close)
-  (:use #:common-lisp))
+  (:use #:common-lisp #:utils))
 
 (defpackage #:mp4-atom
   (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse #:mp4-atom-condition
@@ -50,28 +50,32 @@
 		   #:+itunes-tempo+
 		   #:+itunes-track+
 		   #:+itunes-track-n+)
-  (:use #:common-lisp #:audio-streams))
+  (:use #:common-lisp #:audio-streams #:utils))
 
-(defpackage :id3-frame
+(defpackage #:utils
+  (:export #:warn-user)
+  (:use #:common-lisp))
+
+(defpackage #:id3-frame
   (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header #:get-frame-info
 		   #:encoding #:lang #:desc #:val #:comment #:artist #:album #:year #:comment #:year
 		   #:printable-array
 		   #:map-id3-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
-  (:use #:common-lisp #:audio-streams #:iso-639-2))
+  (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
 (defpackage #:mp3-tag
   (:export #:show-tags #:get-id3v1-genre)
-  (:use #:common-lisp #:audio-streams #:id3-frame))
+  (:use #:common-lisp #:audio-streams #:id3-frame #:utils))
 
 (defpackage #:mp4-tag
   (:export #:show-tags #:album #:album-artist #:artist #:comment #:composer #:copyright #:created
 		   #:encoder #:groups #:lyrics #:purd #:title #:tool #:writer)
-  (:use #:common-lisp #:audio-streams))
+  (:use #:common-lisp #:audio-streams #:utils))
 
 (defpackage #:logging
   (:export #:with-logging)
-  (:use #:common-lisp))
+  (:use #:common-lisp #:utils))
 
 (defpackage #:mpeg
   (:export #:get-mpeg-info #:vpprint)
-  (:use #:common-lisp #:audio-streams))
+  (:use #:common-lisp #:audio-streams #:utils))
