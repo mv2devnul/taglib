@@ -421,8 +421,6 @@ Loop through this container and construct constituent atoms"
 									  (as-string atom-parent-type) atom-version atom-flags 
 									  (if (typep atom-value 'array) (printable-array atom-value) atom-value)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
 (defun is-valid-m4-file (mp4-file)
   "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?"
   (stream-seek mp4-file 0 :start)
