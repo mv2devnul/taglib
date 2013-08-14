@@ -85,6 +85,11 @@
   (with-slots (stream) in-stream
 	(stream-read-octets stream 4 :bits-per-byte bits-per-byte)))
 
+(defmethod stream-read-u64 ((in-stream base-stream) &key (bits-per-byte 8))
+  "read 8 bytes from file"
+  (with-slots (stream) in-stream
+	(stream-read-octets stream 8 :bits-per-byte bits-per-byte)))
+
 ;; (defmethod stream-read-string ((stream base-stream) &key size (terminators nil))
 ;;   "Read normal string from stream. If size is provided, read exactly that many octets.
 ;; If terminators is supplied, it is a list of characters that can terminate a string (and hence stop read)"
@@ -107,12 +112,12 @@
   (log5:with-context "stream-read-sequence"
 	(ecase bits-per-byte
 	  (8
-	   (log-stream "reading ~:d bytes as 8-bit sequence" size)
+	   ;(log-stream "reading ~:d bytes as 8-bit sequence" size)
 	   (let ((octets (make-octets size)))
 		 (read-sequence octets (slot-value stream 'stream))
 		 octets))
 	  (7
-	   (log-stream "reading ~:d bytes as 7-bit sequence" size)
+	   ;(log-stream "reading ~:d bytes as 7-bit sequence" size)
 	   (let* ((last-byte-was-FF nil)
 			  (byte nil)
 			  (octets (ccl:with-output-to-vector (out)
@@ -123,8 +128,8 @@
 								  (write-byte byte out))
 							  (write-byte byte out))
 						  (setf last-byte-was-FF (= byte #xFF))))))
-		 (log-stream "file pos is now: ~:d" (stream-seek stream 0 :current))
-		 (log-stream "~a" (id3-frame:printable-array octets))
+		 ;(log-stream "file pos is now: ~:d" (stream-seek stream 0 :current))
+		 ;(log-stream "~a" (utils:printable-array octets))
 		 octets)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; STRINGS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

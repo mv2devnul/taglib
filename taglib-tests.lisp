@@ -38,7 +38,7 @@
 ;;;;;;;;;;;;;;;;;;;; MP4 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp4-test0 (file)
   (let (foo)
-	(unwind-protect 
+	(unwind-protect
 		 (setf foo (parse-mp4-file file))
 	  (when foo (stream-close foo)))
 	foo))

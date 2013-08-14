@@ -163,10 +163,11 @@
 
 (defun get-id3v1-genre (n)
   "Given N, a supposed ID3 genre, range check it to make sure it is > 0 and < (sizeof *ID3V1-GENRES*)"
-  (if (or (> n (length *id3v1-genres*))
-		  (< n 0))
-	  "BAD GENRE"
-	  (aref *id3v1-genres* n)))
+  (let ((idx (- n 1)))	; genres are 1-based, arrays 0-based
+	(if (or (> idx (length *id3v1-genres*))
+			(< idx 0))
+		"BAD GENRE"
+	  (aref *id3v1-genres* idx))))
 
 (defun get-frames (stream names)
   "Given a MP3-STREAM, search its frames for NAMES.  Return file-order list of matching frames"

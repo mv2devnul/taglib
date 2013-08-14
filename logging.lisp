@@ -20,12 +20,12 @@
 									 id3-frame::cat-log-id3-frame))
 
 
-(defmacro with-logging ((&key (file nil) (categories *logging-categories*)) &body body)
+(defmacro with-logging ((&optional file &key (categories *logging-categories*)) &body body)
   (alexandria:with-gensyms (output-stream)
 	`(let (,output-stream)
 	   (unwind-protect
 			(setf ,output-stream (if ,file
-									 (open ,file :direction :output :if-exists :overwrite :if-does-not-exist :create)
+									 (open ,file :direction :output :if-exists :supersede :if-does-not-exist :create)
 									 *standard-output*))
 			(log5:start-sender 'trace-log (log5:stream-sender :location ,output-stream)
 							   :category-spec ',categories

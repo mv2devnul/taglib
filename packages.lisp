@@ -3,7 +3,7 @@
 (in-package #:cl-user)
 
 (defpackage #:utils
-  (:export #:warn-user)
+  (:export #:warn-user #:printable-array #:upto-null)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2
@@ -16,7 +16,7 @@
 		   #:id3-header #:mpeg-info #:mp4-atoms
 		   #:parse-mp3-file #:parse-mp4-file
 		   #:make-mem-stream #:stream-filename
-		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-octets
+		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-u64 #:stream-read-octets
 		   #:stream-decode-iso-string #:stream-deocode-ucs-string #:stream-decode-ucs-be-string
 		   #:stream-decode-utf-8-string #:stream-decode-string #:stream-read-iso-string-with-len
 		   #:stream-read-ucs-string-with-len #:stream-read-ucs-be-string-with-len
@@ -60,7 +60,6 @@
 (defpackage #:id3-frame
   (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header #:get-frame-info
 		   #:encoding #:lang #:desc #:val #:comment #:artist #:album #:year #:comment #:year
-		   #:printable-array
 		   #:map-id3-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 

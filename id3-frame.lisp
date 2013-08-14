@@ -282,18 +282,6 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	  (setf octets (stream-read-sequence instream len))
 	  (log-id3-frame "frame: ~a" (vpprint me nil)))))
 
-(defparameter *max-raw-bytes-print-len* 10)
-
-(defun printable-array (array)
-  "given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
-  (let* ((len (length array))
-		 (print-len (min len *max-raw-bytes-print-len*))
-		 (printable-array (make-array print-len :displaced-to array)))
-	(format nil "[~:d of ~:d bytes] <~x>" print-len len printable-array)))
-
-(defun upto-null (string)
-  "Trim STRING to end at first NULL found"
-  (subseq string 0 (position #\Null string)))
 
 (defmethod vpprint ((me frame-raw) stream)
   (with-slots (octets) me
