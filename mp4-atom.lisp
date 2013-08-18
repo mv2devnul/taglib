@@ -598,20 +598,33 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
 														(traverse track (list +mp4-atom-mdia+ +mp4-atom-minf+ +mp4-atom-stbl+ +audioprop-mp4a+ +audioprop-esds+)))))))
   nil)
 
-;;; song length is seconds is (float duration) / (float scale)
-(defun get-audio-properties (mp4-file)
-  (let ((time))
+(defclass audio-info ()
+  ((seconds         :accessor seconds :initform nil)
+   (channels        :accessor channels :initform nil)
+   (bits-per-sample :accessor bits-per-sample :initform nil)
+   (sample-rate     :accessor sample-rate :initform nil)
+   (max-bit-rate    :accessor max-bit-rate :initform nil)
+   (avg-bit-rate    :accessor avg-bit-rate :initform nil)))
+
+(defmethod vpprint ((me audio-info) stream)
+  (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me
+	(format stream "sample rate: ~:d Hz, # channels: ~d, bits-per-sample: ~:d, max bit-rate: ~:d, avg bit-rate: ~:d, duration: ~:d:~2,'0d"
+			sample-rate channels bits-per-sample max-bit-rate avg-bit-rate
+			(floor (/ seconds 60)) (round (mod seconds 60)))))
+
+(defun get-mp4-audio-info (mp4-file)
+  (let ((info (make-instance 'audio-info)))
 	(multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
-	  (when mdhd
-		(setf time (/ (float (duration mdhd)) (float (scale mdhd))))
-		(format t "~a seconds~%" time))
+	  (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) info
+		(when mdhd
+		  (setf seconds (/ (float (duration mdhd)) (float (scale mdhd)))))
 		(when mp4a
-		  (format t "channels: ~d~%" (num-chans mp4a))
-		  (format t "bits/sample: ~:d~%" (samp-size mp4a))
+		  (setf channels (num-chans mp4a))
+		  (setf bits-per-sample (samp-size mp4a))
 		  (let* ((upper (ash (samp-rate mp4a) -16))
-				 (lower (logand (samp-rate mp4a) #xffff))
-				 (rate (+ (float upper) (/ (float lower) 1000))))
-		  (format t "sample rate: ~:d~%" rate)))
+				 (lower (logand (samp-rate mp4a) #xffff)))
+			(setf sample-rate (+ (float upper) (/ (float lower) 1000))))
 		(when esds
-		  (format t "average bit-rate = ~:d, max bit-rate = ~:d~%"
-				  (avg-bit-rate esds) (max-bit-rate esds))))))
+		  (setf avg-bit-rate (avg-bit-rate esds))
+		  (setf max-bit-rate (max-bit-rate esds))))))
+	info))

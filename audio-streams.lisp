@@ -17,10 +17,11 @@
 
 (defclass mp3-file-stream (base-file-stream)
   ((id3-header  :accessor id3-header)
-   (mpeg-info   :accessor mpeg-info :initform nil)))
+   (audio-info   :accessor audio-info :initform nil)))
 
 (defclass mp4-file-stream (base-file-stream)
-  ((mp4-atoms :accessor mp4-atoms :initform nil)))
+  ((mp4-atoms  :accessor mp4-atoms :initform nil)
+   (audio-info :accessor audio-info :initform nil)))
 
 (defun make-file-stream (class-name filename &key (read-only t))
   (let ((new-stream (make-instance (find-class class-name))))
@@ -280,30 +281,31 @@
 	(2 (stream-read-ucs-be-string instream))
 	(3 (stream-read-utf-8-string instream))))
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; FILES ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defun parse-mp4-file (filename)
+(defun parse-mp4-file (filename &key (get-audio-info *get-audio-info*))
   (let (stream)
 	(handler-case
 		(progn
 		  (setf stream (make-file-stream 'mp4-file-stream filename))
-		  (mp4-atom:find-mp4-atoms stream))
+		  (mp4-atom:find-mp4-atoms stream)
+		  (when get-audio-info
+			(setf (audio-info stream) (mp4-atom:get-mp4-audio-info stream))))
 	  (mp4-atom:mp4-atom-condition (c)
 		(warn-user "make-mp4-stream got condition: ~a" c)
 		(when stream (stream-close stream))
 		(setf stream nil)))
 	stream))
 
-(defvar *get-mpeg-info* nil)
+(defvar *get-audio-info* nil)
 
-(defun parse-mp3-file (filename &key (get-mpeg-info *get-mpeg-info*))
+(defun parse-mp3-file (filename &key (get-audio-info *get-audio-info*))
   (let (stream)
 	  (handler-case
 		  (progn
 			(setf stream (make-file-stream 'mp3-file-stream filename))
 			(id3-frame:find-id3-frames stream)
-			(when get-mpeg-info
-			  (setf (mpeg-info stream) (mpeg:get-mpeg-info stream))))
+			(when get-audio-info
+			  (setf (audio-info stream) (mpeg:get-mpeg-audio-info stream))))
 		(id3-frame:id3-frame-condition (c)
 		  (warn-user "make-mp3-stream got condition: ~a" c)
 		  (when stream (stream-close stream))

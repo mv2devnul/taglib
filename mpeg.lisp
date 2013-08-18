@@ -412,16 +412,15 @@
 		  (values t br len))
 		(values nil nil nil))))
 
-(defclass mpeg-info ()
-  ((is-vbr      :accessor is-vbr :initarg :is-vbr)
-   (bit-rate    :accessor bit-rate :initarg :bit-rate)
-   (sample-rate :accessor sample-rate :initarg :sample-rate)
-   (len         :accessor len :initarg :len)
-   (version     :accessor version :initarg :version)
-   (layer       :accessor layer :initarg :layer))
-  (:default-initargs :is-vbr nil :bit-rate nil :sample-rate nil :len nil :version nil :layer nil))
+(defclass mpeg-audio-info ()
+  ((is-vbr      :accessor is-vbr :initarg :is-vbr :initform nil)
+   (bit-rate    :accessor bit-rate :initarg :bit-rate :initform nil)
+   (sample-rate :accessor sample-rate :initarg :sample-rate :initform nil)
+   (len         :accessor len :initarg :len :initform nil)
+   (version     :accessor version :initarg :version :initform nil)
+   (layer       :accessor layer :initarg :layer :initform nil)))
 
-(defmethod vpprint ((me mpeg-info) stream)
+(defmethod vpprint ((me mpeg-audio-info) stream)
   (with-slots (is-vbr sample-rate  bit-rate len version layer) me
 	(format stream "~a, ~a, ~:[CBR,~;VBR,~] sample rate: ~:d Hz, bit rate: ~:d Kbps, duration: ~:d:~2,'0d"
 			(get-mpeg-version-string version)
@@ -430,17 +429,17 @@
 			sample-rate
 			(round (/ bit-rate 1000))
 			(floor (/ len 60)) (round (mod len 60)))))
-  
-(defun get-mpeg-info (in &key (max-frames nil))
+
+(defun get-mpeg-audio-info (in &key (max-frames nil))
   "Get MPEG Layer 3 audio information."
-  (log5:with-context "get-mpeg-info"
+  (log5:with-context "get-mpeg-audio-info"
 	(let ((pos (stream-seek in 0 :current))
 		  (first-frame (find-first-sync in))
-		  (info (make-instance 'mpeg-info)))
+		  (info (make-instance 'mpeg-audio-info)))
 
 	  (log-mpeg-frame "search for first frame yielded ~a" first-frame)
 	  (when (null first-frame)
-		(return-from get-mpeg-info nil))
+		(return-from get-mpeg-audio-info nil))
 
 	  (with-slots (is-vbr sample-rate bit-rate len version layer) info
 		(setf version (version first-frame))
@@ -472,8 +471,8 @@
 						  :read-payload nil :max max-frames)
 			  (if (or (< n-frames 10) (zerop bit-rate-total))
 				  (progn
-					(log-mpeg-frame "couldn't get mpeg-info: only got ~d frames" n-frames)
-					(return-from get-mpeg-info nil))
+					(log-mpeg-frame "couldn't get audio-info: only got ~d frames" n-frames)
+					(return-from get-mpeg-audio-info nil))
 				  (progn
 					(setf is-vbr vbr)
 					(setf len total-len)

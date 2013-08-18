@@ -40,7 +40,10 @@
   "Show the tags for an MP4-FILE. If RAW is non-nil, dump the DATA atoms; else show subset of DATA atoms"
   (format t "~a~%" (stream-filename me))
   (if raw
-	  (mp4-atom:mp4-show-raw-tag-atoms me)
+	  (progn
+		(mp4-atom:mp4-show-raw-tag-atoms me)
+		(if (audio-info me)
+		  (mp4-atom:vpprint (audio-info me) t)))
 	  (let ((album (album me))
 			(album-artist (album-artist me))
 			(artist (artist me))
@@ -60,6 +63,9 @@
 			(track (track me))
 			(writer (writer me))
 			(year (year me)))
+
+		(if (audio-info me)
+		  (mp4-atom:vpprint (audio-info me) t))
 		(when album (format t "~4talbum: ~a~%" album))
 		(when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
 		(when artist (format t "~4tartist: ~a~%" artist))

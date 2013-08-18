@@ -11,9 +11,9 @@
   (:use #:common-lisp))
 
 (defpackage #:audio-streams
-  (:export #:octets #:make-octets *get-mpeg-info*
+  (:export #:octets #:make-octets *get-mpeg-audio-info*
 		   #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
-		   #:id3-header #:mpeg-info #:mp4-atoms
+		   #:id3-header #:audio-info #:mp4-atoms
 		   #:parse-mp3-file #:parse-mp4-file
 		   #:make-mem-stream #:stream-filename
 		   #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-u64 #:stream-read-octets
@@ -31,7 +31,7 @@
   (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse #:mp4-atom-condition
 		   #:atom-file-position #:atom-children #:atom-size #:atom-of-interest #:atom-decoded
 		   #:atom-type #:vpprint #:*tag-path* #:tag-get-value #:mp4-atom-condition
-		   #:mp4-show-raw-tag-atoms
+		   #:mp4-show-raw-tag-atoms #:get-mp4-audio-info
 		   #:+itunes-album+
 		   #:+itunes-album-artist+
 		   #:+itunes-artist+
@@ -77,5 +77,5 @@
   (:use #:common-lisp #:utils))
 
 (defpackage #:mpeg
-  (:export #:get-mpeg-info #:vpprint)
+  (:export #:get-mpeg-audio-info #:vpprint)
   (:use #:common-lisp #:audio-streams #:utils))
