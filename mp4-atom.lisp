@@ -324,8 +324,63 @@ Loop through this container and construct constituent atoms"
 	(setf lang     (stream-read-u16 mp4-file))
 	(setf quality  (stream-read-u16 mp4-file))))
 
+(defclass atom-esds (mp4-atom)
+  ((version      :accessor version)      ; 1 byte
+   (flags        :accessor flags)		 ; 3 bytes
+   (esid         :accessor esid)		 ; 2 bytes
+   (s-priority   :accessor s-priority) 	 ; 1 byte
+   (obj-id		 :accessor obj-id)		 ; 1 byte
+   (s-type       :accessor s-type)       ; 1 byte (1 bit up-stream, 1-but reservered, 6-bits stream type
+   (buf-size     :accessor buf-size)     ; 3 bytes
+   (max-bit-rate :accessor max-bit-rate) ; 4 bytes
+   (avg-bit-rate :accessor avg-bit-rate) ; 4 bytes
+   (dc-len       :accessor dc-len)       ; 2 bytes
+   (dc           :accessor dc)           ; 1 byte
+   (slc-len      :accessor slc-len)      ; 1 byte
+   (slc          :accessor slc))         ; 1 byte
+  (:documentation "XXX-partial definition for Elementary Stream DescriptorS"))
+
+
+(defmacro while (test &body body)
+  `(do ()
+       ((not ,test))
+     ,@body))
+
+(defun read-descriptor-len (instream)
+  "Get the ES descriptor's length."
+  (let* ((tmp (stream-read-u8 instream))
+		 (len (logand tmp #x7f)))
+	(declare (type (unsigned-byte 8) tmp))
+	(while (not (zerop (logand #x80 tmp)))
+	  (setf tmp (stream-read-u8 instream))
+	  (setf len (logior (ash len 7) (logand tmp #x7f))))
+	len))
+
+(defmethod initialize-instance :after ((me atom-esds) &key (mp4-file nil) &allow-other-keys)
+  (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
+	(setf version  (stream-read-u8 mp4-file))
+	(setf flags    (stream-read-u24 mp4-file))
+	(assert (= 3 (stream-read-u8 mp4-file)) () "Expected a description tag of 3")
+	(let* ((len1 (read-descriptor-len mp4-file))
+		   (end-of-atom (+ (stream-seek mp4-file 0 :current) len1))
+		   (len2 0))
+	  (declare (ignore len2)) ; XXX for now...
+	  (setf esid (stream-read-u16 mp4-file))
+	  (setf s-priority (stream-read-u8 mp4-file))
+	  ;; XXX should do some range checking here against LEN1...
+	  (assert (= 4 (stream-read-u8 mp4-file)) () "Expected tag type of 4")
+	  (setf len2 (read-descriptor-len mp4-file))
+	  (setf obj-id (stream-read-u8 mp4-file))
+	  (setf s-type (stream-read-u8 mp4-file))
+	  (setf buf-size (stream-read-u24 mp4-file))
+	  (setf max-bit-rate (stream-read-u32 mp4-file))
+	  (setf avg-bit-rate (stream-read-u32 mp4-file))
+	  ;; XXX should do checking here on LEN2 and/or read rest of atom,
+	  ;; but for now, we have what we want, so just seek to end of atom
+	  (stream-seek mp4-file end-of-atom :start))))
+
 (defclass atom-stsd (mp4-atom)
-  ((flags       :accessor flags)
+  ((flags        :accessor flags)
    (version     :accessor version)
    (num-entries :accessor num-entries)))
 
@@ -547,20 +602,16 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
 (defun get-audio-properties (mp4-file)
   (let ((time))
 	(multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
-	  (progn
-		(format t "mdhd: ~a~%" (vpprint mdhd nil))
-		(format t "mp4a: ~a~%" (vpprint mp4a nil))
-		(format t "esds: ~a~%" (vpprint esds nil))
-		(when mdhd
-		  (setf time (/ (float (duration mdhd)) (float (scale mdhd))))
-		  (format t "~a seconds~%" time))
+	  (when mdhd
+		(setf time (/ (float (duration mdhd)) (float (scale mdhd))))
+		(format t "~a seconds~%" time))
 		(when mp4a
-		  (inspect mp4a)
 		  (format t "channels: ~d~%" (num-chans mp4a))
-		  (format t "bite/sample: ~:d~%" (samp-size mp4a))
+		  (format t "bits/sample: ~:d~%" (samp-size mp4a))
 		  (let* ((upper (ash (samp-rate mp4a) -16))
 				 (lower (logand (samp-rate mp4a) #xffff))
 				 (rate (+ (float upper) (/ (float lower) 1000))))
 		  (format t "sample rate: ~:d~%" rate)))
 		(when esds
-		  (format t "XXX~%"))))))
+		  (format t "average bit-rate = ~:d, max bit-rate = ~:d~%"
+				  (avg-bit-rate esds) (max-bit-rate esds))))))

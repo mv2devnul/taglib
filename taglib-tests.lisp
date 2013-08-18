@@ -51,7 +51,9 @@
   (osicat:walk-directory dir (lambda (f)
 							   (when (has-extension f "m4a")
 								 (let ((file (mp4-test0 f)))
-								   (when file (mp4-tag:show-tags file :raw raw)))))))
+								   (when file 
+									 (mp4-tag:show-tags file :raw raw)
+									 (mp4-atom::get-audio-properties file)))))))
 
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp3-test0 (file)
