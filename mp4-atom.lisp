@@ -607,12 +607,16 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
 (defmethod vpprint ((me audio-info) stream)
   (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me
 	(format stream "sample rate: ~:d Hz, # channels: ~d, bits-per-sample: ~:d, max bit-rate: ~:d Kbps, avg bit-rate: ~:d Kbps, duration: ~:d:~2,'0d"
-			sample-rate channels bits-per-sample
-			(round (/ max-bit-rate 1000))
-			(round (/ avg-bit-rate 1000))
-			(floor (/ seconds 60)) (round (mod seconds 60)))))
+			(if sample-rate sample-rate 0)
+			(if channels channels 0)
+			(if bits-per-sample bits-per-sample 0)
+			(if max-bit-rate (round (/ max-bit-rate 1000)) 0)
+			(if avg-bit-rate (round (/ avg-bit-rate 1000)) 0)
+			(if seconds (floor (/ seconds 60)) 0)
+			(if seconds (round (mod seconds 60)) 0))))
 
 (defun get-mp4-audio-info (mp4-file)
+  "MP4a audio info is held in under the trak.mdia.mdhd/trak.mdia.minf.stbl/trak.mdia.minf.stbl.mp4a atoms."
   (let ((info (make-instance 'audio-info)))
 	(multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
 	  (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) info
