@@ -608,8 +608,10 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
 
 (defmethod vpprint ((me audio-info) stream)
   (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me
-	(format stream "sample rate: ~:d Hz, # channels: ~d, bits-per-sample: ~:d, max bit-rate: ~:d, avg bit-rate: ~:d, duration: ~:d:~2,'0d"
-			sample-rate channels bits-per-sample max-bit-rate avg-bit-rate
+	(format stream "sample rate: ~:d Hz, # channels: ~d, bits-per-sample: ~:d, max bit-rate: ~:d Kbps, avg bit-rate: ~:d Kbps, duration: ~:d:~2,'0d"
+			sample-rate channels bits-per-sample
+			(round (/ max-bit-rate 1000))
+			(round (/ avg-bit-rate 1000))
 			(floor (/ seconds 60)) (round (mod seconds 60)))))
 
 (defun get-mp4-audio-info (mp4-file)
