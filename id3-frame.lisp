@@ -72,7 +72,8 @@ and/or end (version 2.1)"
 	  (setf album    (upto-null (stream-read-string-with-len instream 30)))
 	  (setf year     (upto-null (stream-read-string-with-len instream 4)))
 	  (setf comment  (stream-read-string-with-len instream 30))
-	  ;; In V21, a comment can be split into comment and track#
+
+	  ;; In V21, a comment can be split into comment and track #
 	  ;; find the first #\Null then check to see if that index < 28.  If so, the check the last two bytes being
 	  ;; non-zero---if so, then track can be set to integer value of last two bytes
 	  (let ((trimmed-comment (upto-null comment))
@@ -92,7 +93,7 @@ and/or end (version 2.1)"
    (flags   :accessor flags   :initarg :flags   :initform 0)
    (padding :accessor padding :initarg :padding :initform 0)
    (crc	    :accessor crc     :initarg :crc     :initform nil))
-  (:documentation "class representing a V2.3/4 extended header"))
+  (:documentation "Class representing a V2.3/4 extended header"))
 
 (defmacro ext-header-crc-p    (flags) `(logbitp 14 ,flags))
 
@@ -105,11 +106,13 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	(setf flags (stream-read-u16 instream))
 	(setf padding (stream-read-u32 instream))
 	(when (not (zerop flags))
+
 	  ;; at this point, we have to potentially read in other fields depending on flags.
 	  ;; for now, just error out...
-	  (assert (zerop flags) () "non-zero extended header flags = ~x, check validity"))))
-	;;(when (ext-header-crc-p flags)
-	;;  (setf crc (stream-read-u32 instream)))))
+	  (assert (zerop flags) () "non-zero extended header flags = ~x, check validity")
+	  ;;(when (ext-header-crc-p flags)
+	  ;;  (setf crc (stream-read-u32 instream)))))
+	  )))
 
 (defmethod vpprint ((me id3-ext-header) stream)
   (with-slots (size flags padding crc) me
@@ -180,7 +183,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;;; to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
 ;;; that reads in data to build class.
 ;;;
-;;; Each frame class assumes that the STREAM being passed in is sync-safe.
+;;; Each frame class assumes that the STREAM being passed has been made sync-safe.
 ;;;
 ;;; For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
 ;;; a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
@@ -189,7 +192,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;;;
 ;;; many ID3 tags are name/value pairs, with the name/value encoded in various ways
 ;;; this routine assumes that the "name" is always a string with a "normal" encoding (i.e. 0, 1, 2, or 3).
-;;; The "value", however, also accepts any negative number, which means read
+;;; The "value" field accepts "normal" encoding, but also accepts any negative number, which means read
 ;;; the bytes an raw octets.
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (log5:with-context  "get-name-value-pair"
@@ -287,8 +290,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
   (with-slots (octets) me
 	(format stream "frame-raw: ~a, ~a" (vpprint-frame-header me) (printable-array octets))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V2.1 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; v22 frames I haven't written a class for yet
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V2.2 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass frame-buf (frame-raw) ())
 (defclass frame-cnt (frame-raw) ())
 (defclass frame-cra (frame-raw) ())
@@ -312,13 +314,12 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-wpb (frame-raw) ())
 (defclass frame-stc (frame-raw) ())
 
-;;; V22 User defined...   "WXX"
-;;; Text encoding     $xx
-;;; Description       <textstring> $00 (00)
-;;; URL               <textstring>
+;;; V22 User defined... "WXX"
+;;; Text encoding       $xx
+;;; Description         <textstring> $00 (00)
+;;; URL                 <textstring>
 ;;; Identical to TXX
 (defclass frame-wxx (frame-txx) ())
-
 
 
 ;; V22 COM frames
@@ -402,7 +403,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
   (log5:with-context "frame-text-info"
 	(with-slots (version flags len encoding info) me
 	  (let ((read-len len))
-		;; in version 4 frames, each frame may also have an unsync flag.  since we have unsynced already
+
+		;; In version 4 frames, each frame may also have an unsync flag.  since we have unsynced already
 		;; the only thing we need to do here is check for the optional DATALEN field.  If it is present
 		;; then it has the actual number of octets to read
 		(when (and (= version 4) (frame-24-unsynch-p flags))
@@ -412,7 +414,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 		(setf encoding (stream-read-u8 instream))
 		(setf info (stream-read-string-with-len instream (1- read-len) :encoding encoding)))
 
-	  ;; a null is ok, but according to the "spec", you're supposed to ignore anything after a 'Null'
+	  ;; A null is ok, but according to the "spec", you're supposed to ignore anything after a 'Null'
 	  (log-id3-frame "made text-info-frame: ~a" (vpprint me nil))
 	  (setf info (upto-null info))
 
@@ -459,7 +461,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-txt (frame-text-info) ())
 (defclass frame-tye (frame-text-info) ())
 
-;; v22 User defined "TXX" frames
+;; V22 User defined "TXX" frames
 ;; Text encoding     $xx
 ;; Description       <textstring> $00 (00)
 ;; Value             <textstring>
@@ -503,7 +505,6 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	(format stream "frame-ufi: ~a, name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V23/V24 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; v23/v24 frame I haven't written a class for yet
 (defclass frame-aenc (frame-raw) ())
 (defclass frame-aspi (frame-raw) ())
 (defclass frame-comr (frame-raw) ())
@@ -603,7 +604,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 	"During recording"
 	"During performance"
 	"Movie/video screen capture"
-	"A bright coloured fish"	; how do you know the fish is smart :)
+	"A bright coloured fish"	; how do you know the fish is intelligent? :)
 	"Illustration"
 	"Band/artist logotype"
 	"Publisher/Studio logotype"))
@@ -623,7 +624,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;; Picture data    <binary data>
 (defclass frame-apic (id3-frame)
   ((encoding :accessor encoding)
-   (mime     :accessor mime)<
+   (mime     :accessor mime)
    (type     :accessor type)
    (desc     :accessor desc)
    (data     :accessor data))
@@ -656,7 +657,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
    (lang	 :accessor lang)
    (desc     :accessor desc)
    (val		 :accessor val))
-  (:documentation "Comment frame"))
+  (:documentation "V23/4 Comment frame"))
 
 (defmethod initialize-instance :after ((me frame-comm) &key instream)
   (log5:with-context "frame-comm"
@@ -678,7 +679,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;;; Unsynchronized lyrics frames look very much like comment frames...
 (defclass frame-uslt (frame-comm) ())
 
-;;; v23/24 PCNT frames
+;;; V23/24 PCNT frames
 ;;; <Header for 'Play counter', ID: "PCNT">
 ;;; Counter         $xx xx xx xx (xx ...)
 (defclass frame-pcnt (id3-frame)
@@ -899,7 +900,6 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 						 (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
 						 (push this-frame frames))
 					 (condition (c)
-					   ;; XXX need to 'handle' warnings here...
 					   (log-id3-frame "got condition ~a when making frame" c)
 					   (return-from read-loop (values nil (nreverse frames))))))
 
@@ -915,18 +915,19 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 	  (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
 	  (with-slots (size ext-header frames flags version) (id3-header mp3-file)
-		;; at this point, we switch from reading the file stream and create a memory stream
+
+		;; At this point, we switch from reading the file stream and create a memory stream
 		;; rationale: it may need to be unsysnc'ed and it helps prevent run-away reads with
 		;; mis-formed frames
 		(when (not (zerop size))
 		  (let ((mem-stream (make-mem-stream (stream-read-sequence mp3-file size
 																   :bits-per-byte (if (header-unsynchronized-p flags) 7 8)))))
 
-			;; must make extended header here since it is subject to unsynchronization.
+			;; Must make extended header here since it is subject to unsynchronization.
 			(when (header-extended-p flags)
 			  (setf ext-header (make-instance 'id3-extended-header :instream mem-stream)))
 
-			;; start reading frames from memory stream
+			;; Start reading frames from memory stream
 			(multiple-value-bind (_ok _frames) (read-loop version mem-stream)
 			  (if (not _ok)
 				  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))

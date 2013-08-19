@@ -362,25 +362,23 @@ Loop through this container and construct constituent atoms"
 	(setf flags    (stream-read-u24 mp4-file))
 	(assert (= 3 (stream-read-u8 mp4-file)) () "Expected a description tag of 3")
 	(let* ((len1 (read-descriptor-len mp4-file))
-		   (end-of-atom (+ (stream-seek mp4-file 0 :current) len1))
-		   (len2 0))
-	  (declare (ignore len2)) ; XXX for now...
+		   (end-of-atom (+ (stream-seek mp4-file 0 :current) len1)))
 	  (setf esid (stream-read-u16 mp4-file))
 	  (setf s-priority (stream-read-u8 mp4-file))
 	  ;; XXX should do some range checking here against LEN1...
 	  (assert (= 4 (stream-read-u8 mp4-file)) () "Expected tag type of 4")
-	  (setf len2 (read-descriptor-len mp4-file))
+	  (read-descriptor-len mp4-file) ; eat, but don't store descriptor header len
 	  (setf obj-id (stream-read-u8 mp4-file))
 	  (setf s-type (stream-read-u8 mp4-file))
 	  (setf buf-size (stream-read-u24 mp4-file))
 	  (setf max-bit-rate (stream-read-u32 mp4-file))
 	  (setf avg-bit-rate (stream-read-u32 mp4-file))
-	  ;; XXX should do checking here on LEN2 and/or read rest of atom,
+	  ;; XXX should do checking hereand/or read rest of atom,
 	  ;; but for now, we have what we want, so just seek to end of atom
 	  (stream-seek mp4-file end-of-atom :start))))
 
 (defclass atom-stsd (mp4-atom)
-  ((flags        :accessor flags)
+  ((flags       :accessor flags)
    (version     :accessor version)
    (num-entries :accessor num-entries)))
 

@@ -298,9 +298,6 @@
 	  (return-from lyrics (val (first frames)))))
   nil)
 
-;;;(defmethod purchased-date ((me mp3-file-stream)) "NIY")
-;;;(defmethod tool ((me mp3-file-stream)) "NIY")
-
 (defmethod writer ((me mp3-file-stream))
   (let ((frames (get-frames me '("TCM" "TCOM"))))
 	(when frames
@@ -364,10 +361,8 @@
 			(genre (genre me))
 			(groups (groups me))
 			(lyrics (lyrics me))
-			;;(purchased-date (purchased-date me))
 			(tempo (tempo me))
 			(title (title me))
-			;;(tool (tool me))
 			(track (track me))
 			(writer (writer me))
 			(year (year me)))
@@ -386,10 +381,8 @@
 		(when genre (format t "~4tgenre: ~a~%" genre))
 		(when groups (format t "~4tgroups: ~a~%" groups))
 		(when lyrics (format t "~4tlyrics: ~a~%" lyrics))
-		;;(when purchased-date (format t "~4tpurchased date: ~a~%" purchased-date))
 		(when tempo (format t "~4ttempo: ~a~%" tempo))
 		(when title (format t "~4ttitle: ~a~%" title))
-		;;(when tool (format t "~4ttool: ~a~%" tool))
 		(when track (format t "~4ttrack: ~a~%" track))
 		(when writer (format t "~4twriter: ~a~%" writer))
 		(when year (format t "~4tyear: ~a~%" year)))))

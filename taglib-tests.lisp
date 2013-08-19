@@ -53,7 +53,7 @@
 								 (let ((file (mp4-test0 f)))
 								   (when file 
 									 (mp4-tag:show-tags file :raw raw)
-									 (mp4-atom::get-audio-info file)))))))
+									 (mp4-atom::get-mp4-audio-info file)))))))
 
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp3-test0 (file)
