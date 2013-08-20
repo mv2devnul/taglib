@@ -65,9 +65,10 @@
   "Returns the length of the underlying stream"
   (ccl::stream-length (stream in-stream)))
 
-
-(defmethod stream-seek ((in-stream base-stream) offset from)
-  "C-like stream positioner.  Takes an offset and a location (one of :start, :end, :current)."
+(defmethod stream-seek ((in-stream base-stream) &optional (offset 0) (from :current))
+  "C-like stream positioner.  Takes an offset and a location (one of :start, :end, :current).
+If offset is not passed, then assume 0.  If from is not passed, assume from current location.
+Thus (stream-seek in) == (stream-seek in 0 :current)"
   (with-slots (stream) in-stream
     (ecase from
       (:start (ccl::stream-position stream offset))
@@ -76,9 +77,9 @@
                     (ccl::stream-position stream (+ (ccl::stream-position stream) offset))))
       (:end (ccl::stream-position stream (- (ccl::stream-length stream) offset))))))
 
-(defmethod stream-pos ((in-stream base-stream))
-  "Short hand for getting current stream read position"
-  (stream-seek in-stream 0 :current))
+;; (defmethod stream-seek ((in-stream base-stream))
+;;   "Short hand for getting current stream read position"
+;;   (stream-seek in-stream 0 :current))
 
 (defun stream-read-octets (instream bytes &key (bits-per-byte 8))
   "Used to slurp in octets for the stream-read-* methods"

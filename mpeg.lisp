@@ -174,7 +174,7 @@
   (log5:with-context "load-frame"
     (with-frame-slots (me)
       (when (null b-array)              ; has header already been read in?
-        (setf pos (stream-seek instream 0 :current))
+        (setf pos (stream-seek instream))
         (setf b-array (stream-read-sequence instream 4)))
 
       (if (parse-header me)
@@ -320,7 +320,7 @@
 (defun find-first-sync (in)
   (log5:with-context "find-first-sync"
 
-    (log-mpeg-frame "Looking for first sync, begining at file position ~:d" (stream-seek in 0 :current))
+    (log-mpeg-frame "Looking for first sync, begining at file position ~:d" (stream-seek in))
     (let ((b-array (make-octets 4))
           (pos))
 
@@ -331,7 +331,7 @@
           ;; parse fails (i.e. a false sync), do we skip forward, or try to parse
           ;; the second byte as the FF?
           (loop
-             (setf pos (stream-seek in 0 :current))
+             (setf pos (stream-seek in))
              (setf (aref b-array 0) (stream-read-u8 in))
              (when (= (aref b-array 0) #xff)
                (setf (aref b-array 1) (stream-read-u8 in))
@@ -358,7 +358,7 @@
     (let ((nxt-frame (make-instance 'frame)))
       (when (not (payload me))
         (log-mpeg-frame "no payload in current frame, skipping from ~:d forward ~:d bytes"
-                        (stream-seek instream 0 :current)
+                        (stream-seek instream)
                         (- (size me) 4) :current)
         (stream-seek instream (- (size me) 4) :current))
 
@@ -433,7 +433,7 @@
 (defun get-mpeg-audio-info (in &key (max-frames nil))
   "Get MPEG Layer 3 audio information."
   (log5:with-context "get-mpeg-audio-info"
-    (let ((pos (stream-seek in 0 :current))
+    (let ((pos (stream-seek in))
           (first-frame (find-first-sync in))
           (info (make-instance 'mpeg-audio-info)))
 

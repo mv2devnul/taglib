@@ -157,7 +157,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
     (with-slots (version revision flags size ext-header frames v21-tag-header) me
       (stream-seek instream 128 :end)
       (when (string= "TAG" (stream-read-string-with-len instream 3))
-        (log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream 0 :current))
+        (log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream))
         (handler-case
             (setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
           (id3-frame-condition (c)
@@ -196,10 +196,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;;; the bytes an raw octets.
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (log5:with-context  "get-name-value-pair"
-    (log-id3-frame "reading from ~:d, len ~:d, name-encoding = ~d, value-encoding = ~d" (stream-seek instream 0 :current) len name-encoding value-encoding)
-    (let* ((old-pos (stream-seek instream 0 :current))
+    (log-id3-frame "reading from ~:d, len ~:d, name-encoding = ~d, value-encoding = ~d" (stream-seek instream) len name-encoding value-encoding)
+    (let* ((old-pos (stream-seek instream))
            (name (stream-read-string instream :encoding name-encoding))
-           (name-len (- (stream-seek instream 0 :current) old-pos))
+           (name-len (- (stream-seek instream) old-pos))
            (value))
 
       (log-id3-frame "name = <~a>, name-len = ~d" name name-len)
@@ -845,7 +845,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defun make-frame (version instream)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
   (log5:with-context "make-frame"
-    (let* ((pos (stream-seek instream 0 :current))
+    (let* ((pos (stream-seek instream))
            (byte (stream-read-u8 instream))
            frame-name frame-len frame-flags frame-class)
 
@@ -875,7 +875,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
       ;; edge case where found a frame name, but it is not valid or where making this frame
       ;; would blow past the end of the file/buffer
-      (when (or (> (+ (stream-seek instream 0 :current) frame-len) (stream-size instream))
+      (when (or (> (+ (stream-seek instream) frame-len) (stream-size instream))
                 (null frame-class))
         (error 'id3-frame-condition :message "bad frame found" :object frame-name :location pos))
 
@@ -889,7 +889,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
                (log-id3-frame "Starting loop through ~:d bytes" (stream-size stream))
                (let (frames this-frame)
                  (do ()
-                     ((>= (stream-seek stream 0 :current) (stream-size stream)))
+                     ((>= (stream-seek stream) (stream-size stream)))
                    (handler-case
                        (progn
                          (setf this-frame (make-frame version stream))
@@ -897,7 +897,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
                            (log-id3-frame "hit padding: returning ~d frames" (length frames))
                            (return-from read-loop (values t (nreverse frames))))
 
-                         (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
+                         (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream) (stream-size stream))
                          (push this-frame frames))
                      (condition (c)
                        (log-id3-frame "got condition ~a when making frame" c)

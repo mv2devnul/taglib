@@ -106,10 +106,10 @@
 at top-level and also for container ATOMs that need to read their contents."
   (log5:with-context "atom-read-loop"
     (do ()
-        ((>= (stream-seek mp4-file 0 :current) end))
-      (log-mp4-atom "atom-read-loop: @~:d before dispatch" (stream-seek mp4-file 0 :current))
+        ((>= (stream-seek mp4-file) end))
+      (log-mp4-atom "atom-read-loop: @~:d before dispatch" (stream-seek mp4-file))
       (funcall func)
-      (log-mp4-atom "atom-read-loop: @~:d after dispatch" (stream-seek mp4-file 0 :current)))))
+      (log-mp4-atom "atom-read-loop: @~:d after dispatch" (stream-seek mp4-file)))))
 
 (defclass mp4-atom ()
   ((atom-file-position :accessor atom-file-position :initarg :atom-file-position)
@@ -152,8 +152,8 @@ Loop through this container and construct constituent atoms"
   (log5:with-context "atom-ilst-initializer"
     (with-slots (atom-size atom-type atom-children) me
       (log-mp4-atom "atom-ilst-init: found ilst atom <~a> @ ~:d, looping for ~:d bytes"
-                    (as-string atom-type) (stream-seek mp4-file 0 :current) (- atom-size 8))
-      (atom-read-loop mp4-file (+ (stream-seek mp4-file 0 :current)  (- atom-size 8))
+                    (as-string atom-type) (stream-seek mp4-file) (- atom-size 8))
+      (atom-read-loop mp4-file (+ (stream-seek mp4-file)  (- atom-size 8))
                       (lambda ()
                         (let ((child (make-mp4-atom mp4-file atom-type)))
                           ;(log-mp4-atom "adding new child ~a" (vpprint child nil))
@@ -362,7 +362,7 @@ Loop through this container and construct constituent atoms"
     (setf flags    (stream-read-u24 mp4-file))
     (assert (= 3 (stream-read-u8 mp4-file)) () "Expected a description tag of 3")
     (let* ((len1 (read-descriptor-len mp4-file))
-           (end-of-atom (+ (stream-seek mp4-file 0 :current) len1)))
+           (end-of-atom (+ (stream-seek mp4-file) len1)))
       (setf esid (stream-read-u16 mp4-file))
       (setf s-priority (stream-read-u8 mp4-file))
       ;; XXX should do some range checking here against LEN1...
@@ -457,7 +457,7 @@ Loop through this container and construct constituent atoms"
 (defun make-mp4-atom (mp4-file &optional parent-type)
   "Get current file position, read in size/type, then construct the correct atom."
   (log5:with-context "make-mp4-atom"
-    (let* ((pos (stream-seek mp4-file 0 :current))
+    (let* ((pos (stream-seek mp4-file))
            (siz (stream-read-u32 mp4-file))
            (typ (stream-read-u32 mp4-file))
            (atom))
@@ -500,7 +500,7 @@ Loop through this container and construct constituent atoms"
       (error 'mp4-atom-condition :location "find-mp4-atoms" :object mp4-file :message "is not an mp4-file" ))
 
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
-                  (stream-filename mp4-file) (stream-seek mp4-file 0 :current) (stream-size mp4-file))
+                  (stream-filename mp4-file) (stream-seek mp4-file) (stream-size mp4-file))
 
     (let ((atoms))
       (atom-read-loop mp4-file (stream-size mp4-file)
