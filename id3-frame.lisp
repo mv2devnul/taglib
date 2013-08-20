@@ -852,7 +852,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
       (log-id3-frame "reading from position ~:d (size of stream = ~:d)" pos (stream-size instream))
 
       (when (zerop byte)                ; XXX should this be correlated to PADDING in the extended header???
-        (log-id3-frame "hit padding of size ~:d while making a frame" 9999) ;(- (stream-size instream) pos))
+        (log-id3-frame "hit padding of size ~:d while making a frame" (- (stream-size instream) pos))
         (return-from make-frame nil))   ; hit padding
 
       (setf frame-name

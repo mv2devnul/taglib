@@ -7,26 +7,36 @@
 
 (in-package #:taglib-tests)
 
-(defparameter *song-m4a* "01 Keep Yourself Alive.m4a")
-(defparameter *song-mp3* "02 You Take My Breath Away.mp3")
+(defparameter *song-m4a* "01 Keep Yourself Alive.m4a"     "handy filename to test MP4s")
+(defparameter *song-mp3* "02 You Take My Breath Away.mp3" "handy filename to test MP3s")
 
-(defun set-pathname-encoding (enc)
-  (setf (ccl:pathname-encoding-name) enc))
-(defun set-pathname-encoding-for-osx ()
-  (set-pathname-encoding :utf-8))
-(defun set-pathname-encoding-for-linux ()
-  (set-pathname-encoding nil))
+(defun report-error (format-string &rest args)
+  "Used in the mpX-testX functions below to show errors found to user."
+  (format *error-output* "~&****************************************~%")
+  (apply #'format *error-output* format-string args)
+  (format *error-output* "****************************************~%"))
+
+;;;
+;;; Set the pathname (aka filename) encoding in CCL for appropriate platorm
+(defun set-pathname-encoding (enc)        (setf (ccl:pathname-encoding-name) enc))
+(defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
+(defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 
 (defmethod has-extension ((n string) ext)
+  "Probably should use CL's PATHNAME methods, but simply looking at the .XXX portion of a filename
+to see if it matches. This is the string version that makes a PATHNAME and calls the PATHNAME version."
   (has-extension (parse-namestring n) ext))
 
 (defmethod has-extension ((p pathname) ext)
+  "Probably should use CL's PATHNAME methods , but simply looking at the .XXX portion of a filename
+to see if it matches. PATHNAME version."
   (let ((e (pathname-type p)))
     (if e
       (string= (string-downcase e) (string-downcase ext))
       nil)))
 
 (defmacro redirect (filename &rest body)
+  "Temporarily set *STANDARD-OUTPUT* to FILENAME and execute BODY."
   `(let ((*standard-output* (open ,filename :direction :output :if-does-not-exist :create :if-exists :supersede)))
      ,@body
      (finish-output *standard-output*)))
@@ -37,9 +47,14 @@
 
 ;;;;;;;;;;;;;;;;;;;; MP4 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp4-test0 (file)
-  (let (foo)
+  "Parse one MP3 file (with condition handling)."
+  (let ((dir (ccl:current-directory))
+        (foo))
     (unwind-protect
-         (setf foo (parse-mp4-file file))
+         (handler-case
+             (setf foo (parse-mp4-file file))
+           (condition (c)
+             (report-error "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
       (when foo (stream-close foo)))
     foo))
 
@@ -47,6 +62,7 @@
   (mp4-test0 *song-m4a*))
 
 (defun mp4-test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
+  "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
                                (when (has-extension f "m4a")
@@ -57,9 +73,14 @@
 
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp3-test0 (file)
-  (let (foo)
+  "Parse one MP3 file (with condition handling)."
+  (let ((dir (ccl:current-directory))
+        (foo))
     (unwind-protect
-         (setf foo (parse-mp3-file file))
+         (handler-case
+             (setf foo (parse-mp3-file file))
+           (condition (c)
+             (report-error "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
       (when foo (stream-close foo)))
     foo))
 
@@ -67,6 +88,7 @@
   (mp3-test0 *song-mp3*))
 
 (defun mp3-test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
+  "Walk :DIR and parse every MP3 we find."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
                                (when (has-extension f "mp3")
@@ -75,6 +97,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
+  "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
                                (if (has-extension f "mp3")

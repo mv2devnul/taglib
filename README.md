@@ -6,10 +6,11 @@ A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and au
 
 Note: There a lot of good (some great) audio file resources out there.  Here are a few of them that I found useful:
 
-* [l-smash](http://code.google.com/p/l-smash/)
-* [taglib](http://taglib.github.io/)
-* [mplayer](http://www.mplayerhq.hu)
-* [eyeD3](http://eyed3.nicfit.net/) 
+* [l-smash](http://code.google.com/p/l-smash/) Exhaustively comprehensive MP4 box parser in C.
+* [taglib](http://taglib.github.io/) Clean library in C++.
+* [mplayer](http://www.mplayerhq.hu) For me, the definitive tool on how to crack audio files.
+* [eyeD3](http://eyed3.nicfit.net/) Great command line tool.
+* [MP3Diags](http://mp3diags.sourceforge.net/) Good GUI-based-tool.
 * [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214) I actually didn't order this until well into writing this code.   What a maroon.
 
 Notes II:
