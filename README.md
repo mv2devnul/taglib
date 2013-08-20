@@ -4,7 +4,7 @@ A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and au
 
 **Mostly complete.  Your mileage may vary. Most definitely, NOT portable.  Heavily dependent on Clozure CCL.**
 
-Note: There a lot of good (some great) audio file resources out there.  Here are a few of them:
+Note: There a lot of good (some great) audio file resources out there.  Here are a few of them that I found useful:
 
 * [l-smash](http://code.google.com/p/l-smash/)
 * [taglib](http://taglib.github.io/)
@@ -12,7 +12,16 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * [eyeD3](http://eyed3.nicfit.net/) 
 * [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214) I actually didn't order this until well into writing this code.   What a maroon.
 
-Sample invocations and output:
+Notes II:
+
+* As the author(s) of taglib state in their comments, parsing ID3s is actually pretty hard. There are so many broken taggers out there
+  that it is tough to compensate for all their errors.
+* The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
+* I've parsed just enough of the MP4 atoms/boxes to suit the needs of this tool.  l-smash appears to parse all boxes.  Maybe one day this lib will too.
+* I've run this tool across my 19,000+ audio collection and compared the results to some of the tools above, with little to no variations.
+  That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
+
+And now for some sample invocations and outputs:
 
 ````
 (let (foo)
