@@ -399,7 +399,7 @@
 						   (setf last-bit-rate (bit-rate f)))))
 				:read-payload nil)
 	(if (or (zerop n-frames) (zerop bit-rate-total))
-		(values nil nil nil) 
+		(values nil nil nil)
 		(values vbr (float (/ bit-rate-total n-frames)) total-len))))
 
 (defun get-mpeg-bit-rate-ff (in)

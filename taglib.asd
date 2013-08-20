@@ -1,8 +1,12 @@
 ;;; taglib.asd
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 ;;;
+
+;;; should only be set when on markv machines...
+(pushnew :I-AM-MARKV *features*)
+
 (asdf:defsystem #:taglib
-  :description "Pure Lisp implementation to read (and write?) tags"
+  :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
   :license "Public Domain"
   :depends-on (#:log5 #:alexandria)

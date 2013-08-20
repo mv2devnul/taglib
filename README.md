@@ -18,6 +18,8 @@ Notes II:
   that it is tough to compensate for all their errors.
 * The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
 * I've parsed just enough of the MP4 atoms/boxes to suit the needs of this tool.  l-smash appears to parse all boxes.  Maybe one day this lib will too.
+* WRT error handling: in some cases, I've made them recoverable, but in general, I've went down the path of erroring out when
+  I get problems.
 * I've run this tool across my 19,000+ audio collection and compared the results to some of the tools above, with little to no variations.
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
 
