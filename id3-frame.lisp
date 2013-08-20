@@ -11,8 +11,8 @@
    (object   :initarg :object   :reader object   :initform nil)
    (messsage :initarg :message  :reader message  :initform "Undefined Condition"))
   (:report (lambda (condition stream)
-			 (format stream "id3-frame condition at location: <~a> with object: <~a>: message: <~a>"
-					 (location condition) (object condition) (message condition)))))
+             (format stream "id3-frame condition at location: <~a> with object: <~a>: message: <~a>"
+                     (location condition) (object condition) (message condition)))))
 
 (defmethod print-object ((me id3-frame-condition) stream)
   (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
@@ -24,7 +24,7 @@
    (flags          :accessor flags          :initarg :flags          :initform 0   :documentation "ID3 header flags")
    (size           :accessor size           :initarg :size           :initform 0   :documentation "size of ID3 info")
    (ext-header     :accessor ext-header     :initarg :ext-header     :initform nil :documentation "holds v2.3/4 extended header")
-   (frames	       :accessor frames	        :initarg :frames		 :initform nil :documentation "holds ID3 frames")
+   (frames         :accessor frames         :initarg :frames         :initform nil :documentation "holds ID3 frames")
    (v21-tag-header :accessor v21-tag-header :initarg :v21-tag-header :initform nil :documentation "old-style v2.1 header (if present)"))
   (:documentation "The ID3 header, found at start of file"))
 
@@ -32,19 +32,19 @@
   "Make sure this is an MP3 file. Look for ID3 header at begining (versions 2, 3, 4)
 and/or end (version 2.1)"
   (log5:with-context "is-valid-mp3-file"
-	(stream-seek mp3-file 0 :start)
-	(let* ((id3 (stream-read-string-with-len mp3-file 3))
-		   (version (stream-read-u8 mp3-file))
-		   (tag))
-	  (stream-seek mp3-file 128 :end)
-	  (setf tag (stream-read-string-with-len mp3-file 3))
-	  (stream-seek mp3-file 0 :start)
+    (stream-seek mp3-file 0 :start)
+    (let* ((id3 (stream-read-string-with-len mp3-file 3))
+           (version (stream-read-u8 mp3-file))
+           (tag))
+      (stream-seek mp3-file 128 :end)
+      (setf tag (stream-read-string-with-len mp3-file 3))
+      (stream-seek mp3-file 0 :start)
 
-	  (log-id3-frame "id3 = ~a, version = ~d" id3 version)
+      (log-id3-frame "id3 = ~a, version = ~d" id3 version)
 
-	  (or (and (string= "ID3" id3)
-			   (or (= 2 version) (= 3 version) (= 4 version)))
-		  (string= tag "TAG")))))
+      (or (and (string= "ID3" id3)
+               (or (= 2 version) (= 3 version) (= 4 version)))
+          (string= tag "TAG")))))
 
 (defclass v21-tag-header ()
   ((title    :accessor title    :initarg :title    :initform nil)
@@ -58,41 +58,41 @@ and/or end (version 2.1)"
 
 (defmethod vpprint ((me v21-tag-header) stream)
   (with-slots (title artist album year comment track genre) me
-	(format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, track = <~d>, genre = ~d (~a)"
-			title artist album year comment track genre (mp3-tag:get-id3v1-genre genre))))
+    (format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, track = <~d>, genre = ~d (~a)"
+            title artist album year comment track genre (mp3-tag:get-id3v1-genre genre))))
 
 (defmethod initialize-instance ((me v21-tag-header) &key instream)
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (log5:with-context "v21-frame-initializer"
-	(log-id3-frame "reading v2.1 tag")
-	(with-slots      (title artist album year comment genre track) me
-	  (setf track nil)
-	  (setf title    (upto-null (stream-read-string-with-len instream 30)))
-	  (setf artist   (upto-null (stream-read-string-with-len instream 30)))
-	  (setf album    (upto-null (stream-read-string-with-len instream 30)))
-	  (setf year     (upto-null (stream-read-string-with-len instream 4)))
-	  (setf comment  (stream-read-string-with-len instream 30))
+    (log-id3-frame "reading v2.1 tag")
+    (with-slots      (title artist album year comment genre track) me
+      (setf track nil)
+      (setf title    (upto-null (stream-read-string-with-len instream 30)))
+      (setf artist   (upto-null (stream-read-string-with-len instream 30)))
+      (setf album    (upto-null (stream-read-string-with-len instream 30)))
+      (setf year     (upto-null (stream-read-string-with-len instream 4)))
+      (setf comment  (stream-read-string-with-len instream 30))
 
-	  ;; In V21, a comment can be split into comment and track #
-	  ;; find the first #\Null then check to see if that index < 28.  If so, the check the last two bytes being
-	  ;; non-zero---if so, then track can be set to integer value of last two bytes
-	  (let ((trimmed-comment (upto-null comment))
-			(trck 0))
-		(when (<= (length trimmed-comment) 28)
-		  (setf (ldb (byte 8 8) trck) (char-code (aref comment 28)))
-		  (setf (ldb (byte 8 0) trck) (char-code (aref comment 29)))
-		  (setf comment trimmed-comment)
-		  (if (> trck 0)
-			  (setf track trck)
-			  (setf track nil))))
-	  (setf genre    (stream-read-u8 instream))
-	  (log-id3-frame "v21 tag: ~a" (vpprint me nil)))))
+      ;; In V21, a comment can be split into comment and track #
+      ;; find the first #\Null then check to see if that index < 28.  If so, the check the last two bytes being
+      ;; non-zero---if so, then track can be set to integer value of last two bytes
+      (let ((trimmed-comment (upto-null comment))
+            (trck 0))
+        (when (<= (length trimmed-comment) 28)
+          (setf (ldb (byte 8 8) trck) (char-code (aref comment 28)))
+          (setf (ldb (byte 8 0) trck) (char-code (aref comment 29)))
+          (setf comment trimmed-comment)
+          (if (> trck 0)
+              (setf track trck)
+              (setf track nil))))
+      (setf genre    (stream-read-u8 instream))
+      (log-id3-frame "v21 tag: ~a" (vpprint me nil)))))
 
 (defclass id3-ext-header ()
   ((size    :accessor size    :initarg :size    :initform 0)
    (flags   :accessor flags   :initarg :flags   :initform 0)
    (padding :accessor padding :initarg :padding :initform 0)
-   (crc	    :accessor crc     :initarg :crc     :initform nil))
+   (crc     :accessor crc     :initarg :crc     :initform nil))
   (:documentation "Class representing a V2.3/4 extended header"))
 
 (defmacro ext-header-crc-p    (flags) `(logbitp 14 ,flags))
@@ -102,77 +102,77 @@ and/or end (version 2.1)"
   "Read in the extended header.  Caller will have stream-seek'ed to correct location in file.
 Note: extended headers are subject to unsynchronization, so make sure that INSTREAM has been made sync-safe."
   (with-slots (size flags padding crc) me
-	(setf size (stream-read-u32 instream))
-	(setf flags (stream-read-u16 instream))
-	(setf padding (stream-read-u32 instream))
-	(when (not (zerop flags))
+    (setf size (stream-read-u32 instream))
+    (setf flags (stream-read-u16 instream))
+    (setf padding (stream-read-u32 instream))
+    (when (not (zerop flags))
 
-	  ;; at this point, we have to potentially read in other fields depending on flags.
-	  ;; for now, just error out...
-	  (assert (zerop flags) () "non-zero extended header flags = ~x, check validity")
-	  ;;(when (ext-header-crc-p flags)
-	  ;;  (setf crc (stream-read-u32 instream)))))
-	  )))
+      ;; at this point, we have to potentially read in other fields depending on flags.
+      ;; for now, just error out...
+      (assert (zerop flags) () "non-zero extended header flags = ~x, check validity")
+      ;;(when (ext-header-crc-p flags)
+      ;;  (setf crc (stream-read-u32 instream)))))
+      )))
 
 (defmethod vpprint ((me id3-ext-header) stream)
   (with-slots (size flags padding crc) me
-	(format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x~%"
-			size flags padding crc)))
+    (format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x~%"
+            size flags padding crc)))
 
 ;;; NB: v2.2 only really defines bit-7. It does document bit-6 as being the compression flag, but then states
 ;;; that if it is set, the software should "ignore the entire tag if this (bit-6) is set"
 (defmacro header-unsynchronized-p (flags) `(logbitp 7 ,flags)) ; all share this flag
 (defmacro header-extended-p (flags)       `(logbitp 6 ,flags)) ; 2.3/2.4
 (defmacro header-experimental-p (flags)   `(logbitp 5 ,flags)) ; 2.3/2.4
-(defmacro header-footer-p (flags)		  `(logbitp 4 ,flags)) ; 2.4 only
+(defmacro header-footer-p (flags)         `(logbitp 4 ,flags)) ; 2.4 only
 
 (defmacro print-header-flags (stream flags)
   `(format ,stream "0x~2,'0x: ~:[0/~;unsynchronized-frames/~]~:[0/~;extended-header/~]~:[0/~;expermental-tag/~]~:[0~;footer-present~]"
-		   ,flags
-		   (header-unsynchronized-p ,flags)
-		   (header-extended-p ,flags)
-		   (header-experimental-p ,flags)
-		   (header-footer-p ,flags)))
+           ,flags
+           (header-unsynchronized-p ,flags)
+           (header-extended-p ,flags)
+           (header-experimental-p ,flags)
+           (header-footer-p ,flags)))
 
 (defmethod vpprint ((me id3-header) stream)
   (with-slots (version revision flags v21-tag-header size ext-header frames) me
-	(format stream "~a"
-			(with-output-to-string (s)
-			  (format s "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
-					  version revision (print-header-flags nil flags) size
-					  (if (header-extended-p flags)
-						  (concatenate 'string "Extended header: " (vpprint ext-header nil))
-						  "No extended header")
-					  (if v21-tag-header
-						  (concatenate 'string "V21 tag: " (vpprint v21-tag-header nil))
-						  "No V21 tag"))
-			  (when frames
-				(format s "~&~4tFrames[~d]:~%" (length frames))
-				(dolist (f frames)
-				  (format s "~8t~a~%" (vpprint f nil))))))))
+    (format stream "~a"
+            (with-output-to-string (s)
+              (format s "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
+                      version revision (print-header-flags nil flags) size
+                      (if (header-extended-p flags)
+                          (concatenate 'string "Extended header: " (vpprint ext-header nil))
+                          "No extended header")
+                      (if v21-tag-header
+                          (concatenate 'string "V21 tag: " (vpprint v21-tag-header nil))
+                          "No V21 tag"))
+              (when frames
+                (format s "~&~4tFrames[~d]:~%" (length frames))
+                (dolist (f frames)
+                  (format s "~8t~a~%" (vpprint f nil))))))))
 
 (defmethod initialize-instance :after ((me id3-header) &key instream &allow-other-keys)
   "Fill in an mp3-header from INSTREAM."
   (log5:with-context "id3-header-initializer"
-	(with-slots (version revision flags size ext-header frames v21-tag-header) me
-	  (stream-seek instream 128 :end)
-	  (when (string= "TAG" (stream-read-string-with-len instream 3))
-		(log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream 0 :current))
-		(handler-case
-			(setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
-		  (id3-frame-condition (c)
-			(log-id3-frame "reading v21 got condition: ~a" c))))
+    (with-slots (version revision flags size ext-header frames v21-tag-header) me
+      (stream-seek instream 128 :end)
+      (when (string= "TAG" (stream-read-string-with-len instream 3))
+        (log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream 0 :current))
+        (handler-case
+            (setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
+          (id3-frame-condition (c)
+            (log-id3-frame "reading v21 got condition: ~a" c))))
 
-	  (stream-seek instream 0 :start)
-	  (when (string= "ID3" (stream-read-string-with-len instream 3))
-		(setf version (stream-read-u8 instream))
-		(setf revision (stream-read-u8 instream))
-		(setf flags (stream-read-u8 instream))
-		(setf size (stream-read-u32 instream :bits-per-byte 7))
-		(when (header-unsynchronized-p flags)
-		  (log-id3-frame "header flags indicate unsync"))
-		(assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet")
-		(log-id3-frame "id3 header = ~a" (vpprint me nil))))))
+      (stream-seek instream 0 :start)
+      (when (string= "ID3" (stream-read-string-with-len instream 3))
+        (setf version (stream-read-u8 instream))
+        (setf revision (stream-read-u8 instream))
+        (setf flags (stream-read-u8 instream))
+        (setf size (stream-read-u32 instream :bits-per-byte 7))
+        (when (header-unsynchronized-p flags)
+          (log-id3-frame "header flags indicate unsync"))
+        (assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet")
+        (log-id3-frame "id3 header = ~a" (vpprint me nil))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -196,18 +196,18 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;;; the bytes an raw octets.
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (log5:with-context  "get-name-value-pair"
-	(log-id3-frame "reading from ~:d, len ~:d, name-encoding = ~d, value-encoding = ~d" (stream-seek instream 0 :current) len name-encoding value-encoding)
-	(let* ((old-pos (stream-seek instream 0 :current))
-		   (name (stream-read-string instream :encoding name-encoding))
-		   (name-len (- (stream-seek instream 0 :current) old-pos))
-		   (value))
+    (log-id3-frame "reading from ~:d, len ~:d, name-encoding = ~d, value-encoding = ~d" (stream-seek instream 0 :current) len name-encoding value-encoding)
+    (let* ((old-pos (stream-seek instream 0 :current))
+           (name (stream-read-string instream :encoding name-encoding))
+           (name-len (- (stream-seek instream 0 :current) old-pos))
+           (value))
 
-	  (log-id3-frame "name = <~a>, name-len = ~d" name name-len)
-	  (setf value (if (>= value-encoding 0)
-					  (stream-read-string-with-len instream (- len name-len) :encoding value-encoding)
-					  (stream-read-sequence instream (- len name-len)))) ; if < 0, then just read as octets
+      (log-id3-frame "name = <~a>, name-len = ~d" name name-len)
+      (setf value (if (>= value-encoding 0)
+                      (stream-read-string-with-len instream (- len name-len) :encoding value-encoding)
+                      (stream-read-sequence instream (- len name-len)))) ; if < 0, then just read as octets
 
-	  (values name value))))
+      (values name value))))
 
 (defclass id3-frame ()
   ((pos     :accessor pos     :initarg :pos                 :documentation "the offset in the buffer were this frame was found")
@@ -239,40 +239,40 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;; NB version 2.2 does NOT have FLAGS field in a frame; hence, the ECASE
 (defun valid-frame-flags (header-version frame-flags)
   (ecase header-version
-	(3 (zerop (logand #b0001111100011111 frame-flags)))
-	(4 (zerop (logand #b1000111110110000 frame-flags)))))
+    (3 (zerop (logand #b0001111100011111 frame-flags)))
+    (4 (zerop (logand #b1000111110110000 frame-flags)))))
 
 (defun print-frame-flags (version flags stream)
   (ecase version
-	(2 (format stream "None, "))
-	(3 (format stream
-			   "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~], "
-			   flags
-			   (frame-23-altertag-p flags)
-			   (frame-23-alterfile-p flags)
-			   (frame-23-readonly-p flags)
-			   (frame-23-compress-p flags)
-			   (frame-23-encrypt-p flags)
-			   (frame-23-group-p flags)))
-	(4 (format stream 
-			   "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
-			   flags
-			   (frame-24-altertag-p flags)
-			   (frame-24-alterfile-p flags)
-			   (frame-24-readonly-p flags)
-			   (frame-24-groupid-p flags)
-			   (frame-24-compress-p flags)
-			   (frame-24-encrypt-p flags)
-			   (frame-24-unsynch-p flags)
-			   (frame-24-datalen-p flags)))))
+    (2 (format stream "None, "))
+    (3 (format stream
+               "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~], "
+               flags
+               (frame-23-altertag-p flags)
+               (frame-23-alterfile-p flags)
+               (frame-23-readonly-p flags)
+               (frame-23-compress-p flags)
+               (frame-23-encrypt-p flags)
+               (frame-23-group-p flags)))
+    (4 (format stream
+               "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
+               flags
+               (frame-24-altertag-p flags)
+               (frame-24-alterfile-p flags)
+               (frame-24-readonly-p flags)
+               (frame-24-groupid-p flags)
+               (frame-24-compress-p flags)
+               (frame-24-encrypt-p flags)
+               (frame-24-unsynch-p flags)
+               (frame-24-datalen-p flags)))))
 
 (defun vpprint-frame-header (id3-frame)
   (with-output-to-string (stream)
-	(with-slots (pos version id len flags) id3-frame
-	  (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d, ~a" pos version id len
-			  (if flags
-				  (print-frame-flags version flags stream)
-				  "flags: none")))))
+    (with-slots (pos version id len flags) id3-frame
+      (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d, ~a" pos version id len
+              (if flags
+                  (print-frame-flags version flags stream)
+                  "flags: none")))))
 
 (defclass frame-raw (id3-frame)
   ((octets :accessor octets :initform nil))
@@ -280,15 +280,15 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-raw) &key instream)
   (log5:with-context "frame-raw"
-	(with-slots (pos len octets) me
-	  (log-id3-frame "reading ~:d bytes from position ~:d" len pos)
-	  (setf octets (stream-read-sequence instream len))
-	  (log-id3-frame "frame: ~a" (vpprint me nil)))))
+    (with-slots (pos len octets) me
+      (log-id3-frame "reading ~:d bytes from position ~:d" len pos)
+      (setf octets (stream-read-sequence instream len))
+      (log-id3-frame "frame: ~a" (vpprint me nil)))))
 
 
 (defmethod vpprint ((me frame-raw) stream)
   (with-slots (octets) me
-	(format stream "frame-raw: ~a, ~a" (vpprint-frame-header me) (printable-array octets))))
+    (format stream "frame-raw: ~a, ~a" (vpprint-frame-header me) (printable-array octets))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V2.2 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass frame-buf (frame-raw) ())
@@ -331,25 +331,25 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defclass frame-com (id3-frame)
   ((encoding :accessor encoding)
    (lang     :accessor lang)
-   (desc	 :accessor desc)
-   (val	     :accessor val)))
+   (desc     :accessor desc)
+   (val      :accessor val)))
 
 (defmethod initialize-instance :after ((me frame-com) &key instream)
   (log5:with-context "frame-com"
-	(with-slots (len encoding lang desc val) me
-	  (setf encoding (stream-read-u8 instream))
-	  (setf lang (stream-read-iso-string-with-len instream 3))
-	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
-		(setf desc n)
+    (with-slots (len encoding lang desc val) me
+      (setf encoding (stream-read-u8 instream))
+      (setf lang (stream-read-iso-string-with-len instream 3))
+      (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
+        (setf desc n)
 
-		;; iTunes broken-ness... for frame-coms, there can be an additional null or two at the end
-		(setf val (upto-null v)))
-	  (log-id3-frame "encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc val))))
+        ;; iTunes broken-ness... for frame-coms, there can be an additional null or two at the end
+        (setf val (upto-null v)))
+      (log-id3-frame "encoding = ~d, lang = <~a>, desc = <~a>, text = <~a>" encoding lang desc val))))
 
 (defmethod vpprint ((me frame-com) stream)
   (with-slots (len encoding lang desc val) me
-	(format stream "frame-com: ~a, encoding = ~d, lang = <~a> (~a), desc = <~a>, val = <~a>"
-			(vpprint-frame-header me) encoding lang (get-iso-639-2-language lang) desc val)))
+    (format stream "frame-com: ~a, encoding = ~d, lang = <~a> (~a), desc = <~a>, val = <~a>"
+            (vpprint-frame-header me) encoding lang (get-iso-639-2-language lang) desc val)))
 
 ;;; ULT's are same format as COM's... XXX rewrite this as suggested in comment at bottom of this file
 ;;; V22 unsynced lyrics/text "ULT"
@@ -375,20 +375,20 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-pic) &key instream)
   (log5:with-context "frame-pic"
-	(with-slots (id len encoding img-format type desc data) me
-	  (setf encoding (stream-read-u8 instream))
-	  (setf img-format (stream-read-iso-string-with-len instream 3))
-	  (setf type (stream-read-u8 instream))
-	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 5) encoding -1)
-		(setf desc n)
-		(setf data v)
-		(log-id3-frame "encoding: ~d, img-format = <~a>, type = ~d (~a), desc = <~a>, value = ~a"
-				   encoding img-format type (get-picture-type type) desc (printable-array data))))))
+    (with-slots (id len encoding img-format type desc data) me
+      (setf encoding (stream-read-u8 instream))
+      (setf img-format (stream-read-iso-string-with-len instream 3))
+      (setf type (stream-read-u8 instream))
+      (multiple-value-bind (n v) (get-name-value-pair instream (- len 5) encoding -1)
+        (setf desc n)
+        (setf data v)
+        (log-id3-frame "encoding: ~d, img-format = <~a>, type = ~d (~a), desc = <~a>, value = ~a"
+                   encoding img-format type (get-picture-type type) desc (printable-array data))))))
 
 (defmethod vpprint ((me frame-pic) stream)
   (with-slots (encoding img-format type desc data) me
-	(format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d (~a), description <~a>, data: ~a"
-			(vpprint-frame-header me) encoding img-format type (get-picture-type type) desc (printable-array data))))
+    (format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d (~a), description <~a>, data: ~a"
+            (vpprint-frame-header me) encoding img-format type (get-picture-type type) desc (printable-array data))))
 
 ;; Version 2, 3, or 4 generic text-info frames
 ;; Text information identifier  "T00" - "TZZ", excluding "TXX", or "T000 - TZZZ", excluding "TXXX"
@@ -401,28 +401,28 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-text-info) &key instream)
   (log5:with-context "frame-text-info"
-	(with-slots (version flags len encoding info) me
-	  (let ((read-len len))
+    (with-slots (version flags len encoding info) me
+      (let ((read-len len))
 
-		;; In version 4 frames, each frame may also have an unsync flag.  since we have unsynced already
-		;; the only thing we need to do here is check for the optional DATALEN field.  If it is present
-		;; then it has the actual number of octets to read
-		(when (and (= version 4) (frame-24-unsynch-p flags))
-		  (if (frame-24-datalen-p flags)
-			  (setf read-len (stream-read-u32 instream :bits-per-byte 7))))
+        ;; In version 4 frames, each frame may also have an unsync flag.  since we have unsynced already
+        ;; the only thing we need to do here is check for the optional DATALEN field.  If it is present
+        ;; then it has the actual number of octets to read
+        (when (and (= version 4) (frame-24-unsynch-p flags))
+          (if (frame-24-datalen-p flags)
+              (setf read-len (stream-read-u32 instream :bits-per-byte 7))))
 
-		(setf encoding (stream-read-u8 instream))
-		(setf info (stream-read-string-with-len instream (1- read-len) :encoding encoding)))
+        (setf encoding (stream-read-u8 instream))
+        (setf info (stream-read-string-with-len instream (1- read-len) :encoding encoding)))
 
-	  ;; A null is ok, but according to the "spec", you're supposed to ignore anything after a 'Null'
-	  (log-id3-frame "made text-info-frame: ~a" (vpprint me nil))
-	  (setf info (upto-null info))
+      ;; A null is ok, but according to the "spec", you're supposed to ignore anything after a 'Null'
+      (log-id3-frame "made text-info-frame: ~a" (vpprint me nil))
+      (setf info (upto-null info))
 
-	  (log-id3-frame "encoding = ~d, info = <~a>" encoding info))))
+      (log-id3-frame "encoding = ~d, info = <~a>" encoding info))))
 
 (defmethod vpprint ((me frame-text-info) stream)
   (with-slots (len encoding info) me
-	(format stream "frame-text-info: ~a, encoding = ~d, info = <~a>" (vpprint-frame-header me) encoding info)))
+    (format stream "frame-text-info: ~a, encoding = ~d, info = <~a>" (vpprint-frame-header me) encoding info)))
 
 (defclass frame-tal (frame-text-info) ())
 (defclass frame-tbp (frame-text-info) ())
@@ -473,16 +473,16 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-txx) &key instream)
   (log5:with-context "frame-txx"
-	(with-slots (len encoding desc val) me
-	  (setf encoding (stream-read-u8 instream))
-	  (multiple-value-bind (n v) (get-name-value-pair instream (1- len) encoding encoding)
-		(setf desc n)
-		(setf val v)
-		(log-id3-frame "encoding = ~d, desc = <~a>, val = <~a>" encoding desc val)))))
+    (with-slots (len encoding desc val) me
+      (setf encoding (stream-read-u8 instream))
+      (multiple-value-bind (n v) (get-name-value-pair instream (1- len) encoding encoding)
+        (setf desc n)
+        (setf val v)
+        (log-id3-frame "encoding = ~d, desc = <~a>, val = <~a>" encoding desc val)))))
 
 (defmethod vpprint ((me frame-txx) stream)
   (with-slots (len encoding desc val) me
-	(format stream "frame-txx: ~a, encoding = ~d, desc = <~a>, val = <~a>" (vpprint-frame-header me) encoding desc val)))
+    (format stream "frame-txx: ~a, encoding = ~d, desc = <~a>, val = <~a>" (vpprint-frame-header me) encoding desc val)))
 
 ;;; V22 unique file identifier  "UFI"
 ;;; Owner identifier        <textstring> $00
@@ -494,15 +494,15 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-ufi) &key instream)
   (log5:with-context "frame-ufi"
-	(with-slots (id len name value) me
-	  (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
-		(setf name n)
-		(setf value v))
-	  (log-id3-frame "name = <~a>, value = ~a" name (printable-array value)))))
+    (with-slots (id len name value) me
+      (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
+        (setf name n)
+        (setf value v))
+      (log-id3-frame "name = <~a>, value = ~a" name (printable-array value)))))
 
 (defmethod vpprint ((me frame-ufi) stream)
   (with-slots (id len name value) me
-	(format stream "frame-ufi: ~a, name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
+    (format stream "frame-ufi: ~a, name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V23/V24 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass frame-aenc (frame-raw) ())
@@ -588,32 +588,32 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defparameter *picture-type*
   '("Other"
-	"32x32 pixels 'file icon' (PNG only)"
-	"Other file icon"
-	"Cover (front)"
-	"Cover (back)"
-	"Leaflet page"
-	"Media (e.g. lable side of CD)"
-	"Lead artist/lead performer/soloist"
-	"Artist/performer"
-	"Conductor"
-	"Band/Orchestra"
-	"Composer"
-	"Lyricist/text writer"
-	"Recording Location"
-	"During recording"
-	"During performance"
-	"Movie/video screen capture"
-	"A bright coloured fish"	; how do you know the fish is intelligent? :)
-	"Illustration"
-	"Band/artist logotype"
-	"Publisher/Studio logotype"))
+    "32x32 pixels 'file icon' (PNG only)"
+    "Other file icon"
+    "Cover (front)"
+    "Cover (back)"
+    "Leaflet page"
+    "Media (e.g. lable side of CD)"
+    "Lead artist/lead performer/soloist"
+    "Artist/performer"
+    "Conductor"
+    "Band/Orchestra"
+    "Composer"
+    "Lyricist/text writer"
+    "Recording Location"
+    "During recording"
+    "During performance"
+    "Movie/video screen capture"
+    "A bright coloured fish"    ; how do you know the fish is intelligent? :)
+    "Illustration"
+    "Band/artist logotype"
+    "Publisher/Studio logotype"))
 
 (defun get-picture-type (n)
   "Function to return picture types for APIC frames"
   (if (and (>= n 0) (< n (length *picture-type*)))
-	  (nth n *picture-type*)
-	  "Unknown"))
+      (nth n *picture-type*)
+      "Unknown"))
 
 ;; V23/V24 APIC frames
 ;; <Header for 'Attached picture', ID: "APIC">
@@ -632,19 +632,19 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-apic) &key instream)
   (log5:with-context "frame-apic"
-	(with-slots (id len encoding mime type desc data) me
-	  (setf encoding (stream-read-u8 instream))
-	  (setf mime (stream-read-iso-string instream))
-	  (setf type (stream-read-u8 instream))
-	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 (length mime) 1 1) encoding -1)
-		(setf desc n)
-		(setf data v)
-		(log-id3-frame "enoding = ~d, mime = <~a>, type = ~d (~a), desc = <~a>, data = ~a" encoding mime type (get-picture-type type) desc (printable-array data))))))
+    (with-slots (id len encoding mime type desc data) me
+      (setf encoding (stream-read-u8 instream))
+      (setf mime (stream-read-iso-string instream))
+      (setf type (stream-read-u8 instream))
+      (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 (length mime) 1 1) encoding -1)
+        (setf desc n)
+        (setf data v)
+        (log-id3-frame "enoding = ~d, mime = <~a>, type = ~d (~a), desc = <~a>, data = ~a" encoding mime type (get-picture-type type) desc (printable-array data))))))
 
 (defmethod vpprint ((me frame-apic) stream)
   (with-slots (encoding mime type desc data) me
-	(format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d (~a), description <~a>, data: ~a"
-			(vpprint-frame-header me) encoding mime type (get-picture-type type) desc (printable-array data))))
+    (format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d (~a), description <~a>, data: ~a"
+            (vpprint-frame-header me) encoding mime type (get-picture-type type) desc (printable-array data))))
 
 ;;; V23/V24 COMM frames
 ;;; <Header for 'Comment', ID: "COMM">
@@ -654,27 +654,27 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;;; The actual text         <full text string according to encoding>
 (defclass frame-comm (id3-frame)
   ((encoding :accessor encoding)
-   (lang	 :accessor lang)
+   (lang     :accessor lang)
    (desc     :accessor desc)
-   (val		 :accessor val))
+   (val      :accessor val))
   (:documentation "V23/4 Comment frame"))
 
 (defmethod initialize-instance :after ((me frame-comm) &key instream)
   (log5:with-context "frame-comm"
-	(with-slots (encoding lang len desc val) me
-	  (setf encoding (stream-read-u8 instream))
-	  (setf lang (stream-read-iso-string-with-len instream 3))
-	  (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
-		(setf desc n)
+    (with-slots (encoding lang len desc val) me
+      (setf encoding (stream-read-u8 instream))
+      (setf lang (stream-read-iso-string-with-len instream 3))
+      (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
+        (setf desc n)
 
-		;; iTunes broken-ness... for frame-coms, there can be an additional null or two at the end
-		(setf val (upto-null v)))
-	  (log-id3-frame "encoding = ~d, lang = <~a>, desc = <~a>, val = <~a>" encoding lang desc val))))
+        ;; iTunes broken-ness... for frame-coms, there can be an additional null or two at the end
+        (setf val (upto-null v)))
+      (log-id3-frame "encoding = ~d, lang = <~a>, desc = <~a>, val = <~a>" encoding lang desc val))))
 
 (defmethod vpprint ((me frame-comm) stream)
   (with-slots (encoding lang desc val) me
-	(format stream "frame-comm: ~a,  encoding: ~d, lang: <~a> (~a), desc = <~a>, val = <~a>"
-			(vpprint-frame-header me) encoding lang (get-iso-639-2-language lang) desc val)))
+    (format stream "frame-comm: ~a,  encoding: ~d, lang: <~a> (~a), desc = <~a>, val = <~a>"
+            (vpprint-frame-header me) encoding lang (get-iso-639-2-language lang) desc val)))
 
 ;;; Unsynchronized lyrics frames look very much like comment frames...
 (defclass frame-uslt (frame-comm) ())
@@ -688,14 +688,14 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-pcnt) &key instream)
   (log5:with-context "frame-pcnt"
-	(with-slots (play-count len) me
-	  (assert (= 4 len) () "Ran into a play count with ~d bytes" len)
-	  (setf play-count (stream-read-u32 instream)) ; probably safe---play count *can* be longer than 4 bytes, but...
-	  (log-id3-frame "play count = <~d>" play-count))))
+    (with-slots (play-count len) me
+      (assert (= 4 len) () "Ran into a play count with ~d bytes" len)
+      (setf play-count (stream-read-u32 instream)) ; probably safe---play count *can* be longer than 4 bytes, but...
+      (log-id3-frame "play count = <~d>" play-count))))
 
 (defmethod vpprint ((me frame-pcnt) stream)
   (with-slots (play-count) me
-	(format stream "frame-pcnt: ~a, count = ~d" (vpprint-frame-header me) play-count)))
+    (format stream "frame-pcnt: ~a, count = ~d" (vpprint-frame-header me) play-count)))
 
 ;;; V23/V24 PRIV frames
 ;;; <Header for 'Private frame', ID: "PRIV">
@@ -708,21 +708,21 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-priv) &key instream)
   (log5:with-context "frame-priv"
-	(with-slots (id len name value) me
-	  (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
-		(setf name n)
-		(setf value v)
-		(log-id3-frame "name = <~a>, value = <~a>" name value)))))
+    (with-slots (id len name value) me
+      (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
+        (setf name n)
+        (setf value v)
+        (log-id3-frame "name = <~a>, value = <~a>" name value)))))
 
 (defmethod vpprint ((me frame-priv) stream)
   (with-slots (id len name value) me
-	(format stream "frame-priv: ~a, name: <~a>, data: ~a" (vpprint-frame-header me) name (printable-array value))))
+    (format stream "frame-priv: ~a, name: <~a>, data: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 ;; V23/V24 TXXX frames
 ;; <Header for 'User defined text information frame', ID: "TXXX">
 ;; Text encoding    $xx
 ;; Description      <text string according to encoding> $00 (00)
-;; Value    	    <text string according to encoding>
+;; Value            <text string according to encoding>
 (defclass frame-txxx (id3-frame)
   ((encoding :accessor encoding)
    (desc     :accessor desc)
@@ -731,15 +731,15 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-txxx) &key instream)
   (log5:with-context "frame-txxx"
-	(with-slots (encoding len desc val) me
-	  (setf encoding (stream-read-u8 instream))
-	  (multiple-value-bind (n v) (get-name-value-pair instream
-													  (- len 1)
-													  encoding
-													  encoding)
-		(setf desc n)
-		(setf val v))
-	  (log-id3-frame "encoding = ~d, desc = <~a>, value = <~a>" encoding desc val))))
+    (with-slots (encoding len desc val) me
+      (setf encoding (stream-read-u8 instream))
+      (multiple-value-bind (n v) (get-name-value-pair instream
+                                                      (- len 1)
+                                                      encoding
+                                                      encoding)
+        (setf desc n)
+        (setf val v))
+      (log-id3-frame "encoding = ~d, desc = <~a>, value = <~a>" encoding desc val))))
 
 (defmethod vpprint ((me frame-txxx) stream)
   (format stream "frame-txxx: ~a, <~a/~a>" (vpprint-frame-header me) (desc me) (val me)))
@@ -747,7 +747,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 ;; V23/V24 UFID frames
 ;; <Header for 'Unique file identifier', ID: "UFID">
 ;; Owner identifier    <text string> $00
-;; Identifier    	   <up to 64 bytes binary data>
+;; Identifier          <up to 64 bytes binary data>
 (defclass frame-ufid (id3-frame)
   ((name  :accessor name)
    (value :accessor value))
@@ -755,15 +755,15 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-ufid) &key instream)
   (log5:with-context "frame-ufid"
-	(with-slots (id len name value) me
-	  (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
-		(setf name n)
-		(setf value v))
-	  (log-id3-frame "name = <~a>, value = ~a" name (printable-array value)))))
+    (with-slots (id len name value) me
+      (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
+        (setf name n)
+        (setf value v))
+      (log-id3-frame "name = <~a>, value = ~a" name (printable-array value)))))
 
 (defmethod vpprint ((me frame-ufid) stream)
   (with-slots (id len name value) me
-	(format stream "frame-ufid: ~a,  name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
+    (format stream "frame-ufid: ~a,  name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
 
 ;;; V23/V24 URL frame
 ;;; <Header for 'URL link frame', ID: "W000" - "WZZZ", excluding "WXXX" described in 4.3.2.>
@@ -774,13 +774,13 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
 (defmethod initialize-instance :after ((me frame-url-link) &key instream)
   (with-slots (id len url) me
-	(log5:with-context "url"
-	  (setf url (stream-read-iso-string-with-len instream len))
-	  (log-id3-frame "url = <~a>" url))))
+    (log5:with-context "url"
+      (setf url (stream-read-iso-string-with-len instream len))
+      (log-id3-frame "url = <~a>" url))))
 
 (defmethod vpprint ((me frame-url-link) stream)
   (with-slots (url) me
-	(format stream "frame-url-link: ~a, url: ~a" (vpprint-frame-header me) url)))
+    (format stream "frame-url-link: ~a, url: ~a" (vpprint-frame-header me) url)))
 
 ;;; V23/V24 frames URL link frames
 (defclass frame-wcom (frame-url-link) ())
@@ -800,140 +800,140 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 (defun possibly-valid-frame-id? (frame-id)
   "test to see if a string is a potentially valid frame id"
   (labels ((numeric-char-p (c)
-			 (let ((code (char-code c)))
-			   (and (>= code (char-code #\0))
-					(<= code (char-code #\9))))))
+             (let ((code (char-code c)))
+               (and (>= code (char-code #\0))
+                    (<= code (char-code #\9))))))
 
-	;; test each octet to see if it is alphanumeric
-	(dotimes (i (length frame-id))
-	  (let ((c (aref frame-id i)))
-		(when (not (or (numeric-char-p c)
-					   (and (alpha-char-p c) (upper-case-p c))))
-		  (return-from possibly-valid-frame-id? nil))))
-	t))
+    ;; test each octet to see if it is alphanumeric
+    (dotimes (i (length frame-id))
+      (let ((c (aref frame-id i)))
+        (when (not (or (numeric-char-p c)
+                       (and (alpha-char-p c) (upper-case-p c))))
+          (return-from possibly-valid-frame-id? nil))))
+    t))
 
 (defun find-frame-class (id)
   "Search by concatenating 'frame-' with ID and look for that symbol in this package"
   (log5:with-context "find-frame-class"
-	(log-id3-frame "looking for class <~a>" id)
-	(let ((found-class-symbol (find-symbol (string-upcase (concatenate 'string "frame-" id)) :ID3-FRAME))
-		  found-class)
+    (log-id3-frame "looking for class <~a>" id)
+    (let ((found-class-symbol (find-symbol (string-upcase (concatenate 'string "frame-" id)) :ID3-FRAME))
+          found-class)
 
-	  ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
-	  (when found-class-symbol
-		(setf found-class (find-class found-class-symbol))
-		(log-id3-frame "found class: ~a" found-class)
-		(return-from find-frame-class found-class))
+      ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
+      (when found-class-symbol
+        (setf found-class (find-class found-class-symbol))
+        (log-id3-frame "found class: ~a" found-class)
+        (return-from find-frame-class found-class))
 
-	  (log-id3-frame "didn't find class, checking general cases")
+      (log-id3-frame "didn't find class, checking general cases")
 
-	  ;; if not a "normal" frame-id, look at general cases of
-	  ;; starting with a 'T' or a 'W'
-	  (setf found-class (case (aref id 0)
-						  (#\T (log-id3-frame "assuming text-info") (find-class (find-symbol "FRAME-TEXT-INFO" :ID3-FRAME)))
-						  (#\W (log-id3-frame "assuming url-link")  (find-class (find-symbol "FRAME-URL-LINK"  :ID3-FRAME)))
-						  (t
-						   ;; we don't recognize the frame name.  if it could possibly be a real frame name,
-						   ;; then just read it raw
-						   (when (possibly-valid-frame-id? id)
-							 (log-id3-frame "just reading raw")
-							 (find-class (find-symbol "FRAME-RAW" :ID3-FRAME))))))
+      ;; if not a "normal" frame-id, look at general cases of
+      ;; starting with a 'T' or a 'W'
+      (setf found-class (case (aref id 0)
+                          (#\T (log-id3-frame "assuming text-info") (find-class (find-symbol "FRAME-TEXT-INFO" :ID3-FRAME)))
+                          (#\W (log-id3-frame "assuming url-link")  (find-class (find-symbol "FRAME-URL-LINK"  :ID3-FRAME)))
+                          (t
+                           ;; we don't recognize the frame name.  if it could possibly be a real frame name,
+                           ;; then just read it raw
+                           (when (possibly-valid-frame-id? id)
+                             (log-id3-frame "just reading raw")
+                             (find-class (find-symbol "FRAME-RAW" :ID3-FRAME))))))
 
-	  (log-id3-frame "general case for id <~a> is ~a" id found-class)
-	  found-class)))
+      (log-id3-frame "general case for id <~a> is ~a" id found-class)
+      found-class)))
 
 (defun make-frame (version instream)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
   (log5:with-context "make-frame"
-	(let* ((pos (stream-seek instream 0 :current))
-		   (byte (stream-read-u8 instream))
-		   frame-name frame-len frame-flags frame-class)
+    (let* ((pos (stream-seek instream 0 :current))
+           (byte (stream-read-u8 instream))
+           frame-name frame-len frame-flags frame-class)
 
-	  (log-id3-frame "reading from position ~:d (size of stream = ~:d)" pos (stream-size instream))
+      (log-id3-frame "reading from position ~:d (size of stream = ~:d)" pos (stream-size instream))
 
-	  (when (zerop byte)				; XXX should this be correlated to PADDING in the extended header???
-		(log-id3-frame "hit padding of size ~:d while making a frame" 9999) ;(- (stream-size instream) pos))
-		(return-from make-frame nil))	; hit padding
+      (when (zerop byte)                ; XXX should this be correlated to PADDING in the extended header???
+        (log-id3-frame "hit padding of size ~:d while making a frame" 9999) ;(- (stream-size instream) pos))
+        (return-from make-frame nil))   ; hit padding
 
-	  (setf frame-name
-			(concatenate 'string (string (code-char byte)) (stream-read-string-with-len instream (ecase version (2 2) (3 3) (4 3)))))
+      (setf frame-name
+            (concatenate 'string (string (code-char byte)) (stream-read-string-with-len instream (ecase version (2 2) (3 3) (4 3)))))
 
-	  (setf frame-len (ecase version
-						(2 (stream-read-u24 instream))
-						(3 (stream-read-u32 instream))
-						(4 (stream-read-u32 instream :bits-per-byte 7))))
+      (setf frame-len (ecase version
+                        (2 (stream-read-u24 instream))
+                        (3 (stream-read-u32 instream))
+                        (4 (stream-read-u32 instream :bits-per-byte 7))))
 
-	  (when (or (= version 3) (= version 4))
-		(setf frame-flags (stream-read-u16 instream))
-		(when (not (valid-frame-flags version frame-flags))
-		  (warn-user "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))))
+      (when (or (= version 3) (= version 4))
+        (setf frame-flags (stream-read-u16 instream))
+        (when (not (valid-frame-flags version frame-flags))
+          (warn-user "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))))
 
-	  (log-id3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"
-					 frame-name version frame-len
-					 (print-frame-flags version frame-flags nil))
-	  (setf frame-class (find-frame-class frame-name))
+      (log-id3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"
+                     frame-name version frame-len
+                     (print-frame-flags version frame-flags nil))
+      (setf frame-class (find-frame-class frame-name))
 
-	  ;; edge case where found a frame name, but it is not valid or where making this frame
-	  ;; would blow past the end of the file/buffer
-	  (when (or (> (+ (stream-seek instream 0 :current) frame-len) (stream-size instream))
-				(null frame-class))
-		(error 'id3-frame-condition :message "bad frame found" :object frame-name :location pos))
+      ;; edge case where found a frame name, but it is not valid or where making this frame
+      ;; would blow past the end of the file/buffer
+      (when (or (> (+ (stream-seek instream 0 :current) frame-len) (stream-size instream))
+                (null frame-class))
+        (error 'id3-frame-condition :message "bad frame found" :object frame-name :location pos))
 
-	  (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream))))
+      (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream))))
 
 (defun find-id3-frames (mp3-file)
   "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames"
 
   (labels ((read-loop (version stream)
-			 (log5:with-context "read-loop-in-find-id3-frames"
-			   (log-id3-frame "Starting loop through ~:d bytes" (stream-size stream))
-			   (let (frames this-frame)
-				 (do ()
-					 ((>= (stream-seek stream 0 :current) (stream-size stream)))
-				   (handler-case
-					   (progn
-						 (setf this-frame (make-frame version stream))
-						 (when (null this-frame)
-						   (log-id3-frame "hit padding: returning ~d frames" (length frames))
-						   (return-from read-loop (values t (nreverse frames))))
+             (log5:with-context "read-loop-in-find-id3-frames"
+               (log-id3-frame "Starting loop through ~:d bytes" (stream-size stream))
+               (let (frames this-frame)
+                 (do ()
+                     ((>= (stream-seek stream 0 :current) (stream-size stream)))
+                   (handler-case
+                       (progn
+                         (setf this-frame (make-frame version stream))
+                         (when (null this-frame)
+                           (log-id3-frame "hit padding: returning ~d frames" (length frames))
+                           (return-from read-loop (values t (nreverse frames))))
 
-						 (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
-						 (push this-frame frames))
-					 (condition (c)
-					   (log-id3-frame "got condition ~a when making frame" c)
-					   (return-from read-loop (values nil (nreverse frames))))))
+                         (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream 0 :current) (stream-size stream))
+                         (push this-frame frames))
+                     (condition (c)
+                       (log-id3-frame "got condition ~a when making frame" c)
+                       (return-from read-loop (values nil (nreverse frames))))))
 
-				 (log-id3-frame "Succesful read: returning ~d frames" (length frames))
-				 (values t (nreverse frames)))))) ; reverse this so we have frames in "file order"
+                 (log-id3-frame "Succesful read: returning ~d frames" (length frames))
+                 (values t (nreverse frames)))))) ; reverse this so we have frames in "file order"
 
-	(log5:with-context "find-id3-frames"
-	  (when (not (is-valid-mp3-file mp3-file))
-		(log-id3-frame "~a is not an mp3 file" (stream-filename mp3-file))
-		(error 'id3-frame-condition :location "find-id3-frames" :object (stream-filename mp3-file) :message "is not an mp3 file"))
+    (log5:with-context "find-id3-frames"
+      (when (not (is-valid-mp3-file mp3-file))
+        (log-id3-frame "~a is not an mp3 file" (stream-filename mp3-file))
+        (error 'id3-frame-condition :location "find-id3-frames" :object (stream-filename mp3-file) :message "is not an mp3 file"))
 
-	  (log-id3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
+      (log-id3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
 
-	  (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
-	  (with-slots (size ext-header frames flags version) (id3-header mp3-file)
+      (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
+      (with-slots (size ext-header frames flags version) (id3-header mp3-file)
 
-		;; At this point, we switch from reading the file stream and create a memory stream
-		;; rationale: it may need to be unsysnc'ed and it helps prevent run-away reads with
-		;; mis-formed frames
-		(when (not (zerop size))
-		  (let ((mem-stream (make-mem-stream (stream-read-sequence mp3-file size
-																   :bits-per-byte (if (header-unsynchronized-p flags) 7 8)))))
+        ;; At this point, we switch from reading the file stream and create a memory stream
+        ;; rationale: it may need to be unsysnc'ed and it helps prevent run-away reads with
+        ;; mis-formed frames
+        (when (not (zerop size))
+          (let ((mem-stream (make-mem-stream (stream-read-sequence mp3-file size
+                                                                   :bits-per-byte (if (header-unsynchronized-p flags) 7 8)))))
 
-			;; Must make extended header here since it is subject to unsynchronization.
-			(when (header-extended-p flags)
-			  (setf ext-header (make-instance 'id3-extended-header :instream mem-stream)))
+            ;; Must make extended header here since it is subject to unsynchronization.
+            (when (header-extended-p flags)
+              (setf ext-header (make-instance 'id3-extended-header :instream mem-stream)))
 
-			;; Start reading frames from memory stream
-			(multiple-value-bind (_ok _frames) (read-loop version mem-stream)
-			  (if (not _ok)
-				  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
-			  (log-id3-frame "ok = ~a, returning ~d frames" _ok (length _frames))
-			  (setf frames _frames)
-			  _ok)))))))
+            ;; Start reading frames from memory stream
+            (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
+              (if (not _ok)
+                  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
+              (log-id3-frame "ok = ~a, returning ~d frames" _ok (length _frames))
+              (setf frames _frames)
+              _ok)))))))
 
 (defun map-id3-frames (mp3-file &key (func (constantly t)))
   "Iterates through the ID3 frames found in an MP3 file"

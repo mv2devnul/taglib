@@ -22,26 +22,26 @@
 
 (defmethod has-extension ((p pathname) ext)
   (let ((e (pathname-type p)))
-	(if e
-	  (string= (string-downcase e) (string-downcase ext))
-	  nil)))
+    (if e
+      (string= (string-downcase e) (string-downcase ext))
+      nil)))
 
 (defmacro redirect (filename &rest body)
   `(let ((*standard-output* (open ,filename :direction :output :if-does-not-exist :create :if-exists :supersede)))
-	 ,@body
-	 (finish-output *standard-output*)))
+     ,@body
+     (finish-output *standard-output*)))
 
 ;;; A note re filesystem encoding: my music collection is housed on a Mac and shared via SAMBA.
-;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to 
+;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to
 ;;; :UTF-8
 
 ;;;;;;;;;;;;;;;;;;;; MP4 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp4-test0 (file)
   (let (foo)
-	(unwind-protect
-		 (setf foo (parse-mp4-file file))
-	  (when foo (stream-close foo)))
-	foo))
+    (unwind-protect
+         (setf foo (parse-mp4-file file))
+      (when foo (stream-close foo)))
+    foo))
 
 (defun mp4-test1 ()
   (mp4-test0 *song-m4a*))
@@ -49,19 +49,19 @@
 (defun mp4-test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
-							   (when (has-extension f "m4a")
-								 (let ((file (mp4-test0 f)))
-								   (when file 
-									 (mp4-tag:show-tags file :raw raw)
-									 (mp4-atom::get-mp4-audio-info file)))))))
+                               (when (has-extension f "m4a")
+                                 (let ((file (mp4-test0 f)))
+                                   (when file
+                                     (mp4-tag:show-tags file :raw raw)
+                                     (mp4-atom::get-mp4-audio-info file)))))))
 
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp3-test0 (file)
   (let (foo)
-	(unwind-protect 
-		 (setf foo (parse-mp3-file file))
-	  (when foo (stream-close foo)))
-	foo))
+    (unwind-protect
+         (setf foo (parse-mp3-file file))
+      (when foo (stream-close foo)))
+    foo))
 
 (defun mp3-test1 ()
   (mp3-test0 *song-mp3*))
@@ -69,17 +69,17 @@
 (defun mp3-test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
-							   (when (has-extension f "mp3")
-								 (let ((file (mp3-test0 f)))
-								   (when file (mp3-tag:show-tags file :raw raw)))))))
+                               (when (has-extension f "mp3")
+                                 (let ((file (mp3-test0 f)))
+                                   (when file (mp3-tag:show-tags file :raw raw)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
-							   (if (has-extension f "mp3")
-								   (let ((file (mp3-test0 f)))
-									 (when file (mp3-tag:show-tags file :raw raw)))
-								   (if (has-extension f "m4a")
-									   (let ((file (mp4-test0 f)))
-										 (when file (mp4-tag:show-tags file :raw raw))))))))
+                               (if (has-extension f "mp3")
+                                   (let ((file (mp3-test0 f)))
+                                     (when file (mp3-tag:show-tags file :raw raw)))
+                                   (if (has-extension f "m4a")
+                                       (let ((file (mp4-test0 f)))
+                                         (when file (mp4-tag:show-tags file :raw raw))))))))
