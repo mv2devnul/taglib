@@ -30,6 +30,8 @@ Notes II:
   called *get-audio-info* that controls whether parse-mp4-file/parse-mp3-file try to extract this info.  To speed things up,
   you can bind this this parameter to nil (eg: (let ((audio-streams:*get-audio-info* nil)) (parse-...)).  As an example, when we're 
   not getting audio-info, parsing an MP3 takes microsends.  When we are, it takes seconds.
+* For now, USE-MMAP in *features* is purely experimental. Seems pretty flakey, but that's probably because I'm using ccl:: methods without
+  much regard to sanity...
 
 And now for some sample invocations and outputs:
 

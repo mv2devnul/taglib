@@ -436,8 +436,8 @@
             (round (/ bit-rate 1000))
             (floor (/ len 60)) (round (mod len 60)))))
 
-(defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
 
+(defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
 (defun get-mpeg-audio-info (in &key (max-frames *max-frames-to-read*))
   "Get MPEG Layer 3 audio information."
   (log5:with-context "get-mpeg-audio-info"

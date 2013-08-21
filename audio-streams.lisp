@@ -193,7 +193,10 @@ Thus (stream-seek in) == (stream-seek in 0 :current)"
                  (setf (ldb (byte 8 0) retval) (aref octets 1))
                  (setf (ldb (byte 8 8) retval) (aref octets 0))
                  (when (not (or (= #xfffe retval) (= #xfeff retval)))
-                   (error "got an invalid byte-order mark of ~x" retval))
+                   (error 'audio-stream-condition
+                          :location "stream-decode-ucs-string"
+                          :object nil
+                          :message (format nil "got an invalid byte-order mark of ~x" retval)))
                  retval)))
 
       ;; special case: empty (and mis-coded) string
