@@ -11,7 +11,7 @@
   (:use #:common-lisp))
 
 (defpackage #:audio-streams
-  (:export #:octets #:make-octets *get-mpeg-audio-info*
+  (:export #:octets #:make-octets *get-audio-info*
            #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
            #:id3-header #:audio-info #:mp4-atoms
            #:parse-mp3-file #:parse-mp4-file

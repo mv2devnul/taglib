@@ -7,8 +7,9 @@
 
 (in-package #:taglib-tests)
 
-(defparameter *song-m4a* "01 Keep Yourself Alive.m4a"     "handy filename to test MP4s")
-(defparameter *song-mp3* "02 You Take My Breath Away.mp3" "handy filename to test MP3s")
+;;; some convenient songs to parse
+(defparameter *song-m4a* "Queen/Queen 01 Keep Yourself Alive.m4a")
+(defparameter *song-mp3* "Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
 
 ;;;
 ;;; Set the pathname (aka filename) encoding in CCL for appropriate platorm
@@ -103,3 +104,25 @@ to see if it matches. PATHNAME version."
                                         (let ((file (mp4-test0 full-name)))
                                           (when file
                                             (mp4-tag:show-tags file :raw raw)))))))))
+
+(defun time-test (dir &key (file-system-encoding :utf-8) (do-audio-processing t))
+  "Time parsing of DIR."
+  (let ((mp3-count 0)
+        (mp4-count 0)
+        (other-count 0))
+    (labels ((do-dir (dir)
+               (osicat:walk-directory dir (lambda (f)
+                                            (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
+                                              (cond ((has-extension f "mp3")
+                                                     (incf mp3-count)
+                                                     (mp3-test0 full-name))
+                                                    ((has-extension f "m4a")
+                                                     (incf mp4-count)
+                                                     (mp4-test0 full-name))
+                                                    (t
+                                                     (incf other-count))))))))
+      (set-pathname-encoding file-system-encoding)
+      (let ((audio-streams:*get-audio-info* do-audio-processing))
+        (time (do-dir dir)))
+      (format t "~:d MP3s, ~:d MP4s, ~:d Others~%"
+              mp3-count mp4-count other-count))))

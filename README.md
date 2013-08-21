@@ -25,6 +25,10 @@ Notes II:
   I get problems. 
 * I've run this tool across my 19,000+ audio collection and compared the results to some of the tools above, with little to no variations.
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
+* Parsing the audio info in an MP3 is hideously inefficient and needs a rewrite (mpeg.lisp). There is a global parameter in audio-streams.lisp
+  called *get-audio-info* that controls whether parse-mp4-file/parse-mp3-file try to extract this info.  To speed things up,
+  you can bind this this parameter to nil (eg: (let ((audio-streams:*get-audio-info* nil)) (parse-...)).  As an example, when we're 
+  not getting audio-info, parsing an MP3 takes microsends.  When we are, it takes seconds.
 
 And now for some sample invocations and outputs:
 
@@ -81,9 +85,8 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
 
-I also have a semi-complete logging strategy in place.  Logging is based on the LOG5 package.
-
-To see the output of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
+I have a semi-complete logging strategy in place that is primarily used to figure out what happened when I get
+an unexpected error parsing a file. To see the output of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
 
 ```
 (with-logging ()
@@ -106,5 +109,5 @@ If you *really* want to create a lot of output, you can do the following:
     (redirect "q.txt" (test2 :dir "somewhere-where-you-have-all-your-audio" :raw t)))
 ```
 
-For my 19,000+ files, this generates XXX lines in "log.txt" and XXX lines in "q.txt".  It also took YYY minutes, YYY seconds (again, over CIFS and/or NFS).
+For my 19,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 lines in "q.txt".
 
