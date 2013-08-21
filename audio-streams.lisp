@@ -77,10 +77,6 @@ Thus (stream-seek in) == (stream-seek in 0 :current)"
                     (ccl::stream-position stream (+ (ccl::stream-position stream) offset))))
       (:end (ccl::stream-position stream (- (ccl::stream-length stream) offset))))))
 
-;; (defmethod stream-seek ((in-stream base-stream))
-;;   "Short hand for getting current stream read position"
-;;   (stream-seek in-stream 0 :current))
-
 (defun stream-read-octets (instream bytes &key (bits-per-byte 8))
   "Used to slurp in octets for the stream-read-* methods"
   (loop with value = 0

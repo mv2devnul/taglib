@@ -20,7 +20,7 @@ Notes II:
 * The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
 * I've parsed just enough of the MP4 atoms/boxes to suit the needs of this tool.  l-smash appears to parse all boxes.  Maybe one day this lib will too.
 * WRT error handling: in some cases, I've made them recoverable, but in general, I've went down the path of erroring out when
-  I get problems.
+  I get problems. 
 * I've run this tool across my 19,000+ audio collection and compared the results to some of the tools above, with little to no variations.
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
 
@@ -79,4 +79,19 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
 
+I also have a semi-complete logging strategy in place.  Logging is based on LOG5 package.
+
+To see the ouput of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
+
+```
+(with-logging () (taglib-tests::test2))
+```
+
+To see only the MP4-ATOM related logging stuff and redirect logging to to a file called "foo.txt":
+
+```
+(with-logging (:file "foo.txt" (categories '(mp4-atom::cat-log-mp4-atom))) (taglib-tests::test2))
+```
+
+See *logging.lisp* for more info.
 

@@ -10,12 +10,6 @@
 (defparameter *song-m4a* "01 Keep Yourself Alive.m4a"     "handy filename to test MP4s")
 (defparameter *song-mp3* "02 You Take My Breath Away.mp3" "handy filename to test MP3s")
 
-(defun report-error (format-string &rest args)
-  "Used in the mpX-testX functions below to show errors found to user."
-  (format *error-output* "~&****************************************~%")
-  (apply #'format *error-output* format-string args)
-  (format *error-output* "****************************************~%"))
-
 ;;;
 ;;; Set the pathname (aka filename) encoding in CCL for appropriate platorm
 (defun set-pathname-encoding (enc)        (setf (ccl:pathname-encoding-name) enc))
@@ -54,7 +48,7 @@ to see if it matches. PATHNAME version."
          (handler-case
              (setf foo (parse-mp4-file file))
            (condition (c)
-             (report-error "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
+             (utils:warn-user "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
       (when foo (stream-close foo)))
     foo))
 
@@ -66,10 +60,9 @@ to see if it matches. PATHNAME version."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
                                (when (has-extension f "m4a")
-                                 (let ((file (mp4-test0 f)))
+                                 (let ((file (mp4-test0 (merge-pathnames (ccl:current-directory) (pathname f)))))
                                    (when file
-                                     (mp4-tag:show-tags file :raw raw)
-                                     (mp4-atom::get-mp4-audio-info file)))))))
+                                     (mp4-tag:show-tags file :raw raw)))))))
 
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp3-test0 (file)
@@ -80,7 +73,7 @@ to see if it matches. PATHNAME version."
          (handler-case
              (setf foo (parse-mp3-file file))
            (condition (c)
-             (report-error "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
+             (utils:warn-user "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
       (when foo (stream-close foo)))
     foo))
 
@@ -92,17 +85,21 @@ to see if it matches. PATHNAME version."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
                                (when (has-extension f "mp3")
-                                 (let ((file (mp3-test0 f)))
-                                   (when file (mp3-tag:show-tags file :raw raw)))))))
+                                 (let ((file (mp3-test0 (merge-pathnames (ccl:current-directory) (pathname f)))))
+                                   (when file
+                                     (mp3-tag:show-tags file :raw raw)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
   "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
-                               (if (has-extension f "mp3")
-                                   (let ((file (mp3-test0 f)))
-                                     (when file (mp3-tag:show-tags file :raw raw)))
-                                   (if (has-extension f "m4a")
-                                       (let ((file (mp4-test0 f)))
-                                         (when file (mp4-tag:show-tags file :raw raw))))))))
+                               (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
+                                 (cond ((has-extension f "mp3")
+                                        (let ((file (mp3-test0 full-name)))
+                                          (when file
+                                            (mp3-tag:show-tags file :raw raw))))
+                                       ((has-extension f "m4a")
+                                        (let ((file (mp4-test0 full-name)))
+                                          (when file
+                                            (mp4-tag:show-tags file :raw raw)))))))))

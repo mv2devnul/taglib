@@ -466,7 +466,7 @@ Loop through this container and construct constituent atoms"
       (log-mp4-atom "make-mp4-atom: @ pos = ~:d of size = ~:d and type = ~a" pos siz (as-string typ))
 
       (when (= 0 siz)
-        (error "trying to make an atom ~a with size of 0 at offset ~:d in ~a, ammending size to be 8"
+        (error "trying to make an atom ~a with size of 0 at offset ~:d in file ~a"
                (as-string typ) pos (stream-filename mp4-file)))
 
       (setf atom (make-instance (find-atom-class typ) :atom-size siz :atom-type typ :atom-file-position pos :mp4-file mp4-file :atom-parent-type parent-type))

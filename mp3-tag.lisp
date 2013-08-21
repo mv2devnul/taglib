@@ -238,11 +238,12 @@
             (str (info (first frames))))
 
         ;; XXX for V23/V24 TCON frames, a genre can be pretty gnarly.
-        ;; if the first byte of the TCON INFO field is a '(', this is interpreted
-        ;; as an ID3v2.1 genre number.  These can stack up (called "refinements") too.
+        ;; if the first byte of the TCON INFO field is a '(', what is between this '('
+        ;; and the next ')' is interpreted as an ID3v2.1 genre number.
+        ;; These can stack up (called "refinements") too.
         ;; The INFO field can also just be a string.
-        ;; We're taking a simplistic approach here: we can hand the '(' case, but
-        ;; only allow one (no refinements) or we can handle the simple string case
+        ;; We're taking a simplistic approach here: we can handle the '(' case, but
+        ;; only allow one (no refinements) OR we can handle the simple string case
         (when (and (>= (length str) 1) (eq #\( (aref str 0)))
           (setf count (count #\( str))
           (when (> count 1) (warn-user "Don't support genre refinement yet, found ~d genres" count))
@@ -343,7 +344,7 @@
 (defmethod show-tags ((me mp3-file-stream) &key (raw nil))
   "Show the tags for an mp3-file.  If RAW is non-nil, dump all the frames; else, print out a subset."
   (if raw
-      (format t "~a: ~a~%" (stream-filename me)
+      (format t "~a~%~a~%" (stream-filename me)
               (with-output-to-string (s)
                 (when (audio-info me)
                   (mpeg::vpprint (audio-info me) s)
@@ -366,7 +367,7 @@
             (track (track me))
             (writer (writer me))
             (year (year me)))
-        (format t "~a: ~a~%" (stream-filename me)
+        (format t "~a~%~a~%" (stream-filename me)
                 (if (audio-info me)
                     (mpeg::vpprint (audio-info me) nil) ""))
         (when album (format t "~4talbum: ~a~%" album))
