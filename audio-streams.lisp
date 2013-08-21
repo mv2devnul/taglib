@@ -6,6 +6,17 @@
 (log5:defcategory cat-log-stream)
 (defmacro log-stream (&rest log-stuff) `(log5:log-for (cat-log-stream) ,@log-stuff))
 
+(define-condition audio-stream-condition ()
+  ((location :initarg :location :reader location :initform nil)
+   (object   :initarg :object   :reader object   :initform nil)
+   (messsage :initarg :message  :reader message  :initform "Undefined Condition"))
+  (:report (lambda (condition stream)
+             (format stream "audio-stream condition at location: <~a> with object: <~a>: message: <~a>"
+                     (location condition) (object condition) (message condition)))))
+
+(defmethod print-object ((me audio-stream-condition) stream)
+  (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
+
 (deftype octet () '(unsigned-byte 8))
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
@@ -13,13 +24,20 @@
 ;;; A simple stream interface for parsing audio files.  Currently, we have two basic stream types:
 ;;; file-based and in-memory based, both of which implement the stream protocol of read, seek, etc.
 ;;;
+
+;;; Not prefixing this with #+USE-MMAP so as to make stream seek easier
+(defclass mmap-stream-mixin ()
+  ((orig-vector :accessor orig-vector))
+  (:documentation "Use CCLs MMAP facility to get a stream."))
+
 (defclass base-stream ()
   ((stream :accessor stream))
   (:documentation "Base class for audio-stream implementation"))
 
-(defclass base-file-stream (base-stream)
-  ((stream-filename :accessor stream-filename))
-  (:documentation "File-based audio stream"))
+(defclass base-file-stream #-USE-MMAP (base-stream) #+USE-MMAP (base-stream mmap-stream-mixin)
+          ((stream-filename :accessor stream-filename)
+           (orig-size   :accessor orig-size :documentation "ccl::stream-position let's you seek beyond EOF"))
+          (:documentation "File-based audio stream"))
 
 (defclass mp3-file-stream (base-file-stream)
   ((id3-header :accessor id3-header :initform nil :documentation "holds all the ID3 info")
@@ -34,14 +52,24 @@
 (defun make-file-stream (class-name filename &key (read-only t))
   "Convenience function for creating a file stream."
   (let ((new-stream (make-instance (find-class class-name))))
-    (setf (stream new-stream) (if read-only
-                                  (open filename :direction :input :element-type 'octet)
-                                  (open filename :direction :io :if-exists :overwrite :element-type 'octet)))
+
+    #-USE-MMAP (progn
+                 (setf (stream new-stream) (if read-only
+                                               (open filename :direction :input :element-type 'octet)
+                                               (open filename :direction :io :if-exists :overwrite :element-type 'octet)))
+                 (setf (orig-size new-stream) (file-length (stream new-stream))))
+    #+USE-MMAP (progn
+                 (assert read-only () "Can not do read/write with MMAP files.")
+                 (setf (orig-vector new-stream) (ccl:map-file-to-octet-vector filename))
+                 (setf (orig-size new-stream) (length (orig-vector new-stream))) ; ccl::stream-position let's you seek beyond EOF
+                 (setf (stream new-stream) (ccl:make-vector-input-stream (orig-vector new-stream))))
+
     (setf (stream-filename new-stream) filename)
     new-stream))
 
-;;;   (:documentation "In-memory stream")))
-(defclass base-mem-stream (base-stream) ())
+(defclass base-mem-stream (base-stream)
+  ()
+  (:documentation "In-memory stream"))
 
 (defun make-mem-stream (vector)
   "Convenience function to turn a vector into a stream."
@@ -49,11 +77,13 @@
     (setf (stream new-stream) (ccl:make-vector-input-stream vector))
     new-stream))
 
+
 (defmethod stream-close ((in-stream base-file-stream))
   "Close the underlying file."
   (with-slots (stream) in-stream
     (when stream
-      (close stream)
+      #-USE-MMAP (close stream)
+      #+USE-MMAP (ccl:unmap-octet-vector (orig-vector in-stream))
       (setf stream nil))))
 
 (defmethod stream-close ((in-stream base-mem-stream))
@@ -65,17 +95,32 @@
   "Returns the length of the underlying stream"
   (ccl::stream-length (stream in-stream)))
 
+;;;
+;;; I'm using ccl::stream-position, which I really shouldn't here...
 (defmethod stream-seek ((in-stream base-stream) &optional (offset 0) (from :current))
   "C-like stream positioner.  Takes an offset and a location (one of :start, :end, :current).
 If offset is not passed, then assume 0.  If from is not passed, assume from current location.
 Thus (stream-seek in) == (stream-seek in 0 :current)"
   (with-slots (stream) in-stream
     (ecase from
-      (:start (ccl::stream-position stream offset))
-      (:current (if (zerop offset)
-                    (ccl::stream-position stream)
-                    (ccl::stream-position stream (+ (ccl::stream-position stream) offset))))
-      (:end (ccl::stream-position stream (- (ccl::stream-length stream) offset))))))
+      (:start
+       (when (or (typep in-stream 'mmap-stream-mixin) (typep in-stream 'base-file-stream))
+         (if (> offset (orig-size in-stream))
+             (error 'audio-stream-condition :location "stream-seek" :object in-stream :message "Seeking beyond end of file")))
+       (ccl::stream-position stream offset))
+      (:current
+       (if (zerop offset)
+           (ccl::stream-position stream)
+           (progn
+             (when (or (typep in-stream 'mmap-stream-mixin) (typep in-stream 'base-file-stream))
+               (if (> (+ (ccl::stream-position stream) offset) (orig-size in-stream))
+                   (error 'audio-stream-condition :location "stream-seek" :object in-stream :message "Seeking beyond end of file")))
+             (ccl::stream-position stream (+ (ccl::stream-position stream) offset)))))
+       (:end
+        (when (or (typep in-stream 'mmap-stream-mixin) (typep in-stream 'base-file-stream))
+          (if (> (- (ccl::stream-length stream) offset) (orig-size in-stream))
+              (error 'audio-stream-condition :location "stream-seek" :object in-stream :message "Seeking beyond end of file")))
+        (ccl::stream-position stream (- (ccl::stream-length stream) offset))))))
 
 (defun stream-read-octets (instream bytes &key (bits-per-byte 8))
   "Used to slurp in octets for the stream-read-* methods"

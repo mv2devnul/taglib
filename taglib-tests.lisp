@@ -43,13 +43,12 @@ to see if it matches. PATHNAME version."
 ;;;;;;;;;;;;;;;;;;;; MP4 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp4-test0 (file)
   "Parse one MP3 file (with condition handling)."
-  (let ((dir (ccl:current-directory))
-        (foo))
+  (let ((foo))
     (unwind-protect
          (handler-case
              (setf foo (parse-mp4-file file))
            (condition (c)
-             (utils:warn-user "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
+             (utils:warn-user "File: ~a~%Got condition: <~a>~%" file c)))
       (when foo (stream-close foo)))
     foo))
 
@@ -68,13 +67,12 @@ to see if it matches. PATHNAME version."
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
 (defun mp3-test0 (file)
   "Parse one MP3 file (with condition handling)."
-  (let ((dir (ccl:current-directory))
-        (foo))
+  (let ((foo))
     (unwind-protect
          (handler-case
              (setf foo (parse-mp3-file file))
            (condition (c)
-             (utils:warn-user "Dir: ~a~%File: ~a~%Got condition: <~a>~%" dir file c)))
+             (utils:warn-user "File: ~a~%Got condition: <~a>~%" file c)))
       (when foo (stream-close foo)))
     foo))
 

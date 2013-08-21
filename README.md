@@ -11,6 +11,7 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * [mplayer](http://www.mplayerhq.hu): For me, the definitive tool on how to crack audio files.
 * [eyeD3](http://eyed3.nicfit.net/): Great command line tool.
 * [MP3Diags](http://mp3diags.sourceforge.net/): Good GUI-based-tool.  Tends to slow, but very thorough.
+* [MediaInfo](http://mediaarea.net/en/MediaInfo): C++, can dump out all the info to command line and also has a GUI.
 * [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon. 
   It would have saved me TONS of time.
 

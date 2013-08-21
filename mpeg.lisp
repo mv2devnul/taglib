@@ -78,7 +78,7 @@
 
 (defclass frame ()
   ((pos            :accessor pos :initarg :pos)
-   (b-array        :accessor b-array :initarg :b-array)
+   (hdr-u32        :accessor hdr-u32 :initarg :hdr-u32)
    (samples        :accessor samples :initarg :samples)
    (sync           :accessor sync :initarg :sync)
    (version        :accessor version :initarg :version)
@@ -96,12 +96,12 @@
    (size           :accessor size :initarg :size)
    (vbr            :accessor vbr :initarg :vbr)
    (payload        :accessor payload :initarg :payload))
-  (:default-initargs :pos nil :b-array nil :samples 0 :sync 0 :version 0 :layer 0 :protection 0 :bit-rate 0
+  (:default-initargs :pos nil :hdr-u32 nil :samples 0 :sync 0 :version 0 :layer 0 :protection 0 :bit-rate 0
                      :sample-rate 0 :padded 0 :private 0 :channel-mode 0 :mode-extension 0
                      :copyright 0 :original 0 :emphasis 0 :size nil :vbr nil :payload nil))
 
 (defmacro with-frame-slots ((instance) &body body)
-  `(with-slots (pos b-array samples sync version layer protection bit-rate sample-rate
+  `(with-slots (pos hdr-u32 samples sync version layer protection bit-rate sample-rate
                     padded private channel-mode mode-extension copyright
                     original emphasis size vbr payload) ,instance
      ,@body))
@@ -172,64 +172,71 @@
 
 (defmethod load-frame ((me frame) &key instream (read-payload nil))
   (log5:with-context "load-frame"
-    (with-frame-slots (me)
-      (when (null b-array)              ; has header already been read in?
-        (setf pos (stream-seek instream))
-        (setf b-array (stream-read-sequence instream 4)))
+    (handler-case
+        (with-frame-slots (me)
+          (log-mpeg-frame "loading frame from pos ~:d" (stream-seek instream))
+          (when (null hdr-u32)          ; has header already been read in?
+            (log-mpeg-frame "reading in header")
+            (setf pos (stream-seek instream))
+            (setf hdr-u32 (stream-read-u32 instream)))
 
-      (if (parse-header me)
-          (progn
-            (log-mpeg-frame "header parsed ok")
-            (setf size (get-frame-size version layer bit-rate sample-rate padded))
-            (when read-payload
-              (setf payload (stream-read-sequence instream (- size 4))))
-            t)
-          (progn
-            (log-mpeg-frame "header didn't parse!")
-            nil)))))
+          (if (parse-header me)
+              (progn
+                (log-mpeg-frame "header parsed ok")
+                (setf size (get-frame-size version layer bit-rate sample-rate padded))
+                (when read-payload
+                  (setf payload (stream-read-sequence instream (- size 4))))
+                t)
+              (progn
+                (log-mpeg-frame "header didn't parse!")
+                nil)))
+      (end-of-file (c)
+        (declare (ignore c))
+        (log-mpeg-frame "Hit EOF")
+        nil))))
 
 (defmethod parse-header ((me frame))
   (log5:with-context "parse-header"
     (with-frame-slots (me)
-
-      (setf (ldb (byte 8 8) sync) (aref b-array 0))
-      (setf (ldb (byte 3 5) sync) (ldb (byte 3 5) (aref b-array 1)))
+      (setf (ldb (byte 8 8) sync) (ldb (byte 8 24) hdr-u32))
+      (setf (ldb (byte 3 5) sync) (ldb (byte 3 5) (ldb (byte 8 16) hdr-u32)))
       (when (not (= sync +sync-word+))
+        (log-mpeg-frame "bad sync ~x/~x" sync hdr-u32)
         (return-from parse-header nil))
 
-      (setf version (ldb (byte 2 3) (aref b-array 1)))
+      (setf version (ldb (byte 2 3) (ldb (byte 8 16) hdr-u32)))
       (when (not (valid-version version))
         (log-mpeg-frame "bad version ~d" version)
         (return-from parse-header nil))
 
-      (setf layer (ldb (byte 2 1) (aref b-array 1)))
+      (setf layer (ldb (byte 2 1) (ldb (byte 8 16) hdr-u32)))
       (when (not (valid-layer layer))
         (log-mpeg-frame "bad layer ~d" layer)
         (return-from parse-header nil))
 
-      (setf protection (ldb (byte 1 0) (aref b-array 1)))
+      (setf protection (ldb (byte 1 0) (ldb (byte 8 16) hdr-u32)))
       (setf samples (get-samples-per-frame version layer))
 
-      (let ((br-index (the fixnum (ldb (byte 4 4) (aref b-array 2)))))
+      (let ((br-index (the fixnum (ldb (byte 4 4) (ldb (byte 8 8) hdr-u32)))))
         (when (not (valid-bit-rate-index br-index))
           (log-mpeg-frame "bad bit-rate index ~d" br-index)
           (return-from parse-header nil))
         (setf bit-rate (get-bit-rate version layer br-index)))
 
-      (let ((sr-index (the fixnum (ldb (byte 2 2) (aref b-array 2)))))
+      (let ((sr-index (the fixnum (ldb (byte 2 2) (ldb (byte 8 8) hdr-u32)))))
         (when (not (valid-sample-rate-index sr-index))
           (log-mpeg-frame "bad sample-rate index ~d" sr-index)
           (return-from parse-header nil))
         (setf sample-rate (get-sample-rate version sr-index)))
 
-      (setf padded (ldb (byte 1 1) (aref b-array 2)))
-      (setf private (ldb (byte 1 0) (aref b-array 2)))
+      (setf padded (ldb (byte 1 1) (ldb (byte 8 8) hdr-u32)))
+      (setf private (ldb (byte 1 0) (ldb (byte 8 8) hdr-u32)))
 
-      (setf channel-mode (ldb (byte 2 6) (aref b-array 3)))
-      (setf mode-extension (ldb (byte 2 4) (aref b-array 3)))
-      (setf copyright (ldb (byte 1 3) (aref b-array 3)))
-      (setf original (ldb (byte 1 2) (aref b-array 3)))
-      (setf emphasis (ldb (byte 2 0) (aref b-array 3)))
+      (setf channel-mode (ldb (byte 2 6) (ldb (byte 8 0) hdr-u32)))
+      (setf mode-extension (ldb (byte 2 4) (ldb (byte 8 0) hdr-u32)))
+      (setf copyright (ldb (byte 1 3) (ldb (byte 8 0) hdr-u32)))
+      (setf original (ldb (byte 1 2) (ldb (byte 8 0) hdr-u32)))
+      (setf emphasis (ldb (byte 2 0) (ldb (byte 8 0) hdr-u32)))
       (when (not (valid-emphasis emphasis))
         (log-mpeg-frame "bad emphasis ~d" emphasis)
         (return-from parse-header nil))
@@ -238,17 +245,19 @@
       t)))
 
 (defmethod vpprint ((me frame) stream)
-  (with-frame-slots (me)
-    (format stream "MPEG Frame: position in file = ~:d, header in (hex) bytes = ~x, size = ~d, sync word = ~x, " pos b-array size sync)
-    (when vbr
-      (format stream "~&vbr-info: ~a~%" vbr))
-    (format stream "version = ~a, layer = ~a, crc protected? = ~[yes~;no~], bit-rate = ~:d bps, sampling rate = ~:d bps, padded? = ~[no~;yes~], private bit set? = ~[no~;yes~], channel mode = ~a, "
-            (get-mpeg-version-string version) (get-layer-string layer)
-            protection bit-rate sample-rate padded private (get-channel-mode-string channel-mode))
-    (format stream "mode extension = ~a, copyrighted? = ~[no~;yes~], original? = ~[no~;yes~], emphasis = ~a"
-            (get-mode-extension-string channel-mode layer mode-extension) copyright original (get-emphasis-string emphasis))
-    (when payload
-      (format stream "~%frame payload[~:d] = ~a~%" (length payload) payload))))
+  (format stream "~a"
+          (with-output-to-string (s)
+            (with-frame-slots (me)
+              (format s "MPEG Frame: position in file = ~:d, header in (hex) bytes = ~x, size = ~d, sync word = ~x, " pos hdr-u32 size sync)
+              (when vbr
+                (format s "~&vbr-info: ~a~%" vbr))
+              (format s "version = ~a, layer = ~a, crc protected? = ~[yes~;no~], bit-rate = ~:d bps, sampling rate = ~:d bps, padded? = ~[no~;yes~], private bit set? = ~[no~;yes~], channel mode = ~a, "
+                      (get-mpeg-version-string version) (get-layer-string layer)
+                      protection bit-rate sample-rate padded private (get-channel-mode-string channel-mode))
+              (format s "mode extension = ~a, copyrighted? = ~[no~;yes~], original? = ~[no~;yes~], emphasis = ~a"
+                      (get-mode-extension-string channel-mode layer mode-extension) copyright original (get-emphasis-string emphasis))
+              (when payload
+                (format s "~%frame payload[~:d] = ~a~%" (length payload) payload))))))
 
 (defclass vbr-info ()
   ((tag    :accessor tag :initarg :tag)
@@ -317,68 +326,65 @@
     (format stream "tag = ~a, flags = 0x~x, frames = ~:d, bytes = ~:d, tocs = ~d, scale = ~d, "
             tag flags frames bytes tocs scale)))
 
+;;;     if( (head & 0xffe00000) != 0xffe00000 ||
+
 (defun find-first-sync (in)
   (log5:with-context "find-first-sync"
 
     (log-mpeg-frame "Looking for first sync, begining at file position ~:d" (stream-seek in))
-    (let ((b-array (make-octets 4))
+    (let ((hdr-u32)
+          (count 0)
           (pos))
 
       (handler-case
-          ;;
-          ;; loop through entire file if we have to
-          ;; XXX question: if we read FF E from the file (two bytes), but the
-          ;; parse fails (i.e. a false sync), do we skip forward, or try to parse
-          ;; the second byte as the FF?
           (loop
-             (setf pos (stream-seek in))
-             (setf (aref b-array 0) (stream-read-u8 in))
-             (when (= (aref b-array 0) #xff)
-               (setf (aref b-array 1) (stream-read-u8 in))
-               (when (= (logand (aref b-array 1) #xe0) #xe0)
-                 (log-mpeg-frame "Potential sync bytes at ~:d: <~x>" pos b-array)
-                 (setf (aref b-array 2) (stream-read-u8 in))
-                 (setf (aref b-array 3) (stream-read-u8 in))
-
-                 (let ((hdr (make-instance 'frame :b-array b-array :pos pos)))
-                   (if (load-frame hdr :instream in :read-payload t)
-                       (progn
-                         (check-vbr hdr)
-                         (log-mpeg-frame "Valid header being returned: ~a" hdr)
-                         (return-from find-first-sync hdr))
-                       (progn
-                         (log-mpeg-frame "hdr wasn't valid: ~a" hdr)))))))
-        (end-of-file (c) (progn
-                           (log-mpeg-frame "got a condition while looking for first sync: ~a" c)
-                           (error c))))
+            (setf pos (stream-seek in))
+            (setf hdr-u32 (stream-read-u32 in))
+            (incf count)
+            ;;(log-mpeg-frame "pos = ~:d, count = ~:d, hdr-u32 = ~x" pos count hdr-u32)
+            (when (= (logand hdr-u32 #xffe00000) #xffe00000)
+              (log-mpeg-frame "Potential sync bytes at ~:d: <~x>" pos hdr-u32)
+              (let ((hdr (make-instance 'frame :hdr-u32 hdr-u32 :pos pos)))
+                (if (load-frame hdr :instream in :read-payload t)
+                    (progn
+                      (check-vbr hdr)
+                      (log-mpeg-frame "Valid header being returned: ~a, searched ~:d times" hdr count)
+                      (return-from find-first-sync hdr))
+                    (progn
+                        (log-mpeg-frame "hdr wasn't valid: ~a" hdr))))))
+        (condition (c) (progn
+                         (warn-user "Condtion <~a> signaled while looking for first sync" c)
+                         (log-mpeg-frame "got a condition while looking for first sync: ~a" c)
+                         (error c)))) ; XXX should I propogate this, or just return nil
       nil)))
 
 (defmethod next-frame ((me frame) &key instream read-payload)
   (log5:with-context "next-frame"
     (let ((nxt-frame (make-instance 'frame)))
       (when (not (payload me))
-        (log-mpeg-frame "no payload in current frame, skipping from ~:d forward ~:d bytes"
+        (log-mpeg-frame "no payload loaded in current frame, skipping from ~:d forward ~:d bytes"
                         (stream-seek instream)
                         (- (size me) 4) :current)
         (stream-seek instream (- (size me) 4) :current))
 
+      (log-mpeg-frame "at pos ~:d, read-payload is ~a" (stream-seek instream) read-payload)
       (if (load-frame nxt-frame :instream instream :read-payload read-payload)
           nxt-frame
           nil))))
 
 (defun map-frames (in func &key (start-pos nil) (read-payload nil) (max nil))
   (log5:with-context "next-frame"
-    (log-mpeg-frame "mapping frame, start pos ~:d" start-pos)
+    (log-mpeg-frame "mapping frames, start pos ~:d" start-pos)
 
     (when start-pos
       (stream-seek in start-pos :start))
 
     (loop
-       for max-frames = (if max max most-positive-fixnum)
+       for max-frames = (if max max *max-frames-to-read*)
        for count = 0 then (incf count)
        for frame = (find-first-sync in) then (next-frame frame :instream in :read-payload read-payload)
         while (and frame (< count max-frames)) do
-         (log-mpeg-frame "At pos ~:d, dispatching function" (pos frame))
+         (log-mpeg-frame "map-frames: at pos ~:d, dispatching function" (pos frame))
          (funcall func frame))))
 
 (defun get-mpeg-bit-rate-exhaustive (in)
@@ -430,14 +436,16 @@
             (round (/ bit-rate 1000))
             (floor (/ len 60)) (round (mod len 60)))))
 
-(defun get-mpeg-audio-info (in &key (max-frames nil))
+(defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
+
+(defun get-mpeg-audio-info (in &key (max-frames *max-frames-to-read*))
   "Get MPEG Layer 3 audio information."
   (log5:with-context "get-mpeg-audio-info"
     (let ((pos (stream-seek in))
           (first-frame (find-first-sync in))
           (info (make-instance 'mpeg-audio-info)))
 
-      (log-mpeg-frame "search for first frame yielded ~a" first-frame)
+      (log-mpeg-frame "search for first frame yielded ~a" (vpprint first-frame nil))
       (when (null first-frame)
         (return-from get-mpeg-audio-info nil))
 

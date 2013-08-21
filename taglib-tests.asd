@@ -2,8 +2,8 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 ;;;
 
-;;; should only be set when on markv machines...
-(pushnew :I-AM-MARKV *features*)
+;(pushnew :I-AM-MARKV *features*)
+(pushnew :USE-MMAP *features*)
 
 (asdf:defsystem #:taglib-tests
   :description "Simple demo/test code for taglib"

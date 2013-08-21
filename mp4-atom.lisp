@@ -226,26 +226,20 @@ Loop through this container and construct constituent atoms"
 (simple-text-decode +itunes-tool+)
 (simple-text-decode +itunes-writer+)
 
+;;; for reasons I'm not clear on, there may or may not be extra bytes after the data in these atoms
+;;; hence, the seek at the end to get us by any unread bytes.
 (defmacro simple-a-b-decode (type)
   `(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql ,type)) mp4-file)
-     (declare (ignore atom))
-     (stream-read-u16 mp4-file)                 ; throw away XXX Why?
+     (stream-read-u16 mp4-file)                 ; throw away XXX Why? 'Reserved', I think
      (let ((a) (b))
        (setf a (stream-read-u16 mp4-file))
        (setf b (stream-read-u16 mp4-file))
-       (stream-read-u16 mp4-file)               ; throw away XXX Why?
+       (stream-seek mp4-file (- (atom-size atom) 16 6) :current) ; seek to end of atom: 16 == header; 4 is a, b, skip read above
        (list a b))))
 
 (simple-a-b-decode +itunes-track+)
 (simple-a-b-decode +itunes-track-n+)
-
-(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql +itunes-disk+)) mp4-file)
-  (declare (ignore atom))
-  (stream-read-u16 mp4-file)                    ; throw away XXX Why?
-  (let ((a) (b))
-    (setf a (stream-read-u16 mp4-file))
-    (setf b (stream-read-u16 mp4-file))
-    (list a b)))
+(simple-a-b-decode +itunes-disk+)
 
 (defmacro simple-u16-decode (type)
   `(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql ,type)) mp4-file)
