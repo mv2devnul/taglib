@@ -6,15 +6,17 @@ A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and au
 
 Note: There a lot of good (some great) audio file resources out there.  Here are a few of them that I found useful:
 
-* [l-smash](http://code.google.com/p/l-smash/) Exhaustively comprehensive MP4 box parser in C.
-* [taglib](http://taglib.github.io/) Clean library in C++.
-* [mplayer](http://www.mplayerhq.hu) For me, the definitive tool on how to crack audio files.
-* [eyeD3](http://eyed3.nicfit.net/) Great command line tool.
-* [MP3Diags](http://mp3diags.sourceforge.net/) Good GUI-based-tool.
-* [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214) I actually didn't order this until well into writing this code.   What a maroon.
+* [l-smash](http://code.google.com/p/l-smash/): Exhaustively comprehensive MP4 box parser in C.
+* [taglib](http://taglib.github.io/): Clean library in C++.
+* [mplayer](http://www.mplayerhq.hu): For me, the definitive tool on how to crack audio files.
+* [eyeD3](http://eyed3.nicfit.net/): Great command line tool.
+* [MP3Diags](http://mp3diags.sourceforge.net/): Good GUI-based-tool.  Tends to slow, but very thorough.
+* [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon. 
+  It would have saved me TONS of time.
 
 Notes II:
 
+* Depends on quicklisp packages: LOG5, and ALEXANDRIA.  See taglib.asd.
 * As the author(s) of taglib state in their comments, parsing ID3s is actually pretty hard. There are so many broken taggers out there
   that it is tough to compensate for all their errors.
 * The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
@@ -79,19 +81,30 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
 
-I also have a semi-complete logging strategy in place.  Logging is based on LOG5 package.
+I also have a semi-complete logging strategy in place.  Logging is based on the LOG5 package.
 
-To see the ouput of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
+To see the output of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
 
 ```
-(with-logging () (taglib-tests::test2))
+(with-logging ()
+    (test2::test2))
 ```
 
 To see only the MP4-ATOM related logging stuff and redirect logging to to a file called "foo.txt":
 
 ```
-(with-logging (:file "foo.txt" (categories '(mp4-atom::cat-log-mp4-atom))) (taglib-tests::test2))
+(with-logging ("foo.txt" :categories (categories '(mp4-atom::cat-log-mp4-atom)))
+    (taglib-tests::test2))
 ```
 
 See *logging.lisp* for more info.
+
+If you *really* want to create a lot of output, you can do the following:
+
+```
+(with-logging ("log.txt")
+    (redirect "q.txt" (test2 :dir "somewhere-where-you-have-all-your-audio" :raw t)))
+```
+
+For my 19,000+ files, this generates XXX lines in "log.txt" and XXX lines in "q.txt".  It also took YYY minutes, YYY seconds (again, over CIFS and/or NFS).
 
