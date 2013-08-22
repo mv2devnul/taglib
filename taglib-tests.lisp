@@ -17,18 +17,6 @@
 (defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
 (defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 
-(defmethod has-extension ((n string) ext)
-  "Probably should use CL's PATHNAME methods, but simply looking at the .XXX portion of a filename
-to see if it matches. This is the string version that makes a PATHNAME and calls the PATHNAME version."
-  (has-extension (parse-namestring n) ext))
-
-(defmethod has-extension ((p pathname) ext)
-  "Probably should use CL's PATHNAME methods , but simply looking at the .XXX portion of a filename
-to see if it matches. PATHNAME version."
-  (let ((e (pathname-type p)))
-    (if e
-      (string= (string-downcase e) (string-downcase ext))
-      nil)))
 
 (defmacro redirect (filename &rest body)
   "Temporarily set *STANDARD-OUTPUT* to FILENAME and execute BODY."
@@ -59,7 +47,7 @@ to see if it matches. PATHNAME version."
   "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
-                               (when (has-extension f "m4a")
+                               (when (utils:has-extension f "m4a")
                                  (let ((file (mp4-test0 (merge-pathnames (ccl:current-directory) (pathname f)))))
                                    (when file
                                      (mp4-tag:show-tags file :raw raw)))))))
@@ -83,7 +71,7 @@ to see if it matches. PATHNAME version."
   "Walk :DIR and parse every MP3 we find."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
-                               (when (has-extension f "mp3")
+                               (when (utils:has-extension f "mp3")
                                  (let ((file (mp3-test0 (merge-pathnames (ccl:current-directory) (pathname f)))))
                                    (when file
                                      (mp3-tag:show-tags file :raw raw)))))))
@@ -94,11 +82,11 @@ to see if it matches. PATHNAME version."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
                                (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                 (cond ((has-extension f "mp3")
+                                 (cond ((utils:has-extension f "mp3")
                                         (let ((file (mp3-test0 full-name)))
                                           (when file
                                             (mp3-tag:show-tags file :raw raw))))
-                                       ((has-extension f "m4a")
+                                       ((utils:has-extension f "m4a")
                                         (let ((file (mp4-test0 full-name)))
                                           (when file
                                             (mp4-tag:show-tags file :raw raw)))))))))
@@ -111,10 +99,10 @@ to see if it matches. PATHNAME version."
     (labels ((do-dir (dir)
                (osicat:walk-directory dir (lambda (f)
                                             (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                              (cond ((has-extension f "mp3")
+                                              (cond ((utils:has-extension f "mp3")
                                                      (incf mp3-count)
                                                      (mp3-test0 full-name))
-                                                    ((has-extension f "m4a")
+                                                    ((utils:has-extension f "m4a")
                                                      (incf mp4-count)
                                                      (mp4-test0 full-name))
                                                     (t

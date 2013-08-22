@@ -178,7 +178,10 @@
           (when (null hdr-u32)          ; has header already been read in?
             (log-mpeg-frame "reading in header")
             (setf pos (stream-seek instream))
-            (setf hdr-u32 (stream-read-u32 instream)))
+            (setf hdr-u32 (stream-read-u32 instream))
+            (when (null hdr-u32)
+              (log-mpeg-frame "hit EOF")
+              (return-from load-frame nil)))
 
           (if (parse-header me)
               (progn
@@ -326,8 +329,6 @@
     (format stream "tag = ~a, flags = 0x~x, frames = ~:d, bytes = ~:d, tocs = ~d, scale = ~d, "
             tag flags frames bytes tocs scale)))
 
-;;;     if( (head & 0xffe00000) != 0xffe00000 ||
-
 (defun find-first-sync (in)
   (log5:with-context "find-first-sync"
 
@@ -340,8 +341,9 @@
           (loop
             (setf pos (stream-seek in))
             (setf hdr-u32 (stream-read-u32 in))
+            (when (null hdr-u32) (return-from find-first-sync nil))
             (incf count)
-            ;;(log-mpeg-frame "pos = ~:d, count = ~:d, hdr-u32 = ~x" pos count hdr-u32)
+
             (when (= (logand hdr-u32 #xffe00000) #xffe00000)
               (log-mpeg-frame "Potential sync bytes at ~:d: <~x>" pos hdr-u32)
               (let ((hdr (make-instance 'frame :hdr-u32 hdr-u32 :pos pos)))
@@ -362,7 +364,7 @@
   (log5:with-context "next-frame"
     (let ((nxt-frame (make-instance 'frame)))
       (when (not (payload me))
-        (log-mpeg-frame "no payload loaded in current frame, skipping from ~:d forward ~:d bytes"
+        (log-mpeg-frame "no payload load required in current frame, skipping from ~:d forward ~:d bytes"
                         (stream-seek instream)
                         (- (size me) 4) :current)
         (stream-seek instream (- (size me) 4) :current))

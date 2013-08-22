@@ -3,7 +3,7 @@
 (in-package #:cl-user)
 
 (defpackage #:utils
-  (:export #:warn-user #:printable-array #:upto-null)
+  (:export #:warn-user #:printable-array #:upto-null #:has-extension)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2
@@ -15,7 +15,7 @@
            #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
            #:id3-header #:audio-info #:mp4-atoms
            #:parse-mp3-file #:parse-mp4-file
-           #:make-mem-stream #:make-file-stream #:stream-filename #:stream-pos
+           #:make-mem-stream #:make-file-stream #:fn
            #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-u64 #:stream-read-octets
            #:stream-decode-iso-string #:stream-deocode-ucs-string #:stream-decode-ucs-be-string
            #:stream-decode-utf-8-string #:stream-decode-string #:stream-read-iso-string-with-len

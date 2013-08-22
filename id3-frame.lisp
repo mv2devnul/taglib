@@ -908,10 +908,10 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
     (log5:with-context "find-id3-frames"
       (when (not (is-valid-mp3-file mp3-file))
-        (log-id3-frame "~a is not an mp3 file" (stream-filename mp3-file))
-        (error 'id3-frame-condition :location "find-id3-frames" :object (stream-filename mp3-file) :message "is not an mp3 file"))
+        (log-id3-frame "~a is not an mp3 file" (fn mp3-file))
+        (error 'id3-frame-condition :location "find-id3-frames" :object (fn mp3-file) :message "is not an mp3 file"))
 
-      (log-id3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
+      (log-id3-frame "~a is a valid mp3 file" (fn mp3-file))
 
       (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
       (with-slots (size ext-header frames flags version) (id3-header mp3-file)
@@ -930,7 +930,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
             ;; Start reading frames from memory stream
             (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
               (if (not _ok)
-                  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
+                  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (fn mp3-file)))
               (log-id3-frame "ok = ~a, returning ~d frames" _ok (length _frames))
               (setf frames _frames)
               _ok)))))))

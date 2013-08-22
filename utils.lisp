@@ -5,11 +5,10 @@
 (defun warn-user (format-string &rest args)
   "print a warning error to *ERROR-OUTPUT* and continue"
   ;; COMPLETELY UNPORTABLE!!!
-  (format *error-output* "~&****************************************~%")
+  (format *error-output* "~&********************************************************************************~%")
   (format *error-output* "~&~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
   (apply #'format *error-output* format-string args)
-  (format *error-output* "~%~%")
-  (format *error-output* "****************************************~%"))
+  (format *error-output* "**********************************************************************************~%"))
 
 
 (defparameter *max-raw-bytes-print-len* 10 "Max number of octets to print from an array")
@@ -28,3 +27,16 @@
 (defun dump-data (file-name data)
   (with-open-file (f file-name :direction :output :if-exists :supersede :element-type '(unsigned-byte 8))
     (write-sequence data f)))
+
+(defmethod has-extension ((n string) ext)
+  "Probably should use CL's PATHNAME methods, but simply looking at the .XXX portion of a filename
+to see if it matches. This is the string version that makes a PATHNAME and calls the PATHNAME version."
+  (has-extension (parse-namestring n) ext))
+
+(defmethod has-extension ((p pathname) ext)
+  "Probably should use CL's PATHNAME methods , but simply looking at the .XXX portion of a filename
+to see if it matches. PATHNAME version."
+  (let ((e (pathname-type p)))
+    (if e
+      (string= (string-downcase e) (string-downcase ext))
+      nil)))

@@ -461,7 +461,7 @@ Loop through this container and construct constituent atoms"
 
       (when (= 0 siz)
         (error "trying to make an atom ~a with size of 0 at offset ~:d in file ~a"
-               (as-string typ) pos (stream-filename mp4-file)))
+               (as-string typ) pos (fn mp4-file)))
 
       (setf atom (make-instance (find-atom-class typ) :atom-size siz :atom-type typ :atom-file-position pos :mp4-file mp4-file :atom-parent-type parent-type))
       (log-mp4-atom "make-mp4-atom: made ~a" (vpprint atom nil))
@@ -494,7 +494,7 @@ Loop through this container and construct constituent atoms"
       (error 'mp4-atom-condition :location "find-mp4-atoms" :object mp4-file :message "is not an mp4-file" ))
 
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
-                  (stream-filename mp4-file) (stream-seek mp4-file) (stream-size mp4-file))
+                  (fn mp4-file) (stream-seek mp4-file) (stream-size mp4-file))
 
     (let ((atoms))
       (atom-read-loop mp4-file (stream-size mp4-file)
