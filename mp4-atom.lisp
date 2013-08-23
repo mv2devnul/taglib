@@ -340,34 +340,59 @@ Loop through this container and construct constituent atoms"
        ((not ,test))
      ,@body))
 
-;; (defun read-descriptor-len (instream)
-;;   "Get the ES descriptor's length."
-;;   (let* ((tmp (stream-read-u8 instream))
-;;          (len (logand tmp #x7f)))
-;;     (declare (type (unsigned-byte 8) tmp))
-;;     (while (not (zerop (logand #x80 tmp)))
-;;       (setf tmp (stream-read-u8 instream))
-;;       (setf len (logior (ash len 7) (logand tmp #x7f))))
-;;     len))
+;;; 3 bytes extended descriptor type tag string = 3 * 8-bit hex value
+;;; types are Start = 0x80 ; End = 0xFE
+;;; then, one byte of length
+;;; Note: start types are optional
+(defun read-descriptor-len (instream)
+  "Get the ES descriptor's length."
+  (let* ((tmp (stream-read-u8 instream))
+         (len (logand tmp #x7f)))
+    (declare (type (unsigned-byte 8) tmp))
+    (while (not (zerop (logand #x80 tmp)))
+      (setf tmp (stream-read-u8 instream))
+      (setf len (logior (ash len 7) (logand tmp #x7f))))
+    len))
+
+;;; one-byte descriptor tags
+(defconstant +MP4-ODescrTag+               #x01)
+(defconstant +MP4-IODescrTag+              #x02)
+(defconstant +MP4-ESDescrTag+              #x03)
+(defconstant +MP4-DecConfigDescrTag+       #x04)
+(defconstant +MP4-DecSpecificDescrTag+     #x05)
+(defconstant +MP4-SLConfigDescrTag+        #x06)
+(defconstant +MP4-ContentIdDescrTag+       #x07)
+(defconstant +MP4-SupplContentIdDescrTag+  #x08)
+(defconstant +MP4-IPIPtrDescrTag+          #x09)
+(defconstant +MP4-IPMPPtrDescrTag+         #x0A)
+(defconstant +MP4-IPMPDescrTag+            #x0B)
+(defconstant +MP4-RegistrationDescrTag+    #x0D)
+(defconstant +MP4-ESIDIncDescrTag+         #x0E)
+(defconstant +MP4-ESIDRefDescrTag+         #x0F)
+(defconstant +MP4-FileIODescrTag+          #x10)
+(defconstant +MP4-FileODescrTag+           #x11)
+(defconstant +MP4-ExtProfileLevelDescrTag+ #x13)
+(defconstant +MP4-ExtDescrTagsStart+       #x80)
+(defconstant +MP4-ExtDescrTagsEnd+         #xFE)
 
 (defmethod initialize-instance :after ((me atom-esds) &key (mp4-file nil) &allow-other-keys)
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
     (setf version  (stream-read-u8 mp4-file))
     (setf flags    (stream-read-u24 mp4-file))
-    (assert (= 3 (stream-read-u8 mp4-file)) () "Expected a description tag of 3")
-    (let* ((len1 (stream-read-u32 mp4-file :bits-per-byte 7))
+    (assert (= +MP4-ESDescrTag+ (stream-read-u8 mp4-file)) () "Expected description tag of ESDescrTag")
+    (let* ((len1 (read-descriptor-len mp4-file))
            (end-of-atom (+ (stream-seek mp4-file) len1)))
       (setf esid (stream-read-u16 mp4-file))
       (setf s-priority (stream-read-u8 mp4-file))
       ;; XXX should do some range checking here against LEN1...
-      (assert (= 4 (stream-read-u8 mp4-file)) () "Expected tag type of 4")
-      (stream-read-u32 mp4-file :bits-per-byte 7) ; eat, but don't store descriptor header len
+      (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of 4")
+      (read-descriptor-len mp4-file) ; eat, but don't store descriptor header len
       (setf obj-id (stream-read-u8 mp4-file))
       (setf s-type (stream-read-u8 mp4-file))
       (setf buf-size (stream-read-u24 mp4-file))
       (setf max-bit-rate (stream-read-u32 mp4-file))
       (setf avg-bit-rate (stream-read-u32 mp4-file))
-      ;; XXX should do checking hereand/or read rest of atom,
+      ;; XXX should do checking here and/or read rest of atom,
       ;; but for now, we have what we want, so just seek to end of atom
       (stream-seek mp4-file end-of-atom :start))))
 
