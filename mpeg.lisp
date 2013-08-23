@@ -374,6 +374,8 @@
           nxt-frame
           nil))))
 
+(defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
+
 (defun map-frames (in func &key (start-pos nil) (read-payload nil) (max nil))
   (log5:with-context "next-frame"
     (log-mpeg-frame "mapping frames, start pos ~:d" start-pos)
@@ -439,7 +441,6 @@
             (floor (/ len 60)) (round (mod len 60)))))
 
 
-(defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
 (defun get-mpeg-audio-info (in &key (max-frames *max-frames-to-read*))
   "Get MPEG Layer 3 audio information."
   (log5:with-context "get-mpeg-audio-info"

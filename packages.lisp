@@ -3,7 +3,7 @@
 (in-package #:cl-user)
 
 (defpackage #:utils
-  (:export #:warn-user #:printable-array #:upto-null #:has-extension)
+  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:has-extension)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2
@@ -55,7 +55,6 @@
            #:+itunes-track+
            #:+itunes-track-n+)
   (:use #:common-lisp #:audio-streams #:utils))
-
 
 (defpackage #:id3-frame
   (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header #:get-frame-info

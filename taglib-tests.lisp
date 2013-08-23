@@ -8,7 +8,7 @@
 (in-package #:taglib-tests)
 
 ;;; some convenient songs to parse
-(defparameter *song-m4a* "Queen/Queen 01 Keep Yourself Alive.m4a")
+(defparameter *song-m4a* "Queen/Queen I/01 Keep Yourself Alive.m4a")
 (defparameter *song-mp3* "Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
 
 ;;;
@@ -36,7 +36,7 @@
          (handler-case
              (setf foo (parse-mp4-file file))
            (condition (c)
-             (utils:warn-user "File: ~a~%Got condition: <~a>~%" file c)))
+             (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
       (when foo (stream-close foo)))
     foo))
 
@@ -60,7 +60,7 @@
          (handler-case
              (setf foo (parse-mp3-file file))
            (condition (c)
-             (utils:warn-user "File: ~a~%Got condition: <~a>~%" file c)))
+             (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
       (when foo (stream-close foo)))
     foo))
 

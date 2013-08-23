@@ -2,21 +2,23 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:utils)
 
+(defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn user")
+
+;;; COMPLETELY UNPORTABLE!!!
 (defun warn-user (format-string &rest args)
   "print a warning error to *ERROR-OUTPUT* and continue"
-  ;; COMPLETELY UNPORTABLE!!!
+  (when *break-on-warn-user* (break "Breaking in WARN-USER"))
   (format *error-output* "~&********************************************************************************~%")
   (format *error-output* "~&~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
   (apply #'format *error-output* format-string args)
   (format *error-output* "**********************************************************************************~%"))
 
-
 (defparameter *max-raw-bytes-print-len* 10 "Max number of octets to print from an array")
 
-(defun printable-array (array)
+(defun printable-array (array &optional (max-len *max-raw-bytes-print-len*))
   "Given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
   (let* ((len (length array))
-         (print-len (min len *max-raw-bytes-print-len*))
+         (print-len (min len max-len))
          (printable-array (make-array print-len :displaced-to array)))
     (format nil "[~:d of ~:d bytes] <~x>" print-len len printable-array)))
 

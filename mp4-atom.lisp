@@ -340,28 +340,28 @@ Loop through this container and construct constituent atoms"
        ((not ,test))
      ,@body))
 
-(defun read-descriptor-len (instream)
-  "Get the ES descriptor's length."
-  (let* ((tmp (stream-read-u8 instream))
-         (len (logand tmp #x7f)))
-    (declare (type (unsigned-byte 8) tmp))
-    (while (not (zerop (logand #x80 tmp)))
-      (setf tmp (stream-read-u8 instream))
-      (setf len (logior (ash len 7) (logand tmp #x7f))))
-    len))
+;; (defun read-descriptor-len (instream)
+;;   "Get the ES descriptor's length."
+;;   (let* ((tmp (stream-read-u8 instream))
+;;          (len (logand tmp #x7f)))
+;;     (declare (type (unsigned-byte 8) tmp))
+;;     (while (not (zerop (logand #x80 tmp)))
+;;       (setf tmp (stream-read-u8 instream))
+;;       (setf len (logior (ash len 7) (logand tmp #x7f))))
+;;     len))
 
 (defmethod initialize-instance :after ((me atom-esds) &key (mp4-file nil) &allow-other-keys)
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
     (setf version  (stream-read-u8 mp4-file))
     (setf flags    (stream-read-u24 mp4-file))
     (assert (= 3 (stream-read-u8 mp4-file)) () "Expected a description tag of 3")
-    (let* ((len1 (read-descriptor-len mp4-file))
+    (let* ((len1 (stream-read-u32 mp4-file :bits-per-byte 7))
            (end-of-atom (+ (stream-seek mp4-file) len1)))
       (setf esid (stream-read-u16 mp4-file))
       (setf s-priority (stream-read-u8 mp4-file))
       ;; XXX should do some range checking here against LEN1...
       (assert (= 4 (stream-read-u8 mp4-file)) () "Expected tag type of 4")
-      (read-descriptor-len mp4-file) ; eat, but don't store descriptor header len
+      (stream-read-u32 mp4-file :bits-per-byte 7) ; eat, but don't store descriptor header len
       (setf obj-id (stream-read-u8 mp4-file))
       (setf s-type (stream-read-u8 mp4-file))
       (setf buf-size (stream-read-u24 mp4-file))

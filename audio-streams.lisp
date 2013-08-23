@@ -29,9 +29,12 @@
 
 (defmacro with-mem-stream-slots ((instance) &body body)
   `(with-slots (fn index len vect) ,instance
+     (declare (integer index len))
+     ;; XXX Breaks things: (type (simple-array (unsigned-byte 8) (*)) vect))
      ,@body))
 
 (defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
+(defun make-mmap-stream (f) (make-instance 'mem-stream :fn f))
 
 (defmethod initialize-instance :after ((stream mem-stream) &key)
   (with-mem-stream-slots (stream)
@@ -60,6 +63,7 @@
            (incf index offset)))
        (:end (setf index (- len offset))))))
 
+;;; probably should just rename :ACCESSOR LEN to STREAM-SIZE? XXX
 (defmethod stream-size ((stream mem-stream)) (len stream))
 
 (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8))
@@ -80,12 +84,12 @@
 
 (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
   (with-mem-stream-slots (stream)
-    (if (> (+ index size) len)
-        (return-from stream-read-sequence nil)) ; size too large to read
+    (when (> (+ index size) len)
+      (setf size (- len index)))
     (ecase bits-per-byte
-      (8 (let ((ret (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
+      (8 (let ((octets (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
            (incf index size)
-           ret))
+           (values octets size)))
       (7
        (let* ((last-byte-was-FF nil)
               (byte nil)
@@ -97,7 +101,7 @@
                                   (write-byte byte out))
                               (write-byte byte out))
                           (setf last-byte-was-FF (= byte #xFF))))))
-         octets)))))
+         (values octets size))))))
 
 (defclass mp3-file-stream (mem-stream)
   ((id3-header :accessor id3-header :initform nil :documentation "holds all the ID3 info")
