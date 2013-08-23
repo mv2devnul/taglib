@@ -206,9 +206,10 @@ Loop through this container and construct constituent atoms"
 ;;; XXX rewrite all this to be defclass based (specialize on parent-type)
 (defgeneric decode-ilst-data-atom (type atom atom-parent-type mp4-file))
 
+;;; Quicktime spec says strings are stored as UTF-8...
 (defmacro simple-text-decode (type)
   `(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql ,type)) mp4-file)
-     (stream-read-string-with-len mp4-file (- (atom-size atom) 16))))
+     (stream-read-utf-8-string-with-len mp4-file (- (atom-size atom) 16))))
 
 (simple-text-decode +itunes-album+)
 (simple-text-decode +itunes-album-artist+)
@@ -230,7 +231,8 @@ Loop through this container and construct constituent atoms"
 ;;; hence, the seek at the end to get us by any unread bytes.
 (defmacro simple-a-b-decode (type)
   `(defmethod decode-ilst-data-atom ((type (eql +itunes-ilst-data+)) atom (atom-parent-type (eql ,type)) mp4-file)
-     (stream-read-u16 mp4-file)                 ; throw away XXX Why? 'Reserved', I think
+     (let ((tmp (stream-read-u16 mp4-file)))
+       (format t "ilist decode, parent = ~a: ~x~%" (as-string atom-parent-type) tmp))
      (let ((a) (b))
        (setf a (stream-read-u16 mp4-file))
        (setf b (stream-read-u16 mp4-file))
@@ -319,21 +321,16 @@ Loop through this container and construct constituent atoms"
     (setf quality  (stream-read-u16 mp4-file))))
 
 (defclass atom-esds (mp4-atom)
-  ((version      :accessor version)      ; 1 byte
-   (flags        :accessor flags)        ; 3 bytes
-   (esid         :accessor esid)         ; 2 bytes
-   (s-priority   :accessor s-priority)   ; 1 byte
-   (obj-id       :accessor obj-id)       ; 1 byte
-   (s-type       :accessor s-type)       ; 1 byte (1 bit up-stream, 1-but reservered, 6-bits stream type
-   (buf-size     :accessor buf-size)     ; 3 bytes
-   (max-bit-rate :accessor max-bit-rate) ; 4 bytes
-   (avg-bit-rate :accessor avg-bit-rate) ; 4 bytes
-   (dc-len       :accessor dc-len)       ; 2 bytes
-   (dc           :accessor dc)           ; 1 byte
-   (slc-len      :accessor slc-len)      ; 1 byte
-   (slc          :accessor slc))         ; 1 byte
+  ((version      :accessor version)       ; 1 byte
+   (flags        :accessor flags)         ; 3 bytes
+   (esid         :accessor esid)          ; 2 bytes
+   (s-priority   :accessor s-priority)    ; 1 byte
+   (obj-id       :accessor obj-id)        ; 1 byte
+   (s-type       :accessor s-type)        ; 1 byte (1 bit up-stream, 1-but reservered, 6-bits stream type
+   (buf-size     :accessor buf-size)      ; 3 bytes
+   (max-bit-rate :accessor max-bit-rate)  ; 4 bytes
+   (avg-bit-rate :accessor avg-bit-rate)) ; 4 bytes
   (:documentation "XXX-partial definition for Elementary Stream DescriptorS"))
-
 
 (defmacro while (test &body body)
   `(do ()
@@ -377,21 +374,21 @@ Loop through this container and construct constituent atoms"
 
 (defmethod initialize-instance :after ((me atom-esds) &key (mp4-file nil) &allow-other-keys)
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
-    (setf version  (stream-read-u8 mp4-file))
-    (setf flags    (stream-read-u24 mp4-file))
+    (setf version (stream-read-u8 mp4-file))
+    (setf flags (stream-read-u24 mp4-file))
     (assert (= +MP4-ESDescrTag+ (stream-read-u8 mp4-file)) () "Expected description tag of ESDescrTag")
-    (let* ((len1 (read-descriptor-len mp4-file))
-           (end-of-atom (+ (stream-seek mp4-file) len1)))
+    (let* ((len (read-descriptor-len mp4-file))
+           (end-of-atom (+ (stream-seek mp4-file) len)))
       (setf esid (stream-read-u16 mp4-file))
       (setf s-priority (stream-read-u8 mp4-file))
-      ;; XXX should do some range checking here against LEN1...
-      (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of 4")
-      (read-descriptor-len mp4-file) ; eat, but don't store descriptor header len
+      (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of DecConfigDescrTag")
+      (setf len (read-descriptor-len mp4-file))
       (setf obj-id (stream-read-u8 mp4-file))
       (setf s-type (stream-read-u8 mp4-file))
       (setf buf-size (stream-read-u24 mp4-file))
       (setf max-bit-rate (stream-read-u32 mp4-file))
       (setf avg-bit-rate (stream-read-u32 mp4-file))
+
       ;; XXX should do checking here and/or read rest of atom,
       ;; but for now, we have what we want, so just seek to end of atom
       (stream-seek mp4-file end-of-atom :start))))

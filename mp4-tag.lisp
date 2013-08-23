@@ -36,7 +36,7 @@
 
 (defmethod show-tags ((me mp4-file-stream) &key (raw nil))
   "Show the tags for an MP4-FILE. If RAW is non-nil, dump the DATA atoms; else show subset of DATA atoms"
-  (format t "~a~%" (stream-filename me))
+  (format t "~a~%" (fn me))
   (if raw
       (progn
         (mp4-atom:mp4-show-raw-tag-atoms me)
