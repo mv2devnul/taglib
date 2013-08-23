@@ -9,9 +9,9 @@
   "print a warning error to *ERROR-OUTPUT* and continue"
   (when *break-on-warn-user* (break "Breaking in WARN-USER"))
   (format *error-output* "~&********************************************************************************~%")
-  (format *error-output* "~&~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
+  (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
   (apply #'format *error-output* format-string args)
-  (format *error-output* "**********************************************************************************~%"))
+  (format *error-output* "~&**********************************************************************************~%"))
 
 (defparameter *max-raw-bytes-print-len* 10 "Max number of octets to print from an array")
 

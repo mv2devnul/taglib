@@ -91,7 +91,7 @@
                                           (when file
                                             (mp4-tag:show-tags file :raw raw)))))))))
 
-(defun time-test (dir &key (file-system-encoding :utf-8) (do-audio-processing t))
+(defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
   (let ((mp3-count 0)
         (mp4-count 0)
@@ -112,3 +112,45 @@
         (time (do-dir dir)))
       (format t "~:d MP3s, ~:d MP4s, ~:d Others~%"
               mp3-count mp4-count other-count))))
+
+(defun touch-every-byte (fn)
+  (let ((f))
+    (unwind-protect
+         (progn
+           (setf f (make-file-stream fn))
+           (do ((b (stream-read-u8 f) (stream-read-u8 f)))
+               ((null b))))
+      (when f (stream-close f)))))
+
+
+(defun time-test-x (dir)
+  "Time reading every byte of every audio file in dir (for comparision with time-test above"
+  (let ((mp3-count 0)
+        (mp4-count 0)
+        (other-count 0))
+    (labels ((do-dir (dir)
+               (osicat:walk-directory dir (lambda (f)
+                                            (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
+                                              (cond ((utils:has-extension f "mp3")
+                                                     (incf mp3-count)
+                                                     (touch-every-byte full-name))
+                                                    ((utils:has-extension f "m4a")
+                                                     (incf mp4-count)
+                                                     (touch-every-byte full-name))
+                                                    (t
+                                                     (incf other-count))))))))
+      (time (do-dir dir)))
+    (format t "~:d MP3s, ~:d MP4s, ~:d Others~%"
+              mp3-count mp4-count other-count)))
+
+(defun frame-test (fn)
+  (let* ((n 0)
+         (last 0)
+         (s (make-file-stream fn)))
+    (mpeg::map-frames s
+                      (lambda (f)
+                        (let* ((here (stream-seek s 0))
+                               (gap (- here last)))
+                          (incf n)
+                          (setf last here)
+                          (format t "~9d:: pos ~:d, ~:d, ~:d~%" n here (mpeg::size f) gap))) :start-pos 0)))

@@ -2,7 +2,11 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
 (in-package #:audio-streams)
-;(in-package #:common-lisp-user)
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defconstant +optimize-fastest+ '(optimize (speed 3) (safety 0) (debug 0)))
+  (defmacro fastest (&body body)
+    `(locally (declare ,+optimize-fastest+)
+       ,@body)))
 
 (log5:defcategory cat-log-stream)
 (defmacro log-stream (&rest log-stuff) `(log5:log-for (cat-log-stream) ,@log-stuff))
@@ -44,13 +48,8 @@
 
 (defmethod stream-close ((stream mem-stream))
   (with-mem-stream-slots (stream)
-    (when vect
-      (when fn
-        (setf fn nil)
-        (ccl:unmap-octet-vector vect)
-        (setf fn nil)))
-    (setf index nil)
-    (setf len nil)
+    (when fn
+      (ccl:unmap-octet-vector vect))
     (setf vect nil)))
 
 (defmethod stream-seek ((stream mem-stream) &optional (offset 0) (from :current))
@@ -67,14 +66,17 @@
 (defmethod stream-size ((stream mem-stream)) (len stream))
 
 (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8))
-  (with-mem-stream-slots (stream)
-    (when (<= (+ index n-bytes) len)
-      (loop with value = 0
-            for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
-              (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
-              (incf index)
-            finally (return-from read-n-bytes value))))
-    nil)
+  (fastest
+    (with-mem-stream-slots (stream)
+      (when (<= (+ index n-bytes) len)
+        (loop with value = 0
+              for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
+                (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
+                (incf index)
+              finally (return-from read-n-bytes value))))
+    nil))
+
+(declaim (inline read-n-bytes))
 
 (defmethod stream-read-u8  ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 1 :bits-per-byte bits-per-byte))
 (defmethod stream-read-u16 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 2 :bits-per-byte bits-per-byte))
@@ -83,25 +85,26 @@
 (defmethod stream-read-u64 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 8 :bits-per-byte bits-per-byte))
 
 (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
-  (with-mem-stream-slots (stream)
-    (when (> (+ index size) len)
-      (setf size (- len index)))
-    (ecase bits-per-byte
-      (8 (let ((octets (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
-           (incf index size)
-           (values octets size)))
-      (7
-       (let* ((last-byte-was-FF nil)
-              (byte nil)
-              (octets (ccl:with-output-to-vector (out)
-                        (dotimes (i size)
-                          (setf byte (stream-read-u8 stream))
-                          (if last-byte-was-FF
-                              (if (not (zerop byte))
-                                  (write-byte byte out))
-                              (write-byte byte out))
-                          (setf last-byte-was-FF (= byte #xFF))))))
-         (values octets size))))))
+  (fastest
+    (with-mem-stream-slots (stream)
+      (when (> (+ index size) len)
+        (setf size (- len index)))
+      (ecase bits-per-byte
+        (8 (let ((octets (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
+             (incf index size)
+             (values octets size)))
+        (7
+         (let* ((last-byte-was-FF nil)
+                (byte nil)
+                (octets (ccl:with-output-to-vector (out)
+                          (dotimes (i size)
+                            (setf byte (stream-read-u8 stream))
+                            (if last-byte-was-FF
+                                (if (not (zerop byte))
+                                    (write-byte byte out))
+                                (write-byte byte out))
+                            (setf last-byte-was-FF (= byte #xFF))))))
+           (values octets size)))))))
 
 (defclass mp3-file-stream (mem-stream)
   ((id3-header :accessor id3-header :initform nil :documentation "holds all the ID3 info")

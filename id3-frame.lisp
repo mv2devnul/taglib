@@ -866,6 +866,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
       (when (or (= version 3) (= version 4))
         (setf frame-flags (stream-read-u16 instream))
         (when (not (valid-frame-flags version frame-flags))
+          (log-id3-frame "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))
           (warn-user "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))))
 
       (log-id3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"

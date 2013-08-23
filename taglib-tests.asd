@@ -3,7 +3,6 @@
 ;;;
 
 ;(pushnew :I-AM-MARKV *features*)
-;(pushnew :USE-MMAP *features*)
 
 (asdf:defsystem #:taglib-tests
   :description "Simple demo/test code for taglib"
