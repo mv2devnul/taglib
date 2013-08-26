@@ -23,8 +23,8 @@
         (genre-x (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-genre-x+)))
     (assert (not (and genre genre-x)))
     (cond
-      (genre   (format nil "~d (~a)" genre (mp3-tag:get-id3v1-genre genre)))
-      (genre-x (format nil "~d (~a)" genre-x (mp3-tag:get-id3v1-genre genre-x)))
+      (genre   (format nil "~d (~a)" genre (mp3-tag:get-id3v1-genre (1- genre))))
+      (genre-x (format nil "~d (~a)" genre-x (mp3-tag:get-id3v1-genre (1- genre-x))))
       (t       "None"))))
 (defmethod track ((me mp4-file-stream))
   (let ((track   (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-track+))
