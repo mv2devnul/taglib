@@ -24,36 +24,18 @@ Notes II:
 * I've parsed just enough of the MP4 atoms/boxes to suit the needs of this tool.  l-smash appears to parse all boxes.  Maybe one day this lib will too.
 * WRT error handling: in some cases, I've made them recoverable, but in general, I've went down the path of erroring out when
   I get problems. 
-* I've run this tool across my 19,000+ audio collection and compared the results to some of the tools above, with little to no variations.
+* I've run this tool across my 21,000+ audio collection and compared the results to some of the tools above, with little to no variations.
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
-* Parsing the audio info in an MP3 is hideously inefficient and needs a rewrite (mpeg.lisp). There is a global parameter in audio-streams.lisp
-  called *get-audio-info* that controls whether parse-mp4-file/parse-mp3-file try to extract this info.  To speed things up,
-  you can bind this this parameter to nil (eg: (let ((audio-streams:*get-audio-info* nil)) (parse-...)).  As an example, when we're 
-  not getting audio-info, parsing an MP3 takes microsends.  When we are, it takes seconds.
+* Parsing the CBR audio info in an MP3 is hideously inefficient if done exhaustively.  Instead, this library, only looks at the first
+  MPEG frame and calculates the duration, etc from that.  In addition, if you just want TAG info, you can bind AUDIO-STREAMS:*get-audio-info* to nil.
+* The library is reasonably fast: on a USB 3.0 disk, it parses my ~21,000 files in about 24 seconds (while getting audio-info)
 
-```
-TAGLIB-TESTS> (time (dotimes (i 10) (mp3-test1)))
-(DOTIMES (I 10) (MP3-TEST1))
-took 1,640,067 microseconds (1.640067 seconds) to run.
-        15,628 microseconds (0.015628 seconds, 0.95%) of which was spent in GC.
-During that period, and with 4 available CPU cores,
-     1,636,000 microseconds (1.636000 seconds) were spent in user mode
-         8,000 microseconds (0.008000 seconds) were spent in system mode
- 121,941,600 bytes of memory allocated.
- 1 minor page faults, 0 major page faults, 0 swaps.
-NIL
-TAGLIB-TESTS> (let ((audio-streams:*get-audio-info* nil)) (time (dotimes (i 10) (mp3-test1))))
-(DOTIMES (I 10) (MP3-TEST1))
-took 11,195 microseconds (0.011195 seconds) to run.
-During that period, and with 4 available CPU cores,
-      8,000 microseconds (0.008000 seconds) were spent in user mode
-          0 microseconds (0.000000 seconds) were spent in system mode
- 575,520 bytes of memory allocated.
-NIL
-```
+Things to consider adding/changing:
 
-* For now, USE-MMAP in *features* is purely experimental. Seems pretty flakey, but that's probably because I'm using ccl:: methods without
-  much regard to sanity...
+* Add more file types.
+* Add writing of tags.
+* Improve error handling.
+* Implement a DSL ala Practical Common Lisp.
 
 And now for some sample invocations and outputs:
 
@@ -61,9 +43,10 @@ And now for some sample invocations and outputs:
 (let (foo)
     (unwind-protect
         (setf foo (parse-mp4-file "01 Keep Yourself Alive.m4a"))
-    (when foo (stream-close foo)))    ; make sure underlying open file is closed
+    (when foo 
+	    (mp4-tag:show-tags foo)
+		(stream-close foo)))
 
-	(mp4-tag:show-tags foo))
 ````
 
 Yields:
@@ -88,9 +71,10 @@ The show-tags methods also have a "raw" capability.  Example:
 (let (foo)
     (unwind-protect
         (setf foo (parse-mp3-file "Queen/At the BBC/06 Great King Rat.mp3"))
-    (when foo (stream-close foo)))    ; make sure underlying open file is closed
+    (when foo
+		  (mp3-tag:show-tags foo :raw t)
+		   (stream-close foo)))
 
-	(mp3-tag:show-tags foo :raw t))
 ```
 
 Yields:
@@ -134,5 +118,6 @@ If you *really* want to create a lot of output, you can do the following:
     (redirect "q.txt" (test2 :dir "somewhere-where-you-have-all-your-audio" :raw t)))
 ```
 
-For my 19,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 lines in "q.txt".
+For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 lines in "q.txt".
+
 
