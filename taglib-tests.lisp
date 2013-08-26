@@ -29,7 +29,7 @@
 ;;; :UTF-8
 
 ;;;;;;;;;;;;;;;;;;;; MP4 Tests ;;;;;;;;;;;;;;;;;;;;
-(defun mp4-test0 (file)
+(defun mp4-test0 (&optional (file *song-m4a*))
   "Parse one MP3 file (with condition handling)."
   (let ((foo))
     (unwind-protect
@@ -40,10 +40,7 @@
       (when foo (stream-close foo)))
     foo))
 
-(defun mp4-test1 ()
-  (mp4-test0 *song-m4a*))
-
-(defun mp4-test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
+(defun mp4-test2 (&optional (dir "Queen") &key (raw nil) (file-system-encoding :utf-8))
   "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
@@ -53,7 +50,7 @@
                                      (mp4-tag:show-tags file :raw raw)))))))
 
 ;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
-(defun mp3-test0 (file)
+(defun mp3-test0 (&optional (file *song-mp3*))
   "Parse one MP3 file (with condition handling)."
   (let ((foo))
     (unwind-protect
@@ -64,10 +61,7 @@
       (when foo (stream-close foo)))
     foo))
 
-(defun mp3-test1 ()
-  (mp3-test0 *song-mp3*))
-
-(defun mp3-test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
+(defun mp3-test2 (&optional (dir "Queen") &key (raw nil) (file-system-encoding :utf-8))
   "Walk :DIR and parse every MP3 we find."
   (set-pathname-encoding file-system-encoding)
   (osicat:walk-directory dir (lambda (f)
@@ -76,20 +70,29 @@
                                    (when file
                                      (mp3-tag:show-tags file :raw raw)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(defun test2 (&key (dir "Queen") (raw nil) (file-system-encoding :utf-8))
+;;;;;;;;;;;;;;;;;;;; MP3/M4A tests ;;;;;;;;;;;;;;;;;;;;
+(defun test2 (&optional (dir "Queen") &key (raw nil) (file-system-encoding :utf-8))
   "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
-  (osicat:walk-directory dir (lambda (f)
-                               (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                 (cond ((utils:has-extension f "mp3")
-                                        (let ((file (mp3-test0 full-name)))
-                                          (when file
-                                            (mp3-tag:show-tags file :raw raw))))
-                                       ((utils:has-extension f "m4a")
-                                        (let ((file (mp4-test0 full-name)))
-                                          (when file
-                                            (mp4-tag:show-tags file :raw raw)))))))))
+  (let ((mp3-count 0)
+        (mp4-count 0)
+        (other-count 0))
+    (osicat:walk-directory dir (lambda (f)
+                                 (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
+                                   (cond ((utils:has-extension f "mp3")
+                                          (incf mp3-count)
+                                          (let ((file (mp3-test0 full-name)))
+                                            (when file
+                                              (mp3-tag:show-tags file :raw raw))))
+                                         ((utils:has-extension f "m4a")
+                                          (let ((file (mp4-test0 full-name)))
+                                            (incf mp4-count)
+                                            (when file
+                                              (mp4-tag:show-tags file :raw raw))))
+                                         (t (incf other-count))))))
+    (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
+            mp3-count mp4-count other-count (+ mp3-count mp4-count other-count))))
+
 
 (defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
@@ -110,47 +113,5 @@
       (set-pathname-encoding file-system-encoding)
       (let ((audio-streams:*get-audio-info* do-audio-processing))
         (time (do-dir dir)))
-      (format t "~:d MP3s, ~:d MP4s, ~:d Others~%"
-              mp3-count mp4-count other-count))))
-
-(defun touch-every-byte (fn)
-  (let ((f))
-    (unwind-protect
-         (progn
-           (setf f (make-file-stream fn))
-           (do ((b (stream-read-u8 f) (stream-read-u8 f)))
-               ((null b))))
-      (when f (stream-close f)))))
-
-
-(defun time-test-x (dir)
-  "Time reading every byte of every audio file in dir (for comparision with time-test above"
-  (let ((mp3-count 0)
-        (mp4-count 0)
-        (other-count 0))
-    (labels ((do-dir (dir)
-               (osicat:walk-directory dir (lambda (f)
-                                            (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                              (cond ((utils:has-extension f "mp3")
-                                                     (incf mp3-count)
-                                                     (touch-every-byte full-name))
-                                                    ((utils:has-extension f "m4a")
-                                                     (incf mp4-count)
-                                                     (touch-every-byte full-name))
-                                                    (t
-                                                     (incf other-count))))))))
-      (time (do-dir dir)))
-    (format t "~:d MP3s, ~:d MP4s, ~:d Others~%"
-              mp3-count mp4-count other-count)))
-
-(defun frame-test (fn)
-  (let* ((n 0)
-         (last 0)
-         (s (make-file-stream fn)))
-    (mpeg::map-frames s
-                      (lambda (f)
-                        (let* ((here (stream-seek s 0))
-                               (gap (- here last)))
-                          (incf n)
-                          (setf last here)
-                          (format t "~9d:: pos ~:d, ~:d, ~:d~%" n here (mpeg::size f) gap))) :start-pos 0)))
+      (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
+              mp3-count mp4-count other-count (+ mp3-count mp4-count other-count)))))
