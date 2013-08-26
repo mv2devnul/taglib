@@ -17,101 +17,53 @@
 (defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
 (defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 
-
-(defmacro redirect (filename &rest body)
-  "Temporarily set *STANDARD-OUTPUT* to FILENAME and execute BODY."
-  `(let ((*standard-output* (open ,filename :direction :output :if-does-not-exist :create :if-exists :supersede)))
-     ,@body
-     (finish-output *standard-output*)))
-
 ;;; A note re filesystem encoding: my music collection is housed on a Mac and shared via SAMBA.
 ;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to
 ;;; :UTF-8
 
-;;;;;;;;;;;;;;;;;;;; MP4 Tests ;;;;;;;;;;;;;;;;;;;;
-(defun mp4-test0 (&optional (file *song-m4a*))
-  "Parse one MP3 file (with condition handling)."
+(defun do-audio-file (&optional (file *song-m4a*) &key (func (constantly t)))
+  "Parse one audio file (with condition handling)."
   (let ((foo))
     (unwind-protect
          (handler-case
-             (setf foo (parse-mp4-file file))
+             (progn
+               (setf foo (make-file-stream file))
+               (when foo
+                 (parse-audio-file foo)
+                 (funcall func foo)))
            (condition (c)
              (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
-      (when foo (stream-close foo)))
-    foo))
+      (when foo
+        (stream-close foo)))))
 
-(defun mp4-test2 (&optional (dir "Queen") &key (raw nil) (file-system-encoding :utf-8))
-  "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
-  (set-pathname-encoding file-system-encoding)
-  (osicat:walk-directory dir (lambda (f)
-                               (when (utils:has-extension f "m4a")
-                                 (let ((file (mp4-test0 (merge-pathnames (ccl:current-directory) (pathname f)))))
-                                   (when file
-                                     (mp4-tag:show-tags file :raw raw)))))))
 
-;;;;;;;;;;;;;;;;;;;; MP3 Tests ;;;;;;;;;;;;;;;;;;;;
-(defun mp3-test0 (&optional (file *song-mp3*))
-  "Parse one MP3 file (with condition handling)."
-  (let ((foo))
-    (unwind-protect
-         (handler-case
-             (setf foo (parse-mp3-file file))
-           (condition (c)
-             (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
-      (when foo (stream-close foo)))
-    foo))
 
-(defun mp3-test2 (&optional (dir "Queen") &key (raw nil) (file-system-encoding :utf-8))
-  "Walk :DIR and parse every MP3 we find."
-  (set-pathname-encoding file-system-encoding)
-  (osicat:walk-directory dir (lambda (f)
-                               (when (utils:has-extension f "mp3")
-                                 (let ((file (mp3-test0 (merge-pathnames (ccl:current-directory) (pathname f)))))
-                                   (when file
-                                     (mp3-tag:show-tags file :raw raw)))))))
-
-;;;;;;;;;;;;;;;;;;;; MP3/M4A tests ;;;;;;;;;;;;;;;;;;;;
-(defun test2 (&optional (dir "Queen") &key (raw nil) (file-system-encoding :utf-8))
-  "Walk :DIR and call SHOW-TAGS for each file (MP4/MP3) found."
+(defun do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
+                                                  (mp3-func #'mp3-tag:show-tags)
+                                                  (mp4-func #'mp4-tag:show-tags))
+  "Walk :DIR and FUNCALL specified function for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (let ((mp3-count 0)
         (mp4-count 0)
         (other-count 0))
+
     (osicat:walk-directory dir (lambda (f)
                                  (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                   (cond ((utils:has-extension f "mp3")
-                                          (incf mp3-count)
-                                          (let ((file (mp3-test0 full-name)))
-                                            (when file
-                                              (mp3-tag:show-tags file :raw raw))))
-                                         ((utils:has-extension f "m4a")
-                                          (let ((file (mp4-test0 full-name)))
-                                            (incf mp4-count)
-                                            (when file
-                                              (mp4-tag:show-tags file :raw raw))))
-                                         (t (incf other-count))))))
+                                   (do-audio-file full-name :func (lambda (s)
+                                                            (cond ((typep s 'mp3-file-stream)
+                                                                   (incf mp3-count)
+                                                                   (when mp3-func
+                                                                     (funcall mp3-func s)))
+                                                                  ((typep s 'mp4-file-stream)
+                                                                   (incf mp4-count)
+                                                                   (when mp4-func
+                                                                     (funcall mp4-func s)))
+                                                                  (t (incf other-count))))))))
+
     (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
             mp3-count mp4-count other-count (+ mp3-count mp4-count other-count))))
 
-
 (defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
-  (let ((mp3-count 0)
-        (mp4-count 0)
-        (other-count 0))
-    (labels ((do-dir (dir)
-               (osicat:walk-directory dir (lambda (f)
-                                            (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                              (cond ((utils:has-extension f "mp3")
-                                                     (incf mp3-count)
-                                                     (mp3-test0 full-name))
-                                                    ((utils:has-extension f "m4a")
-                                                     (incf mp4-count)
-                                                     (mp4-test0 full-name))
-                                                    (t
-                                                     (incf other-count))))))))
-      (set-pathname-encoding file-system-encoding)
-      (let ((audio-streams:*get-audio-info* do-audio-processing))
-        (time (do-dir dir)))
-      (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
-              mp3-count mp4-count other-count (+ mp3-count mp4-count other-count)))))
+  (let ((audio-streams:*get-audio-info* do-audio-processing))
+    (time (do-audio-dir dir :file-system-encoding file-system-encoding :mp3-func nil :mp4-func nil))))
