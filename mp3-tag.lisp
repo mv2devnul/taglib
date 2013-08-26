@@ -166,7 +166,7 @@
   (if (or (> n (1- (length *id3v1-genres*)))
             (< n 0))
         "BAD GENRE"
-      (aref *id3v1-genres* n))))
+        (aref *id3v1-genres* n)))
 
 (defun get-frames (stream names)
   "Given a MP3-STREAM, search its frames for NAMES.  Return file-order list of matching frames"
