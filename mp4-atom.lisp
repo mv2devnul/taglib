@@ -502,19 +502,27 @@ Loop through this container and construct constituent atoms"
                                       (if (typep atom-value 'array) (printable-array atom-value) atom-value)))))))
 
 (defun is-valid-m4-file (mp4-file)
-  "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?"
-  (stream-seek mp4-file 0 :start)
-  (let* ((size (stream-read-u32 mp4-file))
-         (header (stream-read-u32 mp4-file)))
-    (declare (ignore size))
-    (stream-seek mp4-file 0 :start)
-    (= header +m4-ftyp+)))
+  "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?
+Written in this fashion so as to be 'crash-proof' when passed an arbitrary file."
+  (let ((valid)
+        (size)
+        (header))
+    (unwind-protect
+         (handler-case
+             (progn
+               (stream-seek mp4-file 0 :start)
+               (setf size (stream-read-u32 mp4-file))
+               (setf header (stream-read-u32 mp4-file))
+               (setf valid (and (<= size (stream-size mp4-file))
+                                (= header +m4-ftyp+))))
+           (condition (c)
+             (declare (ignore c))))
+      (stream-seek mp4-file 0 :start))
+    valid))
 
-(defun find-mp4-atoms (mp4-file)
+(defmethod find-mp4-atoms ((mp4-file mp4-file-stream))
   "Given a valid MP4 file mp4-file, look for the 'right' atoms and return them."
   (log5:with-context "find-mp4-atoms"
-    (when (not (is-valid-m4-file mp4-file))
-      (error 'mp4-atom-condition :location "find-mp4-atoms" :object mp4-file :message "is not an mp4-file" ))
 
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
                   (fn mp4-file) (stream-seek mp4-file) (stream-size mp4-file))

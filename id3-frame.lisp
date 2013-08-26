@@ -29,31 +29,41 @@
   (:documentation "The ID3 header, found at start of file"))
 
 (defun is-valid-mp3-file (mp3-file)
-  "Make sure this is an MP3 file. Look for ID3 header at begining (versions 2, 3, 4)
-and/or end (version 2.1)"
+  "Make sure this is an MP3 file. Look for ID3 header at begining (versions 2, 3, 4) and/or end (version 2.1)
+Written in this fashion so as to be 'crash-proof' when passed an arbitrary file."
+
   (log5:with-context "is-valid-mp3-file"
-    (stream-seek mp3-file 0 :start)
-    (let* ((id3 (stream-read-string-with-len mp3-file 3))
-           (version (stream-read-u8 mp3-file))
-           (tag))
-      (stream-seek mp3-file 128 :end)
-      (setf tag (stream-read-string-with-len mp3-file 3))
-      (stream-seek mp3-file 0 :start)
+    (let ((id3)
+          (valid)
+          (version)
+          (tag))
+      (unwind-protect
+           (handler-case
+               (progn
+                 (stream-seek mp3-file 0 :start)
+                 (setf id3 (stream-read-string-with-len mp3-file 3))
+                 (setf version (stream-read-u8 mp3-file))
+                 (stream-seek mp3-file 128 :end)
+                 (setf tag (stream-read-string-with-len mp3-file 3))
 
-      (log-id3-frame "id3 = ~a, version = ~d" id3 version)
+                 (log-id3-frame "id3 = ~a, version = ~d" id3 version)
 
-      (or (and (string= "ID3" id3)
-               (or (= 2 version) (= 3 version) (= 4 version)))
-          (string= tag "TAG")))))
+                 (setf valid (or (and (string= "ID3" id3)
+                                      (or (= 2 version) (= 3 version) (= 4 version)))
+                                 (string= tag "TAG"))))
+             (condition (c)
+               (declare (ignore c))))
+        (stream-seek mp3-file 0 :start))
+        valid)))
 
-(defclass v21-tag-header ()
-  ((title    :accessor title    :initarg :title    :initform nil)
-   (artist   :accessor artist   :initarg :artist   :initform nil)
-   (album    :accessor album    :initarg :album    :initform nil)
-   (year     :accessor year     :initarg :year     :initform nil)
-   (comment  :accessor comment  :initarg :comment  :initform nil)
-   (track    :accessor track    :initarg :track    :initform nil :documentation "some taggers allow the last 2 bytes of comment to be used as track number")
-   (genre    :accessor genre    :initarg :genre    :initform nil))
+ (defclass v21-tag-header ()
+   ((title    :accessor title    :initarg :title    :initform nil)
+    (artist   :accessor artist   :initarg :artist   :initform nil)
+    (album    :accessor album    :initarg :album    :initform nil)
+    (year     :accessor year     :initarg :year     :initform nil)
+    (comment  :accessor comment  :initarg :comment  :initform nil)
+    (track    :accessor track    :initarg :track    :initform nil :documentation "some taggers allow the last 2 bytes of comment to be used as track number")
+    (genre    :accessor genre    :initarg :genre    :initform nil))
   (:documentation "ID3 V2.1 old-style tag.  If present, found in last 128 bytes of file."))
 
 (defmethod vpprint ((me v21-tag-header) stream)
@@ -882,7 +892,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
       (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream))))
 
-(defun find-id3-frames (mp3-file)
+(defmethod find-id3-frames ((mp3-file mp3-file-stream))
   "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames"
 
   (labels ((read-loop (version stream)
@@ -908,9 +918,6 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
                  (values t (nreverse frames)))))) ; reverse this so we have frames in "file order"
 
     (log5:with-context "find-id3-frames"
-      (when (not (is-valid-mp3-file mp3-file))
-        (log-id3-frame "~a is not an mp3 file" (fn mp3-file))
-        (error 'id3-frame-condition :location "find-id3-frames" :object (fn mp3-file) :message "is not an mp3 file"))
 
       (log-id3-frame "~a is a valid mp3 file" (fn mp3-file))
 
