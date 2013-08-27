@@ -28,7 +28,8 @@ Notes II:
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
 * Parsing the CBR audio info in an MP3 is hideously inefficient if done exhaustively.  Instead, this library, only looks at the first
   MPEG frame and calculates the duration, etc from that.  In addition, if you just want TAG info, you can bind AUDIO-STREAMS:*get-audio-info* to nil.
-* The library is reasonably fast: on a USB 3.0 disk, it parses my ~21,000 files in about 24 seconds (while getting audio-info)
+* The library is reasonably fast: on a USB 2.0 disk, once the filesystem cache is "hot", it parses my ~21,000 files in about
+  24 seconds (while getting audio-info)
 
 Things to consider adding/changing:
 
