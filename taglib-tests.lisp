@@ -29,8 +29,8 @@
              (progn
                (setf foo (make-file-stream file))
                (when foo
-                 (parse-audio-file foo)
-                 (funcall func foo)))
+                 (parse-audio-file foo))    ; only call parse-audio if we got back a MP3/M4A
+               (funcall func foo))          ; call func even is foo is null so it can account for non MP3/M4A files
            (condition (c)
              (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
       (when foo
@@ -58,7 +58,7 @@
                                                                    (incf mp4-count)
                                                                    (when mp4-func
                                                                      (funcall mp4-func s)))
-                                                                  (t (incf other-count))))))))
+                                                                  ((null s) (incf other-count))))))))
 
     (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
             mp3-count mp4-count other-count (+ mp3-count mp4-count other-count))))
