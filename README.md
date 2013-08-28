@@ -106,6 +106,8 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
 
+## Logging
+
 I have a semi-complete logging strategy in place that is primarily used to figure out what happened when I get
 an unexpected error parsing a file. To see the output of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
 
