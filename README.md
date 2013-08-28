@@ -138,42 +138,57 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
 
 ## The Files
 
-* *audio-streams.lisp:* creates a STREAM-like interface to audio files and vectors, thus read/seek devolve into
+* _audio-streams.lisp:_ creates a STREAM-like interface to audio files and vectors, thus read/seek devolve into
   simple array-references.  For files, it uses CCL's MAP-FILE-TO-OCTET-VECTOR function to mmap the file.
-* *id3-frame.lisp:* Parses the ID3 frames in an MP3 file.
+* _id3-frame.lisp:_ Parses the ID3 frames in an MP3 file.
    For each frame type we are interested in, DEFCLASS a class with
    specfic naming convention: frame-xxx/frame-xxxx, where xxx is valid ID3V2.2 frame name
    and xxxx is a valid ID3V2.[34] frame name.  Upon finding a frame name in an MP3 file,
    we can then do a FIND-CLASS on the "frame-xxx", and a MAKE-INSTANCE on the found class
    to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
    that reads in data to build class.
-* *iso-639-2.lisp:* Converts ISO-639-2 3-character languages into longer, more descriptive strings.
-* *logging.lisp:* Defines a logging system based on LOG5. Used to debug flow.  See above for how to use.
-* *mp3-tag.lisp:* The abstract interface for ID3 tags for MP3s. The abstract interface is simply one of the following:
+	* _iso-639-2.lisp:_ Converts ISO-639-2 3-character languages into longer, more descriptive strings.
+	* _logging.lisp:_ Defines a logging system based on LOG5. Used to debug flow.  See above for how to use.
+	* _mp3-tag.lisp:_ The abstract interface for ID3 tags for MP3s. The abstract interface is simply one of the following:
+	* _album:_ Returns the name of the album.
+	* _album-artist:_ Returns the name of album artist.
+	* _artist:_ Returns recording artist.
+	* _comment:_ Returns any comments found in file.
+	* _compilation:_ A boolean indicating whether this file is part of a compilation.
+	* _composer:_  Returns the composer of this file.
+	* _copyright:_ Returns copyright info.
+	* _disk:_ Returns the disk number of this file.  If present, may be a single number or two numbers (ie disk 1 of 2).
+	* _encoder:_ Returns the tool used to encode this file.
+	* _genre:_ Returns the genre of this file.
+	* _groups:_ (not entirely sure...)
+	* _lyrics:_ Returns any (unsynchronized) lyrics found in this file.
+	* _tempo:_ Returns the tempo of this file.
+	* _title:_ Returns the name of the the song in this file.
+	* _track:_ Returns the track number of this file.  Like *disk*, if present, may be a single number or two numbers (ie track 1 of 20).
+	* _writer:_ Returns name of who wrote this song.
+	* _year:_ Returns the year when the song was recorded.
+  Each frame class assumes that the STREAM being passed has been made sync-safe.
 
-** *album:* Returns the name of the album.
-** *album-artist:* Returns the name of album artist.
-** *artist:* Returns recording artist.
-** *comment:* Returns any comments found in file.
-** *compilation:* A boolean indicating whether this file is part of a compilation.
-** *composer:*  Returns the composer of this file.
-** *copyright:* Returns copyright info.
-** *disk:* Returns the disk number of this file.  If present, may be a single number or two numbers (ie disk 1 of 2).
-** *encoder:* Returns the tool used to encode this file.
-** *genre:* Returns the genre of this file.
-** *groups:* (not entirely sure...)
-** *lyrics:* Returns any (unsynchronized) lyrics found in this file.
-** *tempo:* Returns the tempo of this file.
-** *title:* Returns the name of the the song in this file.
-** *track:* Returns the track number of this file.  Like *disk*, if present, may be a single number or two numbers (ie track 1 of 20).
-** *writer:* Returns name of who wrote this song.
-** *year:* Returns the year when the song was recorded.
+  For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
+  a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
+  the frame "payload" as raw OCTETS.
+* _mp4-atom.lisp:_ Parses MP4 audio files.  Similar logic to _id-frame.lisp_, but has two main differnces: first,
+  it returns a tree stucture (needed, since, that's how M4A atoms/boxes work, and secondly, has an *atom-skip* class
+  that records the name and position of an atom, but seeks to the next atom rather than reading in contents.
+
+  As noted in the comments of this file, there are three kinds of "boxes/atoms":
+    * Pure container atoms: have no data and are only used to contain other atoms.  This is akin to a UNIX filesystem's directory notion.
+    * Pure "data" atoms: has no nested atoms.  Only has a payload.
+    * A mixture of both.
+* _mp4-tag.lisp:_ The abstract interface for MP4 audio files. See mp3-tag.lisp for the abstract interface description.
+* _mpeg.lisp:_ Parses the audio information (ie the non-ID3 info) in an MP3 file.
+* _packages.lisp:_ Holds all the package definitions.
+* _taglib-tests.asd:_ Contains build instructions for taglib-tests.lisp.  An ASDF file.
+* _taglib-tests.lisp:_ Some test invocations.
+* _taglib.asd:_ Contains build instructions for taglib library.  An ASDF file.
+* _utils.lisp:_ General utility functions/methods needed by this library.
 
 
- Each frame class assumes that the STREAM being passed has been made sync-safe.
 
- For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
- a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
- the frame "payload" as raw OCTETS.
 
 
