@@ -71,7 +71,7 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     (format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, track = <~d>, genre = ~d (~a)"
             title artist album year comment track genre (mp3-tag:get-id3v1-genre genre))))
 
-(defmethod initialize-instance ((me v21-tag-header) &key instream)
+(defmethod initialize-instance :after ((me v21-tag-header) &key instream)
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (log5:with-context "v21-frame-initializer"
     (log-id3-frame "reading v2.1 tag")
@@ -99,35 +99,84 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
       (log-id3-frame "v21 tag: ~a" (vpprint me nil)))))
 
 (defclass id3-ext-header ()
-  ((size    :accessor size    :initarg :size    :initform 0)
-   (flags   :accessor flags   :initarg :flags   :initform 0)
-   (padding :accessor padding :initarg :padding :initform 0)
-   (crc     :accessor crc     :initarg :crc     :initform nil))
+  ((size         :accessor size         :initarg :size         :initform 0)
+   (flags        :accessor flags        :initarg :flags        :initform 0)
+   (padding      :accessor padding      :initarg :padding      :initform 0)
+   (crc          :accessor crc          :initarg :crc          :initform nil)
+   (is-update    :accessor is-update    :initarg :is-update    :initform nil)
+   (restrictions :accessor restrictions :initarg :restrictions :initform 0))
   (:documentation "Class representing a V2.3/4 extended header"))
 
-(defmacro ext-header-crc-p    (flags) `(logbitp 14 ,flags))
-
-;;; XXX I almost certainly don't have handling of extended headers complete/correct wrt FLAGS
-(defmethod initialize-instance ((me id3-ext-header) &key instream)
+(defmethod initialize-instance :after ((me id3-ext-header) &key instream version)
   "Read in the extended header.  Caller will have stream-seek'ed to correct location in file.
-Note: extended headers are subject to unsynchronization, so make sure that INSTREAM has been made sync-safe."
-  (with-slots (size flags padding crc) me
+Note: extended headers are subject to unsynchronization, so make sure that INSTREAM has been made sync-safe.
+NB: 2.3 and 2.4 extended flags are different..."
+  (with-slots (size flags padding crc is-update restrictions) me
     (setf size (stream-read-u32 instream))
-    (setf flags (stream-read-u16 instream))
-    (setf padding (stream-read-u32 instream))
-    (when (not (zerop flags))
+    (setf flags (stream-read-u16 instream)) ; reading in flags fields, must discern below 2.3/2.4
+    (log-id3-frame "making id3-ext-header: version = ~d, size = ~d, flags = ~x"
+                   version size flags)
+    (ecase version
+      (3
+       (setf padding (stream-read-u32 instream))
+       (when (logand flags #x8000)
+         (if (not (= size 10))
+             (warn-user "CRC bit set in extended header, but not enough bytes to read")
+             (setf crc (stream-read-u32 instream)))))
+      (4
+       (when (not (= (logand #xff00 flags) 1))
+         (warn-user "v2.4 extended flags length is not 1"))
+       (setf flags (logand flags #xff)) ; lop off type byte (the flags length)
+       (let ((len 0))
+         (when (logand #x3000 flags)
+           (setf len (stream-read-u8 instream))
+           (when (not (zerop len)) (warn-user "v2.4 extended header is-tag length is ~d" len))
+           (setf is-update t))
+         (when (logand #x2000 flags)
+           (setf len (stream-read-u8 instream))
+           (when (not (= 5 len)) (warn-user "v2.4 extended header crc length is ~d" len))
+           (setf crc (stream-read-u32 instream :bits-per-byte 7)))
+         (when (logand #x1000 flags)
+           (setf len (stream-read-u8 instream))
+           (when (not (= 5 1)) (warn-user "v2.4 extended header restrictions length is ~d" len))
+           (setf restrictions (stream-read-u8 instream))))))))
 
-      ;; at this point, we have to potentially read in other fields depending on flags.
-      ;; for now, just error out...
-      (assert (zerop flags) () "non-zero extended header flags = ~x, check validity")
-      ;;(when (ext-header-crc-p flags)
-      ;;  (setf crc (stream-read-u32 instream)))))
-      )))
+(defun ext-header-restrictions-grok (r)
+  "Return a string that shows what restrictions are in an ext-header"
+  (if (zerop r)
+      "No restrictions"
+      (with-output-to-string (s)
+        (format s "Tag size restictions: ~a/"
+                (ecase (ash (logand #xc0 r) -6)
+                  (0 "No more than 128 frames and 1 MB total tag size")
+                  (1 "No more than 64 frames and 128 KB total tag size")
+                  (2 "No more than 32 frames and 40 KB total tag size")
+                  (3 "No more than 32 frames and 4 KB total tag size")))
+        (format s "Tag encoding restictions: ~a/"
+                (ecase (ash (logand #x20 r) -5)
+                  (0 "No restrictions")
+                  (1 "Strings are only encoded with ISO-8859-1 [ISO-8859-1] or UTF-8 [UTF-8]")))
+        (format s "Tag field size restictions: ~a/"
+                (ecase (ash (logand #x18 r) -3)
+                  (0 "No restrictions")
+                  (1 "No string is longer than 1024 characters")
+                  (2 "No string is longer than 128 characters")
+                  (3 "No string is longer than 30 characters")))
+        (format s "Tag image encoding restrictions: ~a/"
+                (ecase (ash (logand #x04 r) -2)
+                  (0 "No restrictions")
+                  (1 "Images are encoded only with PNG [PNG] or JPEG [JFIF]")))
+        (format s "Tag image size restrictions: ~a"
+                (ecase (logand #x04 r)
+                  (0 "No restrictions")
+                  (1 "All images are 256x256 pixels or smaller.")
+                  (2 "All images are 64x64 pixels or smaller.")
+                  (3 "All images are exactly 64x64 pixels, unless required otherwise."))))))
 
 (defmethod vpprint ((me id3-ext-header) stream)
-  (with-slots (size flags padding crc) me
-    (format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x~%"
-            size flags padding crc)))
+  (with-slots (size flags padding crc is-update restrictions) me
+    (format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x is-update ~a, restrictions = ~x/~a~%"
+            size flags padding crc is-update restrictions (ext-header-restrictions-grok restrictions))))
 
 ;;; NB: v2.2 only really defines bit-7. It does document bit-6 as being the compression flag, but then states
 ;;; that if it is set, the software should "ignore the entire tag if this (bit-6) is set"
@@ -150,7 +199,7 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
             (with-output-to-string (s)
               (format s "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
                       version revision (print-header-flags nil flags) size
-                      (if (header-extended-p flags)
+                      (if (and (header-extended-p flags) ext-header)
                           (concatenate 'string "Extended header: " (vpprint ext-header nil))
                           "No extended header")
                       (if v21-tag-header
@@ -933,7 +982,8 @@ Note: extended headers are subject to unsynchronization, so make sure that INSTR
 
             ;; Must make extended header here since it is subject to unsynchronization.
             (when (header-extended-p flags)
-              (setf ext-header (make-instance 'id3-extended-header :instream mem-stream)))
+              (setf ext-header (make-instance 'id3-ext-header :instream mem-stream :version version)))
+            (log-id3-frame "Complete header: ~a" (vpprint (id3-header mp3-file) nil))
 
             ;; Start reading frames from memory stream
             (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
