@@ -134,4 +134,46 @@ If you *really* want to create a lot of output, you can do the following:
 
 For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 lines in "q.txt".
 
+# Design
+
+## The Files
+
+* *audio-streams.lisp:* creates a STREAM-like interface to audio files and vectors, thus read/seek devolve into
+  simple array-references.  For files, it uses CCL's MAP-FILE-TO-OCTET-VECTOR function to mmap the file.
+* *id3-frame.lisp:* Parses the ID3 frames in an MP3 file.
+   For each frame type we are interested in, DEFCLASS a class with
+   specfic naming convention: frame-xxx/frame-xxxx, where xxx is valid ID3V2.2 frame name
+   and xxxx is a valid ID3V2.[34] frame name.  Upon finding a frame name in an MP3 file,
+   we can then do a FIND-CLASS on the "frame-xxx", and a MAKE-INSTANCE on the found class
+   to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
+   that reads in data to build class.
+* *iso-639-2.lisp:* Converts ISO-639-2 3-character languages into longer, more descriptive strings.
+* *logging.lisp:* Defines a logging system based on LOG5. Used to debug flow.  See above for how to use.
+* *mp3-tag.lisp:* The abstract interface for ID3 tags for MP3s. The abstract interface is simply one of the following:
+
+** *album:* Returns the name of the album.
+** *album-artist:* Returns the name of album artist.
+** *artist:* Returns recording artist.
+** *comment:* Returns any comments found in file.
+** *compilation:* A boolean indicating whether this file is part of a compilation.
+** *composer:*  Returns the composer of this file.
+** *copyright:* Returns copyright info.
+** *disk:* Returns the disk number of this file.  If present, may be a single number or two numbers (ie disk 1 of 2).
+** *encoder:* Returns the tool used to encode this file.
+** *genre:* Returns the genre of this file.
+** *groups:* (not entirely sure...)
+** *lyrics:* Returns any (unsynchronized) lyrics found in this file.
+** *tempo:* Returns the tempo of this file.
+** *title:* Returns the name of the the song in this file.
+** *track:* Returns the track number of this file.  Like *disk*, if present, may be a single number or two numbers (ie track 1 of 20).
+** *writer:* Returns name of who wrote this song.
+** *year:* Returns the year when the song was recorded.
+
+
+ Each frame class assumes that the STREAM being passed has been made sync-safe.
+
+ For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
+ a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
+ the frame "payload" as raw OCTETS.
+
 
