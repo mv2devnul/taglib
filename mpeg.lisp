@@ -337,8 +337,8 @@
 
 (defmethod vpprint ((me vbr-info) stream)
   (with-vbr-info-slots (me)
-    (format stream "tag = ~a, flags = 0x~x, frames = ~:d, bytes = ~:d, tocs = ~d, scale = ~d, "
-            tag flags frames bytes tocs scale)))
+    (format stream "tag = ~a, flags = 0x~x, frame~p = ~:d, bytes = ~:d, tocs = ~d, scale = ~d, "
+            tag flags frames frames bytes tocs scale)))
 
 (defun find-first-sync (in)
   (fastest
@@ -447,8 +447,8 @@
 
 (defmethod vpprint ((me mpeg-audio-info) stream)
   (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) me
-    (format stream "~:d frames read, ~a, ~a, ~:[CBR,~;VBR,~] sample rate: ~:d Hz, bit rate: ~:d Kbps, duration: ~:d:~2,'0d"
-            n-frames
+    (format stream "~:d frame~p read, ~a, ~a, ~:[CBR,~;VBR,~] sample rate: ~:d Hz, bit rate: ~:d Kbps, duration: ~:d:~2,'0d"
+            n-frames n-frames
             (get-mpeg-version-string version)
             (get-layer-string layer)
             is-vbr
@@ -480,12 +480,15 @@ Else, we assume CBR and calculate the duration, etc."
               (setf n-frames 1)
               (setf is-vbr t)
               (setf len (float (* (frames (vbr first-frame)) (/ (samples first-frame) (sample-rate first-frame)))))
-              (setf bit-rate  (float (/ (* 8 (bytes (vbr first-frame)) ) len))))
+              (if (not (zerop len))
+                  (setf bit-rate  (float (/ (* 8 (bytes (vbr first-frame))) len)))
+                  (setf bit-rate 0)))
             (let* ((first (pos first-frame))
                    (last (- (audio-streams:stream-size in) (if (id3-frame::v21-tag-header (id3-header in)) 128 0)))
-                   (n-frames (round (/ (float (- last first)) (float (size first-frame)))))
-                   (n-sec   (round (/ (float (* (size first-frame) n-frames)) (float (* 125 (float (/ (bit-rate first-frame) 1000))))))))
+                   (n-fr (round (/ (float (- last first)) (float (size first-frame)))))
+                   (n-sec   (round (/ (float (* (size first-frame) n-fr)) (float (* 125 (float (/ (bit-rate first-frame) 1000))))))))
               (setf is-vbr nil)
+              (setf n-frames 1) ; just set it to 1
               (setf len n-sec)
               (setf bit-rate (float (bit-rate first-frame))))))
 

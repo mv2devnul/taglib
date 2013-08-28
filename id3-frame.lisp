@@ -71,31 +71,33 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     (format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, track = <~d>, genre = ~d (~a)"
             title artist album year comment track genre (mp3-tag:get-id3v1-genre genre))))
 
-(defmethod initialize-instance :after ((me v21-tag-header) &key instream)
+;;; NB: no ":after" here
+(defmethod initialize-instance ((me v21-tag-header) &key instream)
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (log5:with-context "v21-frame-initializer"
-    (log-id3-frame "reading v2.1 tag")
-    (with-slots      (title artist album year comment genre track) me
-      (setf track nil)
+    (log-id3-frame "reading v2.1 tag from ~:d" (stream-seek instream 0))
+    (with-slots (title artist album year comment genre track) me
       (setf title    (upto-null (stream-read-string-with-len instream 30)))
       (setf artist   (upto-null (stream-read-string-with-len instream 30)))
       (setf album    (upto-null (stream-read-string-with-len instream 30)))
       (setf year     (upto-null (stream-read-string-with-len instream 4)))
-      (setf comment  (stream-read-string-with-len instream 30))
 
       ;; In V21, a comment can be split into comment and track #
       ;; find the first #\Null then check to see if that index < 28.  If so, the check the last two bytes being
       ;; non-zero---if so, then track can be set to integer value of last two bytes
-      (let ((trimmed-comment (upto-null comment))
-            (trck 0))
-        (when (<= (length trimmed-comment) 28)
-          (setf (ldb (byte 8 8) trck) (char-code (aref comment 28)))
-          (setf (ldb (byte 8 0) trck) (char-code (aref comment 29)))
-          (setf comment trimmed-comment)
+
+        (let* ((c (stream-read-sequence instream 30))
+               (first-null (find 0 c))
+               (trck 0))
+          (when (and first-null (<= first-null 28))
+            (setf (ldb (byte 8 8) trck) (aref c 28))
+            (setf (ldb (byte 8 0) trck) (aref c 29)))
+          (setf comment (upto-null (map 'string #'code-char c)))
           (if (> trck 0)
               (setf track trck)
-              (setf track nil))))
-      (setf genre    (stream-read-u8 instream))
+              (setf track nil)))
+
+      (setf genre (stream-read-u8 instream))
       (log-id3-frame "v21 tag: ~a" (vpprint me nil)))))
 
 (defclass id3-ext-header ()
@@ -968,7 +970,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
     (log5:with-context "find-id3-frames"
 
-      (log-id3-frame "~a is a valid mp3 file" (fn mp3-file))
+      (log-id3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
 
       (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
       (with-slots (size ext-header frames flags version) (id3-header mp3-file)
@@ -988,7 +990,7 @@ NB: 2.3 and 2.4 extended flags are different..."
             ;; Start reading frames from memory stream
             (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
               (if (not _ok)
-                  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (fn mp3-file)))
+                  (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
               (log-id3-frame "ok = ~a, returning ~d frames" _ok (length _frames))
               (setf frames _frames)
               _ok)))))))

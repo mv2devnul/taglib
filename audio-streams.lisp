@@ -26,30 +26,30 @@
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
 (defclass mem-stream ()
-   ((fn    :accessor fn    :initform nil :initarg :fn)
-    (index :accessor index :initform 0)
-    (len   :accessor len   :initform 0)
-    (vect  :accessor vect  :initform nil :initarg :vect))
+   ((stream-filename :accessor stream-filename :initform nil :initarg :stream-filename)
+    (index           :accessor index           :initform 0)
+    (stream-size     :accessor stream-size     :initform 0)
+    (vect            :accessor vect            :initform nil :initarg :vect))
    (:documentation "A thin-wrapper class over mmaped-files and/or vectors"))
 
  (defmacro with-mem-stream-slots ((instance) &body body)
-   `(with-slots (fn index len vect) ,instance
-      (declare (integer index len)
+   `(with-slots (stream-filename index stream-size vect) ,instance
+      (declare (integer index stream-size)
                (type (array (unsigned-byte 8) 1) vect))
       ,@body))
 
  (defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
- (defun make-mmap-stream (f) (make-instance 'mem-stream :fn f))
+ (defun make-mmap-stream (f) (make-instance 'mem-stream :stream-filename f))
 
  (defmethod initialize-instance :after ((stream mem-stream) &key)
    (with-mem-stream-slots (stream)
-     (when fn
-       (setf vect (ccl:map-file-to-octet-vector fn)))
-     (setf len (length vect))))
+     (when stream-filename
+       (setf vect (ccl:map-file-to-octet-vector stream-filename)))
+     (setf stream-size (length vect))))
 
  (defmethod stream-close ((stream mem-stream))
    (with-mem-stream-slots (stream)
-     (when fn
+     (when stream-filename
        (ccl:unmap-octet-vector vect))
      (setf vect nil)))
 
@@ -61,21 +61,18 @@
         (if (zerop offset)
             index
             (incf index offset)))
-        (:end (setf index (- len offset))))))
+        (:end (setf index (- stream-size offset))))))
 
- ;;; probably should just rename :ACCESSOR LEN to STREAM-SIZE? XXX
- (defmethod stream-size ((stream mem-stream)) (len stream))
-
- (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8))
-   (fastest
-     (with-mem-stream-slots (stream)
-       (when (<= (+ index n-bytes) len)
-         (loop with value = 0
-               for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
-                 (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
-                 (incf index)
-               finally (return-from read-n-bytes value))))
-     nil))
+(defun read-n-bytes (stream n-bytes &key (bits-per-byte 8))
+  (fastest
+    (with-mem-stream-slots (stream)
+      (when (<= (+ index n-bytes) stream-size)
+        (loop with value = 0
+              for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
+                (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
+                (incf index)
+              finally (return-from read-n-bytes value))))
+    nil))
 
  (declaim (inline read-n-bytes))
 
@@ -88,8 +85,8 @@
  (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
    (fastest
      (with-mem-stream-slots (stream)
-       (when (> (+ index size) len)
-         (setf size (- len index)))
+       (when (> (+ index size) stream-size)
+         (setf size (- stream-size index)))
        (ecase bits-per-byte
          (8 (let ((octets (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
               (incf index size)
@@ -122,9 +119,9 @@
    (let* ((new-stream (make-mmap-stream filename))
           (ret-stream))
      (cond ((mp4-atom:is-valid-m4-file new-stream)
-            (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :fn (fn new-stream))))
+            (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
            ((id3-frame:is-valid-mp3-file new-stream)
-            (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :fn (fn new-stream)))))
+            (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream)))))
      (stream-close new-stream)
      ret-stream))
 
