@@ -47,18 +47,17 @@
         (mp4-count 0)
         (other-count 0))
 
-    (osicat:walk-directory dir (lambda (f)
-                                 (let ((full-name (merge-pathnames (ccl:current-directory) (pathname f))))
-                                   (do-audio-file full-name :func (lambda (s)
-                                                            (cond ((typep s 'mp3-file-stream)
-                                                                   (incf mp3-count)
-                                                                   (when mp3-func
-                                                                     (funcall mp3-func s)))
-                                                                  ((typep s 'mp4-file-stream)
-                                                                   (incf mp4-count)
-                                                                   (when mp4-func
-                                                                     (funcall mp4-func s)))
-                                                                  ((null s) (incf other-count))))))))
+    (cl-fad:walk-directory dir (lambda (f)
+                                 (do-audio-file f :func (lambda (s)
+                                                          (cond ((typep s 'mp3-file-stream)
+                                                                 (incf mp3-count)
+                                                                 (when mp3-func
+                                                                   (funcall mp3-func s)))
+                                                                ((typep s 'mp4-file-stream)
+                                                                 (incf mp4-count)
+                                                                 (when mp4-func
+                                                                   (funcall mp4-func s)))
+                                                                ((null s) (incf other-count)))))))
 
     (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
             mp3-count mp4-count other-count (+ mp3-count mp4-count other-count))))
