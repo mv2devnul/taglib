@@ -8,5 +8,5 @@
   :description "Simple demo/test code for taglib"
   :author "Mark VandenBrink"
   :license "Public Domain"
-  :depends-on (#:taglib #:cl-fad)
+  :depends-on (#:taglib #:chanl #:cl-fad)
   :components ((:file "taglib-tests")))
