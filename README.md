@@ -44,6 +44,7 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 
 Things to consider adding/changing:
 
+* Go address all the __XXX__ comments (I use __XXX__ to mark places I know I need to fix later).
 * Add more file types.
 * Add writing of tags.
 * Improve error handling.
