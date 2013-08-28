@@ -160,7 +160,7 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
 	* __disk:__ Returns the disk number of this file.  If present, may be a single number or two numbers (ie disk 1 of 2).
 	* __encoder:__ Returns the tool used to encode this file.
 	* __genre:__ Returns the genre of this file.
-	* __groups:__ (not entirely sure...)
+	* __groups:__ iTunes tag that allows you to group tracks.
 	* __lyrics:__ Returns any (unsynchronized) lyrics found in this file.
 	* __tempo:__ Returns the tempo of this file.
 	* __title:__ Returns the name of the the song in this file.
