@@ -1,8 +1,20 @@
 Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
+# Introduction
+
 A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and audio information.
 
 **Mostly complete.  Your mileage may vary. Most definitely, NOT portable.  Heavily dependent on Clozure CCL.**
+
+# Dependencies
+
+All avalailable via quicklisp
+
+* log5
+* alexandria
+* cl-fad
+
+# References
 
 Note: There a lot of good (some great) audio file resources out there.  Here are a few of them that I found useful:
 
@@ -15,9 +27,8 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon. 
   It would have saved me TONS of time.
 
-Notes II:
+# General Notes
 
-* Depends on quicklisp packages: LOG5, and ALEXANDRIA.  See taglib.asd.
 * As the author(s) of taglib state in their comments, parsing ID3s is actually pretty hard. There are so many broken taggers out there
   that it is tough to compensate for all their errors.
 * The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
@@ -38,7 +49,7 @@ Things to consider adding/changing:
 * Improve error handling.
 * Implement a DSL ala Practical Common Lisp.
 
-And now for some sample invocations and outputs:
+# Sample Invocations and Results
 
 ````
 (let (foo)
