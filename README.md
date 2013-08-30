@@ -191,10 +191,11 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
 
 ## Known gotchas
 
-* In previous versions of this library, if we ran into a Xing header with the number of frames is zero, I just set the duration
-  as 0.  This was fast, but not really "nice."  In new revs, I decided if I hit a bad Xing header, the correct thing to do is to
-  read every frame and calculate the duration/avg bit-rate that way.  My calculations match those of iTunes, but it can __really__ slow
+* In previous versions of this library, if we ran into a Xing header with the number of frames set to zero, I just set the duration
+  as 0.  This was fast, but not really "nice."  In new revs, I decided that if I hit a bad Xing header, the correct thing to do is to
+  read every frame and calculate the duration/avg bit-rate that way.  The resulting calculations match those of iTunes, but it can __really__ slow
   things down.
+
 * More info later...
 
 ## Experimental Stuff
