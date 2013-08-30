@@ -66,6 +66,7 @@
 (defconstant +mode-extension-1+ 1)
 (defconstant +mode-extension-2+ 2)
 (defconstant +mode-extension-3+ 3)
+
 (defun get-mode-extension-string (channel-mode layer mode-extension)
   (if (not (= channel-mode +channel-mode-joint+))
       ""
@@ -269,7 +270,7 @@
               (format s "mode extension = ~a, copyrighted? = ~[no~;yes~], original? = ~[no~;yes~], emphasis = ~a"
                       (get-mode-extension-string channel-mode layer mode-extension) copyright original (get-emphasis-string emphasis))
               (when payload
-                (format s "~%frame payload[~:d] = ~a~%" (length payload) payload))))))
+                (format s "~%frame payload[~:d] = ~a~%" (length payload) (utils:printable-array payload)))))))
 
 (defclass vbr-info ()
   ((tag    :accessor tag    :initarg :tag)
@@ -296,13 +297,15 @@
         (t (cond ((= (the fixnum channel-mode) (the fixnum +channel-mode-mono+)) 9)
                  (t 17)))))
 
-(defmethod check-vbr ((me frame))
+(defmethod check-vbr ((me frame) fn)
   (log5::with-context "check-vbr"
     (with-frame-slots (me)
+
       (let ((i (get-side-info-size version channel-mode)))
         (log-mpeg-frame "array index = ~d, payload size = ~d" i (length payload))
         (when (>= i (length payload))
           (return-from check-vbr nil))
+
         (when (or (and (= (aref payload (+ i 0)) (char-code #\X))
                        (= (aref payload (+ i 1)) (char-code #\i))
                        (= (aref payload (+ i 2)) (char-code #\n))
@@ -320,19 +323,27 @@
 
           (setf vbr (make-instance 'vbr-info))
           (let ((v (make-mem-stream (payload me))))
-            (stream-seek v i :start)            ; seek to xing/info info
-            (setf (tag vbr)   (stream-read-iso-string-with-len v 4))
+            (stream-seek v i :start)            ; seek to Xing/Info offset
+            (setf (tag vbr) (stream-read-iso-string-with-len v 4))
             (setf (flags vbr) (stream-read-u32 v))
+
             (when (logand (flags vbr) +vbr-frames+)
               (setf (frames vbr) (stream-read-u32 v))
-              (if (= 0 (frames vbr)) (warn-user "warning Xing/Info header flags has FRAMES set, but field is zero")))
+              (log-mpeg-frame "Xing frames set: read ~d" (frames vbr))
+              (when (zerop (frames vbr))
+                (warn-user "warning file ~a Xing/Info header flags has FRAMES set, but field is zero." fn)))
+
             (when (logand (flags vbr) +vbr-bytes+)
               (setf (bytes vbr) (stream-read-u32 v))
-              (if (= 0 (bytes vbr)) (warn-user "warning Xing/Info header flags has BYTES set, but field is zero")))
+              (log-mpeg-frame "Xing bytes set: read ~d" (bytes vbr)))
+
             (when (logand (flags vbr) +vbr-tocs+)
-              (setf (tocs vbr) (stream-read-sequence v 100)))
+              (setf (tocs vbr) (stream-read-sequence v 100))
+              (log-mpeg-frame "Xing tocs set: read ~a" (tocs vbr)))
+
             (when (logand (flags vbr) +vbr-scale+)
-              (setf (scale vbr) (stream-read-u32 v)))
+              (setf (scale vbr) (stream-read-u32 v))
+              (log-mpeg-frame "Xing scale set: read ~d" (scale vbr)))
             (log-mpeg-frame "vbr-info = ~a" (vpprint vbr nil))))))))
 
 (defmethod vpprint ((me vbr-info) stream)
@@ -353,7 +364,8 @@
             (loop
               (setf pos (stream-seek in))
               (setf hdr-u32 (stream-read-u32 in))
-              (when (null hdr-u32) (return-from find-first-sync nil))
+              (when (null hdr-u32)
+                (return-from find-first-sync nil))
               (incf count)
 
               (when (= (logand hdr-u32 #xffe00000) #xffe00000)
@@ -361,7 +373,7 @@
                 (let ((hdr (make-instance 'frame :hdr-u32 hdr-u32 :pos pos)))
                   (if (load-frame hdr :instream in :read-payload t)
                       (progn
-                        (check-vbr hdr)
+                        (check-vbr hdr (stream-filename in))
                         (log-mpeg-frame "Valid header being returned: ~a, searched ~:d times" hdr count)
                         (return-from find-first-sync hdr))
                       (progn
@@ -405,37 +417,6 @@
           (log-mpeg-frame "map-frames: at pos ~:d, dispatching function" (pos frame))
           (funcall func frame)))))
 
-;; (defun get-mpeg-bit-rate-exhaustive (in)
-;;   (let ((n-frames 0)
-;;         (total-len 0)
-;;         (last-bit-rate nil)
-;;         (bit-rate-total 0)
-;;         (vbr nil))
-;;     (map-frames in (lambda (f)
-;;                      (incf n-frames)
-;;                      (incf total-len (float (/ (samples f) (sample-rate f))))
-;;                      (incf bit-rate-total (bit-rate f))
-;;                      (if (null last-bit-rate)
-;;                          (setf last-bit-rate (bit-rate f))
-;;                          (progn
-;;                            (when (not (= last-bit-rate (bit-rate f)))
-;;                              (setf vbr t))
-;;                            (setf last-bit-rate (bit-rate f)))))
-;;                 :read-payload nil)
-;;     (if (or (zerop n-frames) (zerop bit-rate-total))
-;;         (values nil nil nil)
-;;         (values vbr (float (/ bit-rate-total n-frames)) total-len))))
-
-;; (defun get-mpeg-bit-rate-ff (in)
-;;   (let ((ff (find-first-sync in)))
-;;     (if (not ff)
-;;         (return-from get-mpeg-bit-rate-ff (values nil nil)))
-;;     (if (vbr ff)
-;;         (let* ((len (float (* (frames (vbr ff)) (/ (samples ff) (sample-rate ff)))))
-;;                (br (float (/ (* 8 (bytes (vbr ff)) ) len))))
-;;           (values t br len))
-;;         (values nil nil nil))))
-
 (defclass mpeg-audio-info ()
   ((is-vbr      :accessor is-vbr      :initarg :is-vbr      :initform nil)
    (n-frames    :accessor n-frames    :initarg :n-frames    :initform 0)
@@ -456,66 +437,74 @@
             (round (/ bit-rate 1000))
             (floor (/ len 60)) (round (mod len 60)))))
 
-
-(defun get-mpeg-audio-info (in &key) ;; (max-frames *max-frames-to-read*))
-  "Get MPEG Layer 3 audio information.
-If the first MPEG frame we find is a Xing/Info header, return that as info.
-Else, we assume CBR and calculate the duration, etc."
-  (log5:with-context "get-mpeg-audio-info"
-    (let ((first-frame (find-first-sync in))
-          (info (make-instance 'mpeg-audio-info)))
-
-      (log-mpeg-frame "search for first frame yielded ~a" (vpprint first-frame nil))
-      (when (null first-frame)
-        (return-from get-mpeg-audio-info nil))
-
+(defun calc-bit-rate-exhaustive (in start info)
+  "Map every MPEG frame in IN and calculate the bit-rate"
+  (log5:with-context "calc-bit-rate-exhaustive"
+    (let ((total-len 0)
+          (last-bit-rate nil)
+          (bit-rate-total 0)
+          (vbr nil))
+      (log-mpeg-frame "broken Xing/Info header found, reading all frames")
       (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) info
-        (setf version (version first-frame))
-        (setf layer (layer first-frame))
-        (setf sample-rate (sample-rate first-frame))
+        (map-frames in (lambda (f)
+                         (incf n-frames)
+                         (incf total-len (float (/ (samples f) (sample-rate f))))
+                         (incf bit-rate-total (bit-rate f))
+                         (if (null last-bit-rate)
+                             (setf last-bit-rate (bit-rate f))
+                             (progn
+                               (when (not (= last-bit-rate (bit-rate f)))
+                                 (setf vbr t))
+                               (setf last-bit-rate (bit-rate f)))))
+                    :read-payload nil :start-pos start)
 
-        (if (vbr first-frame)
-            (progn
-              (log-mpeg-frame "found Xing/Info header")
-              (setf n-frames 1)
-              (setf is-vbr t)
-              (setf len (float (* (frames (vbr first-frame)) (/ (samples first-frame) (sample-rate first-frame)))))
-              (if (not (zerop len))
-                  (setf bit-rate  (float (/ (* 8 (bytes (vbr first-frame))) len)))
-                  (setf bit-rate 0)))
-            (let* ((first (pos first-frame))
-                   (last (- (audio-streams:stream-size in) (if (id3-frame::v21-tag-header (id3-header in)) 128 0)))
-                   (n-fr (round (/ (float (- last first)) (float (size first-frame)))))
-                   (n-sec   (round (/ (float (* (size first-frame) n-fr)) (float (* 125 (float (/ (bit-rate first-frame) 1000))))))))
-              (setf is-vbr nil)
-              (setf n-frames 1) ; just set it to 1
-              (setf len n-sec)
-              (setf bit-rate (float (bit-rate first-frame))))))
+        (log-mpeg-frame "finished mapping. read ~:d frames" n-frames)
 
-            info)))
+        (when (or (< n-frames 10) (zerop bit-rate-total))
+          (log-mpeg-frame "couldn't get audio-info: only got ~d frames" n-frames)
+          (return-from calc-bit-rate-exhaustive))
 
-              ;; If you want to calculate exhaustively, replace the LET* above with this code
-              ;; (let ((total-len 0)
-              ;;     (last-bit-rate nil)
-              ;;     (bit-rate-total 0)
-              ;;     (vbr nil))
-              ;; (log-mpeg-frame "no Xing/Info, so mapping frames")
-              ;; (map-frames in (lambda (f)
-              ;;                  (incf n-frames)
-              ;;                  (incf total-len (float (/ (samples f) (sample-rate f))))
-              ;;                  (incf bit-rate-total (bit-rate f))
-              ;;                  (if (null last-bit-rate)
-              ;;                      (setf last-bit-rate (bit-rate f))
-              ;;                      (progn
-              ;;                        (when (not (= last-bit-rate (bit-rate f)))
-              ;;                          (setf vbr t))
-              ;;                        (setf last-bit-rate (bit-rate f)))))
-              ;;             :read-payload nil :start-pos 0 :max max-frames)
-              ;; (if (or (< n-frames 10) (zerop bit-rate-total))
-              ;;     (progn
-              ;;       (log-mpeg-frame "couldn't get audio-info: only got ~d frames" n-frames)
-              ;;       (return-from get-mpeg-audio-info nil))
-              ;;     (progn
-              ;;       (setf is-vbr vbr)
-              ;;       (setf len total-len)
-              ;;       (setf bit-rate (float (/ bit-rate-total n-frames))))))))
+        (setf is-vbr t)
+        (setf len total-len)
+        (setf bit-rate (float (/ bit-rate-total n-frames)))
+        (log-mpeg-frame "len = ~:d, bit-rate = ~f" len bit-rate)))))
+
+ (defun get-mpeg-audio-info (in &key) ;; (max-frames *max-frames-to-read*))
+   "Get MPEG Layer 3 audio information.
+ If the first MPEG frame we find is a Xing/Info header, return that as info.
+ Else, we assume CBR and calculate the duration, etc."
+   (log5:with-context "get-mpeg-audio-info"
+     (let ((first-frame (find-first-sync in))
+           (info (make-instance 'mpeg-audio-info)))
+
+       (log-mpeg-frame "search for first frame yielded ~a" (vpprint first-frame nil))
+       (when (null first-frame)
+         (return-from get-mpeg-audio-info nil))
+
+       (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) info
+         (setf version (version first-frame))
+         (setf layer (layer first-frame))
+         (setf sample-rate (sample-rate first-frame))
+
+         (if (vbr first-frame)
+             ;; found a Xing header, now check to see if it is correct
+             (if (zerop (frames (vbr first-frame)))
+                 (calc-bit-rate-exhaustive in (pos first-frame) info) ; Xing header broken, read all frames to calc
+                 ;; Good Xing header, use info in VBR to calc
+                 (progn
+                   (setf n-frames 1)
+                   (setf is-vbr t)
+                   (setf len (float (* (frames (vbr first-frame)) (/ (samples first-frame) (sample-rate first-frame)))))
+                   (setf bit-rate (float (/ (* 8 (bytes (vbr first-frame))) len)))))
+
+             ;; No Xing header found.  Assume CBR and calculate based on first frame
+             (let* ((first (pos first-frame))
+                    (last (- (audio-streams:stream-size in) (if (id3-frame::v21-tag-header (id3-header in)) 128 0)))
+                    (n-fr (round (/ (float (- last first)) (float (size first-frame)))))
+                    (n-sec (round (/ (float (* (size first-frame) n-fr)) (float (* 125 (float (/ (bit-rate first-frame) 1000))))))))
+               (setf is-vbr nil)
+               (setf n-frames 1)
+               (setf len n-sec)
+               (setf bit-rate (float (bit-rate first-frame))))))
+
+             info)))
