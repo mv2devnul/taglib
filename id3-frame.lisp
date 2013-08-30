@@ -903,7 +903,7 @@ NB: 2.3 and 2.4 extended flags are different..."
       (log-id3-frame "general case for id <~a> is ~a" id found-class)
       found-class)))
 
-(defun make-frame (version instream)
+(defun make-frame (version instream fn)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
   (log5:with-context "make-frame"
     (let* ((pos (stream-seek instream))
@@ -928,7 +928,7 @@ NB: 2.3 and 2.4 extended flags are different..."
         (setf frame-flags (stream-read-u16 instream))
         (when (not (valid-frame-flags version frame-flags))
           (log-id3-frame "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))
-          (warn-user "Invalid frame flags found ~a, will ignore" (print-frame-flags version frame-flags nil))))
+          (warn-user "Invalid frame flags found in ~a: ~a, will ignore" fn (print-frame-flags version frame-flags nil))))
 
       (log-id3-frame "making frame: id:~a, version: ~d, len: ~:d, flags: ~a"
                      frame-name version frame-len
@@ -954,7 +954,7 @@ NB: 2.3 and 2.4 extended flags are different..."
                      ((>= (stream-seek stream) (stream-size stream)))
                    (handler-case
                        (progn
-                         (setf this-frame (make-frame version stream))
+                         (setf this-frame (make-frame version stream (stream-filename mp3-file)))
                          (when (null this-frame)
                            (log-id3-frame "hit padding: returning ~d frames" (length frames))
                            (return-from read-loop (values t (nreverse frames))))
