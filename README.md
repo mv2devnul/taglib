@@ -201,12 +201,12 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
 ## Experimental Stuff
 
 I've recently added some (very) rudimentary multi-threading (see taglib-tests.lisp) using the CHANL package.  First, the filesystem
-walker (main thread) walks the requested directory, adding each filename to an unbounded channel (*channel*).  The main thread then sends
-*MAX-THREADS* *END-THREAD* symbols, creates *MAX-THREADS* worker threads who read from the channel, and then sits in a loop reading
-from *dead-channel* until it has done *MAX-THREADS* recv's.
+walker (main thread) walks the requested directory, adding each filename to an unbounded channel (\*channel\*).  The main thread then sends
+\*MAX-THREADS\* \*END-THREAD\* symbols, creates \*MAX-THREADS\* worker threads who read from the channel, and then sits in a loop reading
+from \*dead-channel\* until it has done \*MAX-THREADS\* recv's.
 
-The worker threads parse the filename they retrieve from *channel* until they get the *END-THREAD* symbol, whereupon they write their thread 
-id to *dead-channel* and return (ie exit). Here are some timings:
+The worker threads parse the filename they retrieve from \*channel\* until they get the \*END-THREAD\* symbol, whereupon they write their thread 
+id to \*dead-channel\* and return (ie exit). Here are some timings:
 
 | # Threads   | Time (seconds) |
 | ----------- | -------------- |
