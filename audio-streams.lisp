@@ -26,46 +26,54 @@
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
 (defclass mem-stream ()
-   ((stream-filename :accessor stream-filename :initform nil :initarg :stream-filename)
+   ((stream-filename :accessor stream-filename :initform nil :initarg :stream-filename :documentation "if set, then MMAP file")
     (index           :accessor index           :initform 0)
     (stream-size     :accessor stream-size     :initform 0)
-    (vect            :accessor vect            :initform nil :initarg :vect))
-   (:documentation "A thin-wrapper class over mmaped-files and/or vectors"))
+    (vect            :accessor vect            :initform nil :initarg :vect :documentation "if set, then the vector we want STREAM-ize"))
+   (:documentation "A thin-wrapper class over mmaped-files and/or vectors."))
 
- (defmacro with-mem-stream-slots ((instance) &body body)
-   `(with-slots (stream-filename index stream-size vect) ,instance
-      (declare (integer index stream-size)
-               (type (array (unsigned-byte 8) 1) vect))
-      ,@body))
+(defmacro with-mem-stream-slots ((instance) &body body)
+  `(with-slots (stream-filename index stream-size vect) ,instance
+     (declare (integer index stream-size)
+              (type (array (unsigned-byte 8) 1) vect))
+     ,@body))
 
- (defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
- (defun make-mmap-stream (f) (make-instance 'mem-stream :stream-filename f))
+(defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
+(defun make-mmap-stream (f) (make-instance 'mem-stream :stream-filename f))
 
- (defmethod initialize-instance :after ((stream mem-stream) &key)
-   (with-mem-stream-slots (stream)
-     (when stream-filename
-       (setf vect (ccl:map-file-to-octet-vector stream-filename)))
-     (setf stream-size (length vect))))
+(defmethod initialize-instance :after ((stream mem-stream) &key)
+  "Stream initializer. If STREAM-FILENAME is set, MMAP a the file. Else, we assume VECT was set."
+  (with-mem-stream-slots (stream)
+    (when stream-filename
+      (setf vect (ccl:map-file-to-octet-vector stream-filename)))
+    (setf stream-size (length vect))))
 
- (defmethod stream-close ((stream mem-stream))
-   (with-mem-stream-slots (stream)
-     (when stream-filename
-       (ccl:unmap-octet-vector vect))
-     (setf vect nil)))
+(defmethod stream-close ((stream mem-stream))
+  "Close a stream, making the underlying object (file or vector) inaccessible."
+  (with-mem-stream-slots (stream)
+    (when stream-filename
+      (ccl:unmap-octet-vector vect))
+    (setf vect nil)))
 
- (defmethod stream-seek ((stream mem-stream) &optional (offset 0) (from :current))
-   (with-mem-stream-slots (stream)
-     (ecase from
-       (:start (setf index offset))
-       (:current
-        (if (zerop offset)
-            index
-            (incf index offset)))
-        (:end (setf index (- stream-size offset))))))
+(defmethod stream-seek ((stream mem-stream) &optional (offset 0) (from :current))
+  "Set INDEX to requested value.  No error checking done here, but subsequent reads will fail if INDEX is out-of-bounds.
+As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns the current read-offset in stream."
+  (with-mem-stream-slots (stream)
+    (ecase from
+      (:start                  ; INDEX set to OFFSET from start of stream
+       (setf index offset))
+      (:current                ; INDEX set relative to current INDEX, by OFFSET bytes
+       (if (zerop offset)
+           index
+           (incf index offset)))
+      (:end                    ; INDEX set to OFFSET from end of stream
+       (setf index (- stream-size offset))))))
 
 (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8))
+  "Returns a FIXNUM constructed by reading N-BYTES.  BITS-PER-BYTE contols how many bits should be used from each read byte."
   (fastest
     (with-mem-stream-slots (stream)
+      (declare (integer index n-bytes stream-size))
       (when (<= (+ index n-bytes) stream-size)
         (loop with value = 0
               for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
@@ -74,60 +82,63 @@
               finally (return-from read-n-bytes value))))
     nil))
 
- (declaim (inline read-n-bytes))
+(declaim (inline read-n-bytes))
 
- (defmethod stream-read-u8  ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 1 :bits-per-byte bits-per-byte))
- (defmethod stream-read-u16 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 2 :bits-per-byte bits-per-byte))
- (defmethod stream-read-u24 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 3 :bits-per-byte bits-per-byte))
- (defmethod stream-read-u32 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 4 :bits-per-byte bits-per-byte))
- (defmethod stream-read-u64 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 8 :bits-per-byte bits-per-byte))
+(defmethod stream-read-u8  ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 1 :bits-per-byte bits-per-byte))
+(defmethod stream-read-u16 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 2 :bits-per-byte bits-per-byte))
+(defmethod stream-read-u24 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 3 :bits-per-byte bits-per-byte))
+(defmethod stream-read-u32 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 4 :bits-per-byte bits-per-byte))
+(defmethod stream-read-u64 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 8 :bits-per-byte bits-per-byte))
 
- (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
-   (fastest
-     (with-mem-stream-slots (stream)
-       (when (> (+ index size) stream-size)
-         (setf size (- stream-size index)))
-       (ecase bits-per-byte
-         (8 (let ((octets (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
-              (incf index size)
-              (values octets size)))
-         (7
-          (let* ((last-byte-was-FF nil)
-                 (byte nil)
-                 (octets (ccl:with-output-to-vector (out)
-                           (dotimes (i size)
-                             (setf byte (stream-read-u8 stream))
-                             (if last-byte-was-FF
-                                 (if (not (zerop byte))
-                                     (write-byte byte out))
-                                 (write-byte byte out))
-                             (setf last-byte-was-FF (= byte #xFF))))))
-            (values octets size)))))))
+(defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
+  "Read in a sequence of octets at BITS-PER-BYTE.  If BITS-PER-BYTE == 8, then simply return
+a displaced array from STREAMs underlying vector.  If it is == 7, then we have to create a new vector and read into that."
+  (fastest
+    (with-mem-stream-slots (stream)
+      (when (> (+ index size) stream-size)
+        (setf size (- stream-size index)))
+      (ecase bits-per-byte
+        (8 (let ((octets (make-array size :element-type 'octet :displaced-to vect :displaced-index-offset index :adjustable nil)))
+             (incf index size)
+             (values octets size)))
+        (7
+         (let* ((last-byte-was-FF nil)
+                (byte nil)
+                (octets (ccl:with-output-to-vector (out)
+                          (dotimes (i size)
+                            (setf byte (stream-read-u8 stream))
+                            (if last-byte-was-FF
+                                (if (not (zerop byte))
+                                    (write-byte byte out))
+                                (write-byte byte out))
+                            (setf last-byte-was-FF (= byte #xFF))))))
+           (values octets size)))))))
 
- (defclass mp3-file-stream (mem-stream)
-   ((id3-header :accessor id3-header :initform nil :documentation "holds all the ID3 info")
-    (audio-info :accessor audio-info :initform nil :documentation "holds the bit-rate, etc info"))
-   (:documentation "Stream for parsing MP3 files"))
+(defclass mp3-file-stream (mem-stream)
+  ((id3-header :accessor id3-header :initform nil :documentation "holds all the ID3 info")
+   (audio-info :accessor audio-info :initform nil :documentation "holds the bit-rate, etc info"))
+  (:documentation "Stream for parsing MP3 files"))
 
- (defclass mp4-file-stream (mem-stream)
-   ((mp4-atoms  :accessor mp4-atoms  :initform nil :documentation "holds tree of parsed MP4 atoms/boxes")
-    (audio-info :accessor audio-info :initform nil :documentation "holds the bit-rate, etc info"))
-   (:documentation "Stream for parsing MP4A files"))
+(defclass mp4-file-stream (mem-stream)
+  ((mp4-atoms  :accessor mp4-atoms  :initform nil :documentation "holds tree of parsed MP4 atoms/boxes")
+   (audio-info :accessor audio-info :initform nil :documentation "holds the bit-rate, etc info"))
+  (:documentation "Stream for parsing MP4 audio files"))
 
- (defun make-file-stream (filename)
-   "Convenience function for creating a file stream."
-   (let* ((new-stream (make-mmap-stream filename))
-          (ret-stream))
-     (cond ((mp4-atom:is-valid-m4-file new-stream)
-            (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
-           ((id3-frame:is-valid-mp3-file new-stream)
-            (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream)))))
-     (stream-close new-stream)
-     ret-stream))
+(defun make-file-stream (filename)
+  "Convenience function for creating a file stream. Detects file type and returns proper type stream."
+  (let* ((new-stream (make-mmap-stream filename))
+         (ret-stream))
+
+    ;; detect file type and make RET-STREAM.  if we don't recognize stream, RET-STREAM will be NULL
+    (cond ((mp4-atom:is-valid-m4-file new-stream)
+           (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+          ((id3-frame:is-valid-mp3-file new-stream)
+           (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream)))))
+    (stream-close new-stream)
+    ret-stream))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;;
 ;;; Decode octets as an iso-8859-1 string (encoding == 0)
 (defun stream-decode-iso-string (octets &key (start 0) (end nil))
   (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1))
@@ -274,7 +285,6 @@
           (setf (audio-info stream) (mp4-atom:get-mp4-audio-info stream))))
     (mp4-atom:mp4-atom-condition (c)
       (utils:warn-user "make-mp4-stream got condition: ~a" c))))
-
 
 (defmethod parse-audio-file ((stream mp3-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
   "Parse an MP3 file by reading it's FRAMES and decoding them."
