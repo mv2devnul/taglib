@@ -48,3 +48,13 @@ to see if it matches. PATHNAME version."
   `(let ((*standard-output* (open ,filename :direction :output :if-does-not-exist :create :if-exists :supersede)))
      ,@body
      (finish-output *standard-output*)))
+
+(defun get-bitmask(start width)
+  "Create a bit mask that begins at bit START (31 is MSB) and is WIDTH bits wide.
+Example: (get-bitmask 31 11) -->> #xffe00000"
+  (ash (- (ash 1 width) 1) (- (1+ start) width)))
+
+(defmacro get-bitfield (int start width)
+  "Extract WIDTH bits from INT starting at START
+Example: (get-bitfield #xFFFBB240 31 11) -->> #x7ff"
+  `(ash (logand ,int ,(utils::get-bitmask start width)) ,(- ( - start width -1))))
