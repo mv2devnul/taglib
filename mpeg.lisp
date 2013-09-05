@@ -1,5 +1,7 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: MPEG; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
+
+;;; Parsing MPEG audio frames.  See http://www.datavoyage.com/mpgscript/mpeghdr.htm for format of a frame.
 (in-package #:mpeg)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -21,8 +23,9 @@
 
 (define-condition mpeg-bad-header (mpeg-condition) ())
 
-(defconstant +sync-word+  #xffe0)
+(defconstant +sync-word+  #x7ff "NB: this is 11 bits so as to be able to recognize V2.5")
 
+;;; the versions
 (defconstant +mpeg-2.5+   0)
 (defconstant +v-reserved+ 1)
 (defconstant +mpeg-2+     2)
@@ -35,6 +38,7 @@
 
 (defun get-mpeg-version-string (version) (nth version '("MPEG 2.5" "Reserved" "MPEG 2" "MPEG 1")))
 
+;;; the layers
 (defconstant +layer-reserved+  0)
 (defconstant +layer-3+         1)
 (defconstant +layer-2+         2)
@@ -47,12 +51,14 @@
 
 (defun get-layer-string (layer) (nth layer '("Reserved" "Layer III" "Layer II" "Layer I")))
 
+;;; the modes
 (defconstant +channel-mode-stereo+ 0)
 (defconstant +channel-mode-joint+  1)
 (defconstant +channel-mode-dual+   2)
 (defconstant +channel-mode-mono+   3)
 (defun get-channel-mode-string (mode)  (nth mode '("Stereo" "Joint" "Dual" "Mono")))
 
+;;; the emphases
 (defconstant +emphasis-none+     0)
 (defconstant +emphasis-50-15+    1)
 (defconstant +emphasis-reserved+ 2)
@@ -62,11 +68,11 @@
                               (= (the fixnum e) (the fixnum +emphasis-50-15+))
                               (= (the fixnum e) (the fixnum +emphasis-ccit+))))
 
+;;; the modes
 (defconstant +mode-extension-0+ 0)
 (defconstant +mode-extension-1+ 1)
 (defconstant +mode-extension-2+ 2)
 (defconstant +mode-extension-3+ 3)
-
 (defun get-mode-extension-string (channel-mode layer mode-extension)
   (if (not (= channel-mode +channel-mode-joint+))
       ""
@@ -103,14 +109,15 @@
    (size           :accessor size           :initarg :size)
    (vbr            :accessor vbr            :initarg :vbr)
    (payload        :accessor payload        :initarg :payload))
+  (:documentation "Data in and associated with an MPEG audio frame.")
   (:default-initargs :pos nil :hdr-u32 nil :samples 0 :sync 0 :version 0 :layer 0 :protection 0 :bit-rate 0
                      :sample-rate 0 :padded 0 :private 0 :channel-mode 0 :mode-extension 0
                      :copyright 0 :original 0 :emphasis 0 :size nil :vbr nil :payload nil))
 
 (defmacro with-frame-slots ((instance) &body body)
   `(with-slots (pos hdr-u32 samples sync version layer protection bit-rate sample-rate
-                    padded private channel-mode mode-extension copyright
-                    original emphasis size vbr payload) ,instance
+                padded private channel-mode mode-extension copyright
+                original emphasis size vbr payload) ,instance
      ,@body))
 
 (let ((bit-array-table
@@ -178,7 +185,7 @@
                               (+ (* 72  (/ bit-rate sample-rate)) padded)))))))
 
 (defmethod load-frame ((me frame) &key instream (read-payload nil))
-  "Load an MPEG frame from current file position"
+  "Load an MPEG frame from current file position.  If READ-PAYLOAD is set, read in frame's content."
   (fastest
     (log5:with-context "load-frame"
       (handler-case
@@ -208,48 +215,92 @@
           nil)))))
 
 (defmethod parse-header ((me frame))
+  "Given a frame, verify that is a valid MPEG audio frame by examining the header.
+A header looks like this:
+Bits 31-21 (11 bits): the sync word.  Must be #xffe (NB version 2.5 standard)
+Bits 20-19 (2  bits): the version
+Bits 18-17 (2  bits): the layer
+Bit     16 (1  bit ): the protection bit
+Bits 15-12 (4  bits): the bit-rate index
+Bits 11-10 (2  bits): the sample-rate index
+Bit      9 (1  bit ): the padding bit
+Bit      8 (1  bit ): the private bit
+Bits   7-6 (2  bits): the channel mode
+Bits   5-4 (2  bits): the mode extension
+Bit      3 (1  bit ): the copyright bit
+Bit      2 (1  bit ): the original bit
+Bits   1-0 (2  bits): the emphasis"
+
   (fastest
     (log5:with-context "parse-header"
       (with-frame-slots (me)
-        (setf (ldb (byte 8 8) sync) (ldb (byte 8 24) hdr-u32))
-        (setf (ldb (byte 3 5) sync) (ldb (byte 3 5) (ldb (byte 8 16) hdr-u32)))
+        ;; check sync word
+        (setf sync (get-bitfield hdr-u32 31 11))
+        ;(setf (ldb (byte 8 8) sync) (ldb (byte 8 24) hdr-u32))
+        ;(setf (ldb (byte 3 5) sync) (ldb (byte 3 5) (ldb (byte 8 16) hdr-u32)))
         (when (not (= sync +sync-word+))
           (log-mpeg-frame "bad sync ~x/~x" sync hdr-u32)
           (return-from parse-header nil))
 
-        (setf version (ldb (byte 2 3) (ldb (byte 8 16) hdr-u32)))
+        ;; check version
+        ;(setf version (ldb (byte 2 3) (ldb (byte 8 16) hdr-u32)))
+        (setf version (get-bitfield hdr-u32 20 2))
         (when (not (valid-version version))
           (log-mpeg-frame "bad version ~d" version)
           (return-from parse-header nil))
 
-        (setf layer (ldb (byte 2 1) (ldb (byte 8 16) hdr-u32)))
+        ;; check layer
+        ;(setf layer (ldb (byte 2 1) (ldb (byte 8 16) hdr-u32)))
+        (setf layer (get-bitfield hdr-u32 18 2))
         (when (not (valid-layer layer))
           (log-mpeg-frame "bad layer ~d" layer)
           (return-from parse-header nil))
 
-        (setf protection (ldb (byte 1 0) (ldb (byte 8 16) hdr-u32)))
+        ;(setf protection (ldb (byte 1 0) (ldb (byte 8 16) hdr-u32)))
+        (setf protection (get-bitfield hdr-u32 16 1))
+
         (setf samples (get-samples-per-frame version layer))
 
-        (let ((br-index (the fixnum (ldb (byte 4 4) (ldb (byte 8 8) hdr-u32)))))
+        ;; check bit-rate
+        ;(let ((br-index (the fixnum (ldb (byte 4 4) (ldb (byte 8 8) hdr-u32)))))
+        (let ((br-index (get-bitfield hdr-u32 15 4)))
           (when (not (valid-bit-rate-index br-index))
             (log-mpeg-frame "bad bit-rate index ~d" br-index)
             (return-from parse-header nil))
+
           (setf bit-rate (get-bit-rate version layer br-index)))
 
-        (let ((sr-index (the fixnum (ldb (byte 2 2) (ldb (byte 8 8) hdr-u32)))))
+        ;; check sample rate
+        ;(let ((sr-index (the fixnum (ldb (byte 2 2) (ldb (byte 8 8) hdr-u32)))))
+        (let ((sr-index (get-bitfield hdr-u32 11 2)))
           (when (not (valid-sample-rate-index sr-index))
             (log-mpeg-frame "bad sample-rate index ~d" sr-index)
             (return-from parse-header nil))
+
           (setf sample-rate (get-sample-rate version sr-index)))
 
-        (setf padded (ldb (byte 1 1) (ldb (byte 8 8) hdr-u32)))
-        (setf private (ldb (byte 1 0) (ldb (byte 8 8) hdr-u32)))
+        ;(setf padded (ldb (byte 1 1) (ldb (byte 8 8) hdr-u32)))
+        (setf padded (get-bitfield hdr-u32 9 1))
 
-        (setf channel-mode (ldb (byte 2 6) (ldb (byte 8 0) hdr-u32)))
-        (setf mode-extension (ldb (byte 2 4) (ldb (byte 8 0) hdr-u32)))
-        (setf copyright (ldb (byte 1 3) (ldb (byte 8 0) hdr-u32)))
-        (setf original (ldb (byte 1 2) (ldb (byte 8 0) hdr-u32)))
-        (setf emphasis (ldb (byte 2 0) (ldb (byte 8 0) hdr-u32)))
+        ;(setf private (ldb (byte 1 0) (ldb (byte 8 8) hdr-u32)))
+        (setf private (get-bitfield hdr-u32 8 1))
+
+        ;(setf channel-mode (ldb (byte 2 6) (ldb (byte 8 0) hdr-u32)))
+        (setf channel-mode (get-bitfield hdr-u32 7 2))
+
+        ;(setf mode-extension (ldb (byte 2 4) (ldb (byte 8 0) hdr-u32)))
+        (setf mode-extension (get-bitfield hdr-u32 5 2))
+
+        ;(setf copyright (ldb (byte 1 3) (ldb (byte 8 0) hdr-u32)))
+        (setf copyright (get-bitfield hdr-u32 3 1))
+
+        ;(setf original (ldb (byte 1 2) (ldb (byte 8 0) hdr-u32)))
+        (setf original (get-bitfield hdr-u32 2 1))
+
+        ;(setf emphasis (ldb (byte 2 0) (ldb (byte 8 0) hdr-u32)))
+        (setf emphasis (get-bitfield hdr-u32 1 2))
+
+        ;; check emphasis
         (when (not (valid-emphasis emphasis))
           (log-mpeg-frame "bad emphasis ~d" emphasis)
           (return-from parse-header nil))
@@ -368,7 +419,7 @@
                 (return-from find-first-sync nil))
               (incf count)
 
-              (when (= (logand hdr-u32 #xffe00000) #xffe00000)
+              (when (= (logand hdr-u32 #xffe00000) #xffe00000) ; magic number is potential sync frame header
                 (log-mpeg-frame "Potential sync bytes at ~:d: <~x>" pos hdr-u32)
                 (let ((hdr (make-instance 'frame :hdr-u32 hdr-u32 :pos pos)))
                   (if (load-frame hdr :instream in :read-payload t)
@@ -385,6 +436,7 @@
         nil))))
 
 (defmethod next-frame ((me frame) &key instream read-payload)
+  "Get next frame.  If READ-PAYLOAD is true, read in contents for frame, else, seek to next frame header."
   (fastest
     (log5:with-context "next-frame"
       (let ((nxt-frame (make-instance 'frame)))
@@ -402,6 +454,7 @@
 (defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
 
 (defun map-frames (in func &key (start-pos nil) (read-payload nil) (max nil))
+  "Loop through the MPEG audio frames in a file.  If *MAX-FRAMES-TO-READ* is set, return after reading that many frames."
   (fastest
     (log5:with-context "next-frame"
       (log-mpeg-frame "mapping frames, start pos ~:d" start-pos)
