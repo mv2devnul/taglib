@@ -3,7 +3,8 @@
 (in-package #:cl-user)
 
 (defpackage #:utils
-  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:has-extension #:redirect)
+  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:has-extension #:redirect
+           #:get-bitfield)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2
