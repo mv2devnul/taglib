@@ -4,12 +4,6 @@
 ;;; Parsing MPEG audio frames.  See http://www.datavoyage.com/mpgscript/mpeghdr.htm for format of a frame.
 (in-package #:mpeg)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconstant +optimize-fastest+ '(optimize (speed 3) (safety 0) (debug 0)))
-  (defmacro fastest (&body body)
-    `(locally (declare ,+optimize-fastest+)
-       ,@body)))
-
 (log5:defcategory cat-log-mpeg-frame)
 (defmacro log-mpeg-frame (&rest log-stuff) `(log5:log-for (cat-log-mpeg-frame) ,@log-stuff))
 

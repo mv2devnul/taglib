@@ -4,12 +4,12 @@
 
 (defpackage #:utils
   (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:has-extension #:redirect
-           #:get-bitfield)
+           #:it #:fastest #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword #:dump-data)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2
   (:export #:get-iso-639-2-language)
-  (:use #:common-lisp))
+  (:use #:common-lisp :utils))
 
 (defpackage #:audio-streams
   (:export #:octets #:make-octets *get-audio-info* #:audio-stream-condition

@@ -333,11 +333,6 @@ Loop through this container and construct constituent atoms"
    (avg-bit-rate :accessor avg-bit-rate)) ; 4 bytes
   (:documentation "XXX-partial definition for Elementary Stream DescriptorS"))
 
-(defmacro while (test &body body)
-  `(do ()
-       ((not ,test))
-     ,@body))
-
 ;;; 3 bytes extended descriptor type tag string = 3 * 8-bit hex value
 ;;; types are Start = 0x80 ; End = 0xFE
 ;;; then, one byte of length
@@ -580,11 +575,10 @@ call traverse atom (unless length of path == 1, in which case, we've found our m
 
 (defmethod tag-get-value (atoms node)
   "Helper function to extract text from ILST atom's data atom"
-  (let ((atom (traverse atoms
-                        (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+ node +itunes-ilst-data+))))
-    (if atom
-        (atom-value atom)
-        nil)))
+  (aif (traverse atoms
+                 (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+ node +itunes-ilst-data+))
+       (atom-value it)
+       nil))
 
 (defun mp4-show-raw-tag-atoms (mp4-file-stream)
   (map-mp4-atom (mp4-atom::traverse (mp4-atoms mp4-file-stream)
@@ -622,12 +616,12 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
   nil)
 
 (defclass audio-info ()
-  ((seconds         :accessor seconds :initform nil)
-   (channels        :accessor channels :initform nil)
+  ((seconds         :accessor seconds         :initform nil)
+   (channels        :accessor channels        :initform nil)
    (bits-per-sample :accessor bits-per-sample :initform nil)
-   (sample-rate     :accessor sample-rate :initform nil)
-   (max-bit-rate    :accessor max-bit-rate :initform nil)
-   (avg-bit-rate    :accessor avg-bit-rate :initform nil)))
+   (sample-rate     :accessor sample-rate     :initform nil)
+   (max-bit-rate    :accessor max-bit-rate    :initform nil)
+   (avg-bit-rate    :accessor avg-bit-rate    :initform nil)))
 
 (defmethod vpprint ((me audio-info) stream)
   (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me

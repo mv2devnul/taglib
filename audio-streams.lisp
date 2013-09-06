@@ -2,11 +2,6 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
 (in-package #:audio-streams)
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (defconstant +optimize-fastest+ '(optimize (speed 3) (safety 0) (debug 0)))
-  (defmacro fastest (&body body)
-    `(locally (declare ,+optimize-fastest+)
-       ,@body)))
 
 (log5:defcategory cat-log-stream)
 (defmacro log-stream (&rest log-stuff) `(log5:log-for (cat-log-stream) ,@log-stuff))

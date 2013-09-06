@@ -56,5 +56,33 @@ Example: (get-bitmask 31 11) -->> #xffe00000"
 
 (defmacro get-bitfield (int start width)
   "Extract WIDTH bits from INT starting at START
-Example: (get-bitfield #xFFFBB240 31 11) -->> #x7ff"
+Example: (get-bitfield #xFFFBB240 31 11) -->> #x7ff.
+The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE time."
   `(ash (logand ,int ,(utils::get-bitmask start width)) ,(- ( - start width -1))))
+
+;;;;;;;;;;;;;;;;;;;; convenience macros ;;;;;;;;;;;;;;;;;;;;
+(defmacro with-gensyms (syms &body body)
+  `(let ,(mapcar #'(lambda (s)
+                     `(,s (gensym)))
+                 syms)
+     ,@body))
+
+(defun make-keyword (name)
+  (intern (string name) :keyword))
+
+(defmacro while (test &body body)
+  `(do ()
+       ((not ,test))
+     ,@body))
+
+(defmacro aif (test-form then-form &optional else-form)
+  `(let ((it ,test-form))
+     (if it ,then-form ,else-form)))
+
+(defmacro awhen (test-form &body body)
+  `(aif ,test-form
+        (progn ,@body)))
+
+(defmacro fastest (&body body)
+  `(locally (declare (optimize (speed 3) (safety 0) (debug 0)))
+     ,@body))

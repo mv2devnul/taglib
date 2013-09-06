@@ -11,8 +11,7 @@ A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and au
 All avalailable via quicklisp
 
 * log5
-* alexandria
-* cl-fad
+* cl-fad (for taglib-tests.lisp only)
 
 # References
 

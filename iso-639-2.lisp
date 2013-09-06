@@ -494,7 +494,5 @@
 
 (defun get-iso-639-2-language (l)
   "Convert an ISO-639-2 language tag into a readable language."
-  (let* ((lang (getf *langs* (alexandria:make-keyword (string-upcase l)))))
+  (let* ((lang (getf *langs* (make-keyword (string-upcase l)))))
     (if lang lang "Bad ISO-639-2 language")))
-
-

@@ -9,7 +9,7 @@
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
   :license "Public Domain"
-  :depends-on (#:log5 #:alexandria)
+  :depends-on (#:log5)
   :components ((:file "packages")
                (:file "utils"         :depends-on ("packages"))
                (:file "audio-streams" :depends-on ("packages" "utils"))

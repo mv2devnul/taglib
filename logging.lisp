@@ -19,7 +19,7 @@
                                      id3-frame::cat-log-id3-frame))
 
 (defmacro with-logging ((&optional file &key (categories *logging-categories*)) &body body)
-  (alexandria:with-gensyms (output-stream)
+  (with-gensyms (output-stream)
     `(let (,output-stream)
        (unwind-protect
             (setf ,output-stream (if ,file
