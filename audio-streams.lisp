@@ -88,10 +88,10 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
 (declaim (inline read-n-bytes))
 
 (defmethod stream-read-u8  ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 1 :bits-per-byte bits-per-byte))
-(defmethod stream-read-u16 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 2 :bits-per-byte bits-per-byte :endian :little-endian))
-(defmethod stream-read-u24 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 3 :bits-per-byte bits-per-byte :endian :little-endian))
-(defmethod stream-read-u32 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 4 :bits-per-byte bits-per-byte :endian :little-endian))
-(defmethod stream-read-u64 ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 8 :bits-per-byte bits-per-byte :endian :little-endian))
+(defmethod stream-read-u16 ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 2 :bits-per-byte bits-per-byte :endian endian))
+(defmethod stream-read-u24 ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 3 :bits-per-byte bits-per-byte :endian endian))
+(defmethod stream-read-u32 ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 4 :bits-per-byte bits-per-byte :endian endian))
+(defmethod stream-read-u64 ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 8 :bits-per-byte bits-per-byte :endian endian))
 
 (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
   "Read in a sequence of octets at BITS-PER-BYTE.  If BITS-PER-BYTE == 8, then simply return
