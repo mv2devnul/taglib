@@ -63,14 +63,21 @@
            #:map-id3-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
-(defpackage #:mp3-tag
-  (:export #:show-tags #:get-id3v1-genre)
+;; (defpackage #:mp3-tag
+;;   (:export #:show-tags #:get-id3v1-genre)
+;;   (:use #:common-lisp #:audio-streams #:id3-frame #:utils))
+
+;; (defpackage #:mp4-tag
+;;   (:export #:show-tags #:album #:album-artist #:artist #:comment #:composer #:copyright #:created
+;;            #:encoder #:groups #:lyrics #:purd #:title #:tool #:writer)
+;;   (:use #:common-lisp #:audio-streams #:utils))
+
+(defpackage #:abstract-tag
+  (:export #:show-tags #:get-id3v1-genre
+           #:album #:album-artist #:artist #:comment #:composer #:copyright #:created
+           #:encoder #:groups #:lyrics #:purd #:title #:tool #:writer)
   (:use #:common-lisp #:audio-streams #:id3-frame #:utils))
 
-(defpackage #:mp4-tag
-  (:export #:show-tags #:album #:album-artist #:artist #:comment #:composer #:copyright #:created
-           #:encoder #:groups #:lyrics #:purd #:title #:tool #:writer)
-  (:use #:common-lisp #:audio-streams #:utils))
 
 (defpackage #:logging
   (:export #:with-logging)

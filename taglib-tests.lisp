@@ -39,8 +39,7 @@
 
 
 (defun do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
-                                                  (mp3-func #'mp3-tag:show-tags)
-                                                  (mp4-func #'mp4-tag:show-tags))
+                                                  (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (let ((mp3-count 0)
@@ -51,12 +50,12 @@
                                  (do-audio-file f :func (lambda (s)
                                                           (cond ((typep s 'mp3-file-stream)
                                                                  (incf mp3-count)
-                                                                 (when mp3-func
-                                                                   (funcall mp3-func s)))
+                                                                 (when func
+                                                                   (funcall func s)))
                                                                 ((typep s 'mp4-file-stream)
                                                                  (incf mp4-count)
-                                                                 (when mp4-func
-                                                                   (funcall mp4-func s)))
+                                                                 (when func
+                                                                   (funcall func s)))
                                                                 ((null s) (incf other-count)))))))
 
     (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
@@ -65,7 +64,7 @@
 (defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
   (let ((audio-streams:*get-audio-info* do-audio-processing))
-    (time (do-audio-dir dir :file-system-encoding file-system-encoding :mp3-func nil :mp4-func nil))))
+    (time (do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))
 
 ;;;;;;;;;;;;;;;;;;;; Experimental multi-thread code below ;;;;;;;;;;;;;;;;;;;;
 
@@ -79,8 +78,7 @@
   other-count)
 
 (defun mp-do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
-                                                     (mp3-func #'mp3-tag:show-tags)
-                                                     (mp4-func #'mp4-tag:show-tags))
+                                                     (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (let ((channel (make-instance 'chanl:unbounded-channel))
@@ -103,10 +101,10 @@
                      (do-audio-file f :func (lambda (s)
                                               (cond ((typep s 'mp3-file-stream)
                                                      (incf mp3-count)
-                                                     (when mp3-func (funcall mp3-func s)))
+                                                     (when func (funcall func s)))
                                                     ((typep s 'mp4-file-stream)
                                                      (incf mp4-count)
-                                                     (when mp4-func (funcall mp4-func s)))
+                                                     (when func (funcall func s)))
                                                     ((null s) (incf other-count))))))))))
 
       (cl-fad:walk-directory dir (lambda (f)
@@ -146,4 +144,4 @@
 (defun mp-time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
   (let ((audio-streams:*get-audio-info* do-audio-processing))
-    (time (mp-do-audio-dir dir :file-system-encoding file-system-encoding :mp3-func nil :mp4-func nil))))
+    (time (mp-do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))

@@ -69,7 +69,7 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
 (defmethod vpprint ((me v21-tag-header) stream)
   (with-slots (title artist album year comment track genre) me
     (format stream "title = <~a>, artist = <~a>, album = <~a>, year = <~a>, comment = <~a>, track = <~d>, genre = ~d (~a)"
-            title artist album year comment track genre (mp3-tag:get-id3v1-genre genre))))
+            title artist album year comment track genre (abstract-tag:get-id3v1-genre genre))))
 
 ;;; NB: no ":after" here
 (defmethod initialize-instance ((me v21-tag-header) &key instream)
