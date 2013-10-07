@@ -34,7 +34,7 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
 
   (log5:with-context "is-valid-mp3-file"
     (let ((id3)
-          (valid)
+          (valid nil)
           (version)
           (tag))
       (unwind-protect
@@ -52,7 +52,8 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
                                       (or (= 2 version) (= 3 version) (= 4 version)))
                                  (string= tag "TAG"))))
              (condition (c)
-               (declare (ignore c))))
+               (declare (ignore c))
+               (setf valid nil)))
         (stream-seek mp3-file 0 :start))
         valid)))
 
@@ -969,7 +970,6 @@ NB: 2.3 and 2.4 extended flags are different..."
                  (values t (nreverse frames)))))) ; reverse this so we have frames in "file order"
 
     (log5:with-context "find-id3-frames"
-
       (log-id3-frame "~a is a valid mp3 file" (stream-filename mp3-file))
 
       (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))

@@ -29,8 +29,8 @@
              (progn
                (setf foo (make-file-stream file))
                (when foo
-                 (parse-audio-file foo))    ; only call parse-audio if we got back a MP3/M4A
-               (funcall func foo))          ; call func even is foo is null so it can account for non MP3/M4A files
+                 (parse-audio-file foo))    ; only call parse-audio if we got back a known file type
+               (funcall func foo))          ; call func even is foo is null so it can account for unkown file types
            (condition (c)
              (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
       (when foo
@@ -43,6 +43,7 @@
   "Walk :DIR and FUNCALL specified function for each file (MP4/MP3) found."
   (set-pathname-encoding file-system-encoding)
   (let ((mp3-count 0)
+        (flac-count 0)
         (mp4-count 0)
         (other-count 0))
 
@@ -50,16 +51,17 @@
                                  (do-audio-file f :func (lambda (s)
                                                           (cond ((typep s 'mp3-file-stream)
                                                                  (incf mp3-count)
-                                                                 (when func
-                                                                   (funcall func s)))
+                                                                 (when func (funcall func s)))
+                                                                ((typep s 'flac-file-stream)
+                                                                 (incf flac-count)
+                                                                 (when func (funcall func s)))
                                                                 ((typep s 'mp4-file-stream)
                                                                  (incf mp4-count)
-                                                                 (when func
-                                                                   (funcall func s)))
+                                                                 (when func (funcall func s)))
                                                                 ((null s) (incf other-count)))))))
 
-    (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
-            mp3-count mp4-count other-count (+ mp3-count mp4-count other-count))))
+    (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACs ~:d Others, for a total of ~:d~%"
+            mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count))))
 
 (defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
@@ -74,6 +76,7 @@
 (defstruct chanl-results
   name
   mp3-count
+  flac-count
   mp4-count
   other-count)
 
@@ -84,14 +87,15 @@
   (let ((channel (make-instance 'chanl:unbounded-channel))
         (dead-channel (make-instance 'chanl:unbounded-channel))
         (mp3-count 0)
+        (flac-count 0)
         (mp4-count 0)
         (other-count 0))
     (labels ((thread-reader ()
                (declare (special *me*))
                (let ((f)
-                     (results (make-chanl-results :name *me* :mp3-count 0 :mp4-count 0 :other-count 0)))
+                     (results (make-chanl-results :name *me* :mp3-count 0 :flac-count 0 :mp4-count 0 :other-count 0)))
                  (loop
-                   (with-slots (name mp3-count mp4-count other-count) results
+                   (with-slots (name mp3-count mp4-count flac-count other-count) results
                      (setf f (chanl:recv channel))
                      (when (and (typep f 'integer)
                                 (= f *END-THREAD*))
@@ -101,6 +105,9 @@
                      (do-audio-file f :func (lambda (s)
                                               (cond ((typep s 'mp3-file-stream)
                                                      (incf mp3-count)
+                                                     (when func (funcall func s)))
+                                                    ((typep s 'flac-file-stream)
+                                                     (incf flac-count)
                                                      (when func (funcall func s)))
                                                     ((typep s 'mp4-file-stream)
                                                      (incf mp4-count)
@@ -123,23 +130,25 @@
           (loop
             (force-output *standard-output*)
             (setf results (chanl:recv dead-channel))
-            (format t "~4t~a died, ~:d MP3s, ~:d MP4s, ~:d Others~%"
+            (format t "~4t~a died, ~:d MP3s, ~:d MP4s, ~:d FLACs~:d Others~%"
                     (chanl-results-name results)
                     (chanl-results-mp3-count results)
                     (chanl-results-mp4-count results)
+                    (chanl-results-flac-count results)
                     (chanl-results-other-count results))
             (force-output *standard-output*)
 
             (incf mp3-count (chanl-results-mp3-count results))
             (incf mp4-count (chanl-results-mp4-count results))
+            (incf flac-count (chanl-results-flac-count results))
             (incf other-count (chanl-results-other-count results))
             (incf i)
             (when (= i *MAX-THREADS*)
               (return-from thread-reap *MAX-THREADS*)))))
 
       (format t "All threads done~%")
-      (format t "~&~:d MP3s, ~:d MP4s, ~:d Others, for a total of ~:d~%"
-              mp3-count mp4-count other-count (+ mp3-count mp4-count other-count)))))
+      (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACS, ~:d Others, for a total of ~:d~%"
+              mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count)))))
 
 (defun mp-time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."

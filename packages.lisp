@@ -13,9 +13,9 @@
 
 (defpackage #:audio-streams
   (:export #:octets #:make-octets *get-audio-info* #:audio-stream-condition
-           #:mp3-file-stream #:mp4-file-stream #:base-mem-stream
-           #:id3-header #:audio-info #:mp4-atoms
-           #:parse-mp3-file #:parse-mp4-file #:parse-audio-file
+           #:mp3-file-stream #:mp4-file-stream #:base-mem-stream #:flac-file-stream #:flac-tags
+           #:id3-header #:audio-info #:mp4-atoms #:flac-headers
+           #:parse-mp3-file #:parse-mp4-file #:parse-audio-file #:parse-flac-file #:flac-tags
            #:make-mem-stream #:make-file-stream #:stream-filename
            #:stream-read-u8 #:stream-read-u16 #:stream-read-u24 #:stream-read-u32 #:stream-read-u64 #:stream-read-octets
            #:stream-decode-iso-string #:stream-deocode-ucs-string #:stream-decode-ucs-be-string
@@ -27,6 +27,11 @@
            #:stream-read-string #:stream-read-sequence #:stream-size
            #:stream-seek #:stream-close)
   (:use #:common-lisp #:utils))
+
+(defpackage #:flac-frame
+  (:export #:flac-frame-condition #:flac-header #:vpprint #:is-valid-flac-file #:find-flac-frames
+           #:get-flac-audio-info #:flac-get-tag)
+  (:use #:common-lisp #:utils #:audio-streams))
 
 (defpackage #:mp4-atom
   (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse #:mp4-atom-condition

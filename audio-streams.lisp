@@ -127,6 +127,12 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
    (audio-info :accessor audio-info :initform nil :documentation "holds the bit-rate, etc info"))
   (:documentation "Stream for parsing MP4 audio files"))
 
+(defclass flac-file-stream (mem-stream)
+  ((flac-headers :accessor flac-headers :initform nil :documentation "holds all the flac headers in file")
+   (audio-info   :accessor audio-info   :initform nil :documentation "parsed audio info")
+   (flac-tags    :accessor flac-tags    :initform nil :documentation "parsed comment tags."))
+  (:documentation "Stream for parsing flac files"))
+
 (defun make-file-stream (filename)
   "Convenience function for creating a file stream. Detects file type and returns proper type stream."
   (let* ((new-stream (make-mmap-stream filename))
@@ -135,6 +141,8 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
     ;; detect file type and make RET-STREAM.  if we don't recognize stream, RET-STREAM will be NULL
     (cond ((mp4-atom:is-valid-m4-file new-stream)
            (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+          ((flac-frame:is-valid-flac-file new-stream)
+           (setf ret-stream (make-instance 'flac-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
           ((id3-frame:is-valid-mp3-file new-stream)
            (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream)))))
     (stream-close new-stream)
@@ -288,6 +296,14 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
           (setf (audio-info stream) (mp4-atom:get-mp4-audio-info stream))))
     (mp4-atom:mp4-atom-condition (c)
       (utils:warn-user "make-mp4-stream got condition: ~a" c))))
+
+(defmethod parse-audio-file ((stream flac-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
+  "Parse a flac file by reading it's headers and decoding them."
+  (declare (ignore get-audio-info)) ; audio info comes for "free" by parsing headers
+  (handler-case
+      (flac-frame:find-flac-frames stream)
+    (flac-frame:flac-frame-condition (c)
+      (utils:warn-user "make-flac-stream got condition: ~a" c))))
 
 (defmethod parse-audio-file ((stream mp3-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
   "Parse an MP3 file by reading it's FRAMES and decoding them."

@@ -13,6 +13,7 @@
                (:file "mpeg"          :depends-on ("packages" "audio-streams" "utils"))
                (:file "iso-639-2"     :depends-on ("packages" "utils"))
                (:file "id3-frame"     :depends-on ("packages" "utils"))
+			   (:file "flac-frame"    :depends-on ("packages" "utils"))
                (:file "abstract-tag"  :depends-on ("packages" "id3-frame" "audio-streams" "mp4-atom" "utils"))
 			   ;;(:file "mp3-tag"       :depends-on ("packages" "id3-frame" "audio-streams" "utils"))
                ;;(:file "mp4-tag"       :depends-on ("packages" "utils")))

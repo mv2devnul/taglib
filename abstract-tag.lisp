@@ -468,3 +468,42 @@
         (when track (format t "~4ttrack: ~a~%" track))
         (when writer (format t "~4twriter: ~a~%" writer))
         (when year (format t "~4tyear: ~a~%" year)))))
+
+;;;;;;;;;;;;;;;;;;;; FLAC ;;;;;;;;;;;;;;;;;;;;
+;;; Abstract TAG interface
+(defmacro get-flac-tag-info (stream name)
+  `(flac-frame:flac-get-tag (flac-tags ,stream) ,name))
+
+(defmethod album ((me flac-file-stream))         (get-flac-tag-info me "album"))
+(defmethod artist ((me flac-file-stream))        (get-flac-tag-info me "artist"))
+(defmethod album-artist ((me flac-file-stream))  (get-flac-tag-info me "performer"))
+(defmethod copyright ((me flac-file-stream))     (get-flac-tag-info me "copyright"))
+(defmethod year ((me flac-file-stream))          (get-flac-tag-info me "date"))
+(defmethod title ((me flac-file-stream))         (get-flac-tag-info me "title"))
+(defmethod genre ((me flac-file-stream))         (get-flac-tag-info me "genre"))
+(defmethod track ((me flac-file-stream))         (get-flac-tag-info me "tracknumber"))
+
+(defmethod show-tags ((me flac-file-stream) &key (raw nil))
+  "Show the tags for a FLAC-FILE. If RAW is non-nil ... XXX"
+  (format t "~a~%" (stream-filename me))
+  (if raw
+      (format t "not yet~%")
+      (let ((album (album me))
+            (album-artist (album-artist me))
+            (artist (artist me))
+            (copyright (copyright me))
+            (genre (genre me))
+            (title (title me))
+            (track (track me))
+            (year (year me)))
+
+        ;;(if (audio-info me)
+        ;;(mp4-atom:vpprint (audio-info me) t))
+        (when album (format t "~&~4talbum: ~a~%" album))
+        (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
+        (when artist (format t "~4tartist: ~a~%" artist))
+        (when copyright (format t "~4tcopyright: ~a~%" copyright))
+        (when genre (format t "~4tgenre: ~a~%" genre))
+        (when title (format t "~4ttitle: ~a~%" title))
+        (when track (format t "~4ttrack: ~a~%" track))
+        (when year (format t "~4tyear: ~a~%" year)))))
