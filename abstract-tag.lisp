@@ -497,8 +497,9 @@
             (track (track me))
             (year (year me)))
 
-        ;;(if (audio-info me)
-        ;;(mp4-atom:vpprint (audio-info me) t))
+        (if (audio-info me)
+            (flac-frame:vpprint (audio-info me) t))
+
         (when album (format t "~&~4talbum: ~a~%" album))
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
         (when artist (format t "~4tartist: ~a~%" artist))

@@ -8,8 +8,9 @@
 (in-package #:taglib-tests)
 
 ;;; some convenient songs to parse
-(defparameter *song-m4a* "Queen/Queen I/01 Keep Yourself Alive.m4a")
-(defparameter *song-mp3* "Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
+(defparameter *song-m4a*  "Queen/Queen I/01 Keep Yourself Alive.m4a")
+(defparameter *song-mp3*  "Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
+(defparameter *song-flac* "Frank Zappa/Baby Snakes/02. Baby Snakes.flac")
 
 ;;;
 ;;; Set the pathname (aka filename) encoding in CCL for appropriate platorm
@@ -37,10 +38,9 @@
         (stream-close foo)))))
 
 
-
 (defun do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
                                                   (func #'abstract-tag:show-tags))
-  "Walk :DIR and FUNCALL specified function for each file (MP4/MP3) found."
+  "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
   (let ((mp3-count 0)
         (flac-count 0)
@@ -60,7 +60,7 @@
                                                                  (when func (funcall func s)))
                                                                 ((null s) (incf other-count)))))))
 
-    (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACs ~:d Others, for a total of ~:d~%"
+    (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACs, ~:d Others, for a total of ~:d~%"
             mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count))))
 
 (defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
@@ -82,7 +82,7 @@
 
 (defun mp-do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
                                                      (func #'abstract-tag:show-tags))
-  "Walk :DIR and FUNCALL specified function for each file (MP4/MP3) found."
+  "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
   (let ((channel (make-instance 'chanl:unbounded-channel))
         (dead-channel (make-instance 'chanl:unbounded-channel))
@@ -130,7 +130,7 @@
           (loop
             (force-output *standard-output*)
             (setf results (chanl:recv dead-channel))
-            (format t "~4t~a died, ~:d MP3s, ~:d MP4s, ~:d FLACs~:d Others~%"
+            (format t "~4t~a died, ~:d MP3s, ~:d MP4s, ~:d FLACs, ~:d Others~%"
                     (chanl-results-name results)
                     (chanl-results-mp3-count results)
                     (chanl-results-mp4-count results)
