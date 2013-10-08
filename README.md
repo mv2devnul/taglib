@@ -2,7 +2,9 @@ Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
 # Introduction
 
-A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and audio information.
+A pure Lisp implementation for reading audio tags and audio information.
+
+Currently reads MP3/MP4/FLAC audio files.
 
 **Mostly complete.  Your mileage may vary. Most definitely, NOT portable.  Heavily dependent on Clozure CCL.**
 
@@ -11,7 +13,7 @@ A pure Lisp implementation for reading MPEG-4 audio and MPEG-3 audio tags and au
 All avalailable via quicklisp
 
 * log5
-* cl-fad (for taglib-tests.lisp only)
+* optima and optima.ppcre (for quick parsing of FLAC tags)
 
 # References
 
@@ -140,6 +142,7 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
 
 * __audio-streams.lisp:__ creates a STREAM-like interface to audio files and vectors, thus read/seek devolve into
   simple array-references.  For files, it uses CCL's MAP-FILE-TO-OCTET-VECTOR function to mmap the file.
+* __flac-frame.lisp:__ Parses FLAC files.
 * __id3-frame.lisp:__ Parses the ID3 frames in an MP3 file.
    For each frame type we are interested in, DEFCLASS a class with
    specfic naming convention: frame-xxx/frame-xxxx, where xxx is valid ID3V2.2 frame name
@@ -149,7 +152,7 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
    that reads in data to build class.
 	* __iso-639-2.lisp:__ Converts ISO-639-2 3-character languages into longer, more descriptive strings.
 	* __logging.lisp:__ Defines a logging system based on LOG5. Used to debug flow.  See above for how to use.
-	* __mp3-tag.lisp:__ The abstract interface for ID3 tags for MP3s. The abstract interface is simply one of the following:
+	* __abstract-tag.lisp:__ The abstract interface for ID3 tags for audio files. The abstract interface is simply one of the following:
 	* __album:__ Returns the name of the album.
 	* __album-artist:__ Returns the name of album artist.
 	* __artist:__ Returns recording artist.
@@ -180,7 +183,6 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
     * Pure container atoms: have no data and are only used to contain other atoms.  This is akin to a UNIX filesystem's directory notion.
     * Pure "data" atoms: has no nested atoms.  Only has a payload.
     * A mixture of both.
-* __mp4-tag.lisp:__ The abstract interface for MP4 audio files. See mp3-tag.lisp for the abstract interface description.
 * __mpeg.lisp:__ Parses the audio information (ie the non-ID3 info) in an MP3 file.
 * __packages.lisp:__ Holds all the package definitions.
 * __taglib-tests.asd:__ Contains build instructions for taglib-tests.lisp.  An ASDF file.
