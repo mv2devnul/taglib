@@ -2,6 +2,8 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:abstract-tag)
 
+(defparameter *raw-tags* nil)
+
 (defparameter *id3v1-genres*
   #("Blues"
     "Classic Rock"
@@ -341,7 +343,7 @@
       (return-from track (mk-lst (info (first frames))))))
   nil)
 
-(defmethod show-tags ((me mp3-file-stream) &key (raw nil))
+(defmethod show-tags ((me mp3-file-stream) &key (raw *raw-tags*))
   "Show the tags for an mp3-file.  If RAW is non-nil, dump all the frames; else, print out a subset."
   (if raw
       (format t "~a~%~a~%" (stream-filename me)
@@ -423,12 +425,12 @@
         track
         track-n)))
 
-(defmethod show-tags ((me mp4-file-stream) &key (raw nil))
+(defmethod show-tags ((me mp4-file-stream) &key (raw *raw-tags*))
   "Show the tags for an MP4-FILE. If RAW is non-nil, dump the DATA atoms; else show subset of DATA atoms"
   (format t "~a~%" (stream-filename me))
   (if raw
       (progn
-        (mp4-atom:mp4-show-raw-tag-atoms me)
+        (mp4-atom:mp4-show-raw-tag-atoms me t)
         (if (audio-info me)
           (mp4-atom:vpprint (audio-info me) t)))
       (let ((album (album me))
@@ -474,24 +476,33 @@
 (defmacro get-flac-tag-info (stream name)
   `(flac-frame:flac-get-tag (flac-tags ,stream) ,name))
 
-(defmethod album ((me flac-file-stream))         (get-flac-tag-info me "album"))
-(defmethod artist ((me flac-file-stream))        (get-flac-tag-info me "artist"))
-(defmethod album-artist ((me flac-file-stream))  (get-flac-tag-info me "performer"))
-(defmethod copyright ((me flac-file-stream))     (get-flac-tag-info me "copyright"))
-(defmethod year ((me flac-file-stream))          (get-flac-tag-info me "date"))
-(defmethod title ((me flac-file-stream))         (get-flac-tag-info me "title"))
-(defmethod genre ((me flac-file-stream))         (get-flac-tag-info me "genre"))
-(defmethod track ((me flac-file-stream))         (get-flac-tag-info me "tracknumber"))
+(defmethod album        ((me flac-file-stream)) (get-flac-tag-info me "album"))
+(defmethod artist       ((me flac-file-stream)) (get-flac-tag-info me "artist"))
+(defmethod album-artist ((me flac-file-stream)) (get-flac-tag-info me "album artist"))
+(defmethod comment      ((me flac-file-stream)) (get-flac-tag-info me "comment"))
+(defmethod composer     ((me flac-file-stream)) (get-flac-tag-info me "composer"))
+(defmethod copyright    ((me flac-file-stream)) (get-flac-tag-info me "copyright"))
+(defmethod disk         ((me flac-file-stream)) (get-flac-tag-info me "disk"))
+(defmethod encoder      ((me flac-file-stream)) (get-flac-tag-info me "encoder"))
+(defmethod year         ((me flac-file-stream)) (get-flac-tag-info me "date"))
+(defmethod title        ((me flac-file-stream)) (get-flac-tag-info me "title"))
+(defmethod genre        ((me flac-file-stream)) (get-flac-tag-info me "genre"))
+(defmethod track        ((me flac-file-stream)) (let ((tr (get-flac-tag-info me "tracknumber"))
+                                                      (tn (get-flac-tag-info me "tracktotal")))
+                                                  (if tn (list tr tn) tr)))
 
-(defmethod show-tags ((me flac-file-stream) &key (raw nil))
+(defmethod show-tags ((me flac-file-stream) &key (raw *raw-tags*))
   "Show the tags for a FLAC-FILE. If RAW is non-nil ... XXX"
   (format t "~a~%" (stream-filename me))
   (if raw
-      (format t "not yet~%")
+      (flac-frame:flac-show-raw-tag me t)
       (let ((album (album me))
             (album-artist (album-artist me))
             (artist (artist me))
             (copyright (copyright me))
+            (comment (comment me))
+            (composer (composer me))
+            (encoder (encoder me))
             (genre (genre me))
             (title (title me))
             (track (track me))
@@ -504,6 +515,9 @@
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
         (when artist (format t "~4tartist: ~a~%" artist))
         (when copyright (format t "~4tcopyright: ~a~%" copyright))
+        (when comment (format t "~4tcomment: ~a~%" comment))
+        (when composer (format t "~4tcomposer: ~a~%" composer))
+        (when encoder (format t "~4tencoder: ~a~%" encoder))
         (when genre (format t "~4tgenre: ~a~%" genre))
         (when title (format t "~4ttitle: ~a~%" title))
         (when track (format t "~4ttrack: ~a~%" track))

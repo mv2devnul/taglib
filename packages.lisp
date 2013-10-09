@@ -30,7 +30,7 @@
 
 (defpackage #:flac-frame
   (:export #:flac-frame-condition #:flac-header #:vpprint #:is-valid-flac-file #:find-flac-frames
-           #:get-flac-audio-info #:flac-get-tag #:get-flac-audio-info)
+           #:get-flac-audio-info #:flac-get-tag #:get-flac-audio-info #:flac-show-raw-tag)
   (:use #:common-lisp #:utils #:audio-streams))
 
 (defpackage #:mp4-atom

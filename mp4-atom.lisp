@@ -580,14 +580,13 @@ call traverse atom (unless length of path == 1, in which case, we've found our m
        (atom-value it)
        nil))
 
-(defun mp4-show-raw-tag-atoms (mp4-file-stream)
+(defun mp4-show-raw-tag-atoms (mp4-file-stream out-stream)
   (map-mp4-atom (mp4-atom::traverse (mp4-atoms mp4-file-stream)
                                     (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+))
                 :depth 0
                 :func (lambda (atom depth)
                         (when (= (atom-type atom) +itunes-ilst-data+)
-                          (format t "~vt~a~%" depth (vpprint atom nil))))))
-
+                          (format out-stream "~vt~a~%" depth (vpprint atom nil))))))
 
 (defun find-all (base name)
   "Starting as BASE atom, recursively search for all instances of NAME"
