@@ -203,7 +203,6 @@ Loop through this container and construct constituent atoms"
 
 ;;; the ILST atom decoders.  First, a lot of the decoders do the same thing, so we define a macros
 ;;; and use those for the relevants atoms.
-;;; XXX rewrite all this to be defclass based (specialize on parent-type)
 (defgeneric decode-ilst-data-atom (type atom atom-parent-type mp4-file))
 
 ;;; Quicktime spec says strings are stored as UTF-8...
@@ -331,7 +330,7 @@ Loop through this container and construct constituent atoms"
    (buf-size     :accessor buf-size)      ; 3 bytes
    (max-bit-rate :accessor max-bit-rate)  ; 4 bytes
    (avg-bit-rate :accessor avg-bit-rate)) ; 4 bytes
-  (:documentation "XXX-partial definition for Elementary Stream DescriptorS"))
+  (:documentation "XXX-partial definition for Elementary Stream Descriptors (ESDs)"))
 
 ;;; 3 bytes extended descriptor type tag string = 3 * 8-bit hex value
 ;;; types are Start = 0x80 ; End = 0xFE
@@ -348,25 +347,25 @@ Loop through this container and construct constituent atoms"
     len))
 
 ;;; one-byte descriptor tags
-(defconstant +MP4-ODescrTag+               #x01)
-(defconstant +MP4-IODescrTag+              #x02)
-(defconstant +MP4-ESDescrTag+              #x03)
-(defconstant +MP4-DecConfigDescrTag+       #x04)
-(defconstant +MP4-DecSpecificDescrTag+     #x05)
-(defconstant +MP4-SLConfigDescrTag+        #x06)
-(defconstant +MP4-ContentIdDescrTag+       #x07)
-(defconstant +MP4-SupplContentIdDescrTag+  #x08)
-(defconstant +MP4-IPIPtrDescrTag+          #x09)
-(defconstant +MP4-IPMPPtrDescrTag+         #x0A)
-(defconstant +MP4-IPMPDescrTag+            #x0B)
-(defconstant +MP4-RegistrationDescrTag+    #x0D)
-(defconstant +MP4-ESIDIncDescrTag+         #x0E)
-(defconstant +MP4-ESIDRefDescrTag+         #x0F)
-(defconstant +MP4-FileIODescrTag+          #x10)
-(defconstant +MP4-FileODescrTag+           #x11)
-(defconstant +MP4-ExtProfileLevelDescrTag+ #x13)
-(defconstant +MP4-ExtDescrTagsStart+       #x80)
-(defconstant +MP4-ExtDescrTagsEnd+         #xFE)
+(defconstant +mp4-odescrtag+               #x01)
+(defconstant +mp4-iodescrtag+              #x02)
+(defconstant +mp4-esdescrtag+              #x03)
+(defconstant +mp4-decconfigdescrtag+       #x04)
+(defconstant +mp4-decspecificdescrtag+     #x05)
+(defconstant +mp4-slconfigdescrtag+        #x06)
+(defconstant +mp4-contentiddescrtag+       #x07)
+(defconstant +mp4-supplcontentiddescrtag+  #x08)
+(defconstant +mp4-ipiptrdescrtag+          #x09)
+(defconstant +mp4-ipmpptrdescrtag+         #x0a)
+(defconstant +mp4-ipmpdescrtag+            #x0b)
+(defconstant +mp4-registrationdescrtag+    #x0d)
+(defconstant +mp4-esidincdescrtag+         #x0e)
+(defconstant +mp4-esidrefdescrtag+         #x0f)
+(defconstant +mp4-fileiodescrtag+          #x10)
+(defconstant +mp4-fileodescrtag+           #x11)
+(defconstant +mp4-extprofileleveldescrtag+ #x13)
+(defconstant +mp4-extdescrtagsstart+       #x80)
+(defconstant +mp4-extdescrtagsend+         #xfe)
 
 (defmethod initialize-instance :after ((me atom-esds) &key (mp4-file nil) &allow-other-keys)
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
@@ -516,7 +515,7 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     valid))
 
 (defmethod find-mp4-atoms ((mp4-file mp4-file-stream))
-  "Given a valid MP4 file mp4-file, look for the 'right' atoms and return them."
+  "Given a valid MP4 file MP4-FILE, look for the 'right' atoms and return them."
   (log5:with-context "find-mp4-atoms"
 
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
@@ -539,7 +538,7 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
       (map-mp4-atom a :func func :depth depth))))
 
 (defmethod map-mp4-atom ((me mp4-atom) &key (func nil) (depth nil))
-  "traverse all atoms under a given atom"
+  "Traverse all atoms under a given atom"
   (log5:with-context "map-mp4-atom(single)"
     (labels ((_indented-atom (atom depth)
                (format t "~vt~a~%"  (if (null depth) 0 depth) (vpprint atom nil))))
@@ -620,7 +619,8 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
    (bits-per-sample :accessor bits-per-sample :initform nil)
    (sample-rate     :accessor sample-rate     :initform nil)
    (max-bit-rate    :accessor max-bit-rate    :initform nil)
-   (avg-bit-rate    :accessor avg-bit-rate    :initform nil)))
+   (avg-bit-rate    :accessor avg-bit-rate    :initform nil))
+  (:documentation "Holds extracted audio information about an MP4 file."))
 
 (defmethod vpprint ((me audio-info) stream)
   (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me
@@ -634,7 +634,7 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
             (if seconds (round (mod seconds 60)) 0))))
 
 (defun get-mp4-audio-info (mp4-file)
-  "MP4a audio info is held in under the trak.mdia.mdhd/trak.mdia.minf.stbl/trak.mdia.minf.stbl.mp4a atoms."
+  "MP4A audio info is held in under the trak.mdia.mdhd/trak.mdia.minf.stbl/trak.mdia.minf.stbl.mp4a atoms."
   (let ((info (make-instance 'audio-info)))
     (multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
       (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) info

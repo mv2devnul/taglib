@@ -5,154 +5,29 @@
 (defparameter *raw-tags* nil)
 
 (defparameter *id3v1-genres*
-  #("Blues"
-    "Classic Rock"
-    "Country"
-    "Dance"
-    "Disco"
-    "Funk"
-    "Grunge"
-    "Hip-Hop"
-    "Jazz"
-    "Metal"
-    "New Age"
-    "Oldies"
-    "Other"
-    "Pop"
-    "R&B"
-    "Rap"
-    "Reggae"
-    "Rock"
-    "Techno"
-    "Industrial"
-    "Alternative"
-    "Ska"
-    "Death Metal"
-    "Pranks"
-    "Soundtrack"
-    "Euro-Techno"
-    "Ambient"
-    "Trip-Hop"
-    "Vocal"
-    "Jazz+Funk"
-    "Fusion"
-    "Trance"
-    "Classical"
-    "Instrumental"
-    "Acid"
-    "House"
-    "Game"
-    "Sound Clip"
-    "Gospel"
-    "Noise"
-    "Alternative Rock"
-    "Bass"
-    "Soul"
-    "Punk"
-    "Space"
-    "Meditative"
-    "Instrumental Pop"
-    "Instrumental Rock"
-    "Ethnic"
-    "Gothic"
-    "Darkwave"
-    "Techno-Industrial"
-    "Electronic"
-    "Pop-Folk"
-    "Eurodance"
-    "Dream"
-    "Southern Rock"
-    "Comedy"
-    "Cult"
-    "Gangsta"
-    "Top 40"
-    "Christian Rap"
-    "Pop/Funk"
-    "Jungle"
-    "Native American"
-    "Cabaret"
-    "New Wave"
-    "Psychedelic"
-    "Rave"
-    "Showtunes"
-    "Trailer"
-    "Lo-Fi"
-    "Tribal"
-    "Acid Punk"
-    "Acid Jazz"
-    "Polka"
-    "Retro"
-    "Musical"
-    "Rock & Roll"
-    "Hard Rock"
-    "Folk"
-    "Folk/Rock"
-    "National Folk"
-    "Swing"
-    "Fusion"
-    "Bebob"
-    "Latin"
-    "Revival"
-    "Celtic"
-    "Bluegrass"
-    "Avantgarde"
-    "Gothic Rock"
-    "Progressive Rock"
-    "Psychedelic Rock"
-    "Symphonic Rock"
-    "Slow Rock"
-    "Big Band"
-    "Chorus"
-    "Easy Listening"
-    "Acoustic"
-    "Humour"
-    "Speech"
-    "Chanson"
-    "Opera"
-    "Chamber Music"
-    "Sonata"
-    "Symphony"
-    "Booty Bass"
-    "Primus"
-    "Porn Groove"
-    "Satire"
-    "Slow Jam"
-    "Club"
-    "Tango"
-    "Samba"
-    "Folklore"
-    "Ballad"
-    "Power Ballad"
-    "Rhythmic Soul"
-    "Freestyle"
-    "Duet"
-    "Punk Rock"
-    "Drum Solo"
-    "A Cappella"
-    "Euro-House"
-    "Dance Hall"
-    "Goa"
-    "Drum & Bass"
-    "Club-House"
-    "Hardcore"
-    "Terror"
-    "Indie"
-    "BritPop"
-    "Negerpunk"
-    "Polsk Punk"
-    "Beat"
-    "Christian Gangsta Rap"
-    "Heavy Metal"
-    "Black Metal"
-    "Crossover"
-    "Contemporary Christian"
-    "Christian Rock"
-    "Merengue"
-    "Salsa"
-    "Thrash Metal"
-    "Anime"
-    "Jpop"
-    "Synthpop"))
+  #("Blues" "Classic Rock" "Country" "Dance" "Disco" "Funk" "Grunge"
+    "Hip-Hop" "Jazz" "Metal" "New Age" "Oldies" "Other" "Pop" "R&B" "Rap"
+    "Reggae" "Rock" "Techno" "Industrial" "Alternative" "Ska" "Death Metal"
+    "Pranks" "Soundtrack" "Euro-Techno" "Ambient" "Trip-Hop" "Vocal"
+    "Jazz+Funk" "Fusion" "Trance" "Classical" "Instrumental" "Acid" "House"
+    "Game" "Sound Clip" "Gospel" "Noise" "Alternative Rock" "Bass" "Soul"
+    "Punk" "Space" "Meditative" "Instrumental Pop" "Instrumental Rock" "Ethnic"
+    "Gothic" "Darkwave" "Techno-Industrial" "Electronic" "Pop-Folk" "Eurodance"
+    "Dream" "Southern Rock" "Comedy" "Cult" "Gangsta" "Top 40" "Christian Rap"
+    "Pop/Funk" "Jungle" "Native American" "Cabaret" "New Wave" "Psychedelic"
+    "Rave" "Showtunes" "Trailer" "Lo-Fi" "Tribal" "Acid Punk" "Acid Jazz"
+    "Polka" "Retro" "Musical" "Rock & Roll" "Hard Rock" "Folk" "Folk/Rock"
+    "National Folk" "Swing" "Fusion" "Bebob" "Latin" "Revival" "Celtic"
+    "Bluegrass" "Avantgarde" "Gothic Rock" "Progressive Rock" "Psychedelic Rock"
+    "Symphonic Rock" "Slow Rock" "Big Band" "Chorus" "Easy Listening"
+    "Acoustic" "Humour" "Speech" "Chanson" "Opera" "Chamber Music" "Sonata"
+    "Symphony" "Booty Bass" "Primus" "Porn Groove" "Satire" "Slow Jam" "Club"
+    "Tango" "Samba" "Folklore" "Ballad" "Power Ballad" "Rhythmic Soul"
+    "Freestyle" "Duet" "Punk Rock" "Drum Solo" "A Cappella" "Euro-House" "Dance Hall"
+    "Goa" "Drum & Bass" "Club-House" "Hardcore" "Terror" "Indie"
+    "BritPop" "Negerpunk" "Polsk Punk" "Beat" "Christian Gangsta Rap" "Heavy Metal"
+    "Black Metal" "Crossover" "Contemporary Christian" "Christian Rock"
+    "Merengue" "Salsa" "Thrash Metal" "Anime" "Jpop" "Synthpop"))
 
 (defun find-genre (name)
   "For debug purpose only: test function to return index of genre, given a name. ignores case and returns first complete match"
@@ -171,7 +46,6 @@
         (aref *id3v1-genres* n)))
 
 ;;;;;;;;;;;;;;;;;;;; MP3 ;;;;;;;;;;;;;;;;;;;;
-
 (defun get-frames (stream names)
   "Given a MP3-STREAM, search its frames for NAMES.  Return file-order list of matching frames"
   (let (found-frames)
@@ -390,26 +264,23 @@
         (when writer (format t "~4twriter: ~a~%" writer))
         (when year (format t "~4tyear: ~a~%" year)))))
 
-
-
 ;;;;;;;;;;;;;;;;;;;; MP4 ;;;;;;;;;;;;;;;;;;;;
-;;; Abstract TAG interface
-(defmethod album ((me mp4-file-stream))          (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-album+))
-(defmethod album-artist ((me mp4-file-stream))   (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-album-artist+))
-(defmethod artist ((me mp4-file-stream))         (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-artist+))
-(defmethod comment ((me mp4-file-stream))        (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-comment+))
-(defmethod composer ((me mp4-file-stream))       (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-composer+))
-(defmethod copyright ((me mp4-file-stream))      (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-copyright+))
-(defmethod year ((me mp4-file-stream))           (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-year+))
-(defmethod encoder ((me mp4-file-stream))        (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-encoder+))
-(defmethod groups ((me mp4-file-stream))         (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-groups+))
-(defmethod lyrics ((me mp4-file-stream))         (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-lyrics+))
-(defmethod title ((me mp4-file-stream))          (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-title+))
-(defmethod writer ((me mp4-file-stream))         (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-writer+))
-(defmethod compilation ((me mp4-file-stream))    (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-compilation+))
-(defmethod disk  ((me mp4-file-stream))          (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-disk+))
-(defmethod tempo ((me mp4-file-stream))          (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-tempo+))
-(defmethod genre ((me mp4-file-stream))
+(defmethod album        ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-album+))
+(defmethod album-artist ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-album-artist+))
+(defmethod artist       ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-artist+))
+(defmethod comment      ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-comment+))
+(defmethod composer     ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-composer+))
+(defmethod copyright    ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-copyright+))
+(defmethod year         ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-year+))
+(defmethod encoder      ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-encoder+))
+(defmethod groups       ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-groups+))
+(defmethod lyrics       ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-lyrics+))
+(defmethod title        ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-title+))
+(defmethod writer       ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-writer+))
+(defmethod compilation  ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-compilation+))
+(defmethod disk         ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-disk+))
+(defmethod tempo        ((me mp4-file-stream)) (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-tempo+))
+(defmethod genre        ((me mp4-file-stream))
   (let ((genre   (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-genre+))
         (genre-x (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-genre-x+)))
     (assert (not (and genre genre-x)))
@@ -472,7 +343,6 @@
         (when year (format t "~4tyear: ~a~%" year)))))
 
 ;;;;;;;;;;;;;;;;;;;; FLAC ;;;;;;;;;;;;;;;;;;;;
-;;; Abstract TAG interface
 (defmacro get-flac-tag-info (stream name)
   `(flac-frame:flac-get-tag (flac-tags ,stream) ,name))
 
@@ -492,7 +362,7 @@
                                                   (if tn (list tr tn) tr)))
 
 (defmethod show-tags ((me flac-file-stream) &key (raw *raw-tags*))
-  "Show the tags for a FLAC-FILE. If RAW is non-nil ... XXX"
+  "Show the tags for a FLAC-FILE."
   (format t "~a~%" (stream-filename me))
   (if raw
       (flac-frame:flac-show-raw-tag me t)

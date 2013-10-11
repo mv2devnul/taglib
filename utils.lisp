@@ -30,19 +30,6 @@
   (with-open-file (f file-name :direction :output :if-exists :supersede :element-type '(unsigned-byte 8))
     (write-sequence data f)))
 
-(defmethod has-extension ((n string) ext)
-  "Probably should use CL's PATHNAME methods, but simply looking at the .XXX portion of a filename
-to see if it matches. This is the string version that makes a PATHNAME and calls the PATHNAME version."
-  (has-extension (parse-namestring n) ext))
-
-(defmethod has-extension ((p pathname) ext)
-  "Probably should use CL's PATHNAME methods , but simply looking at the .XXX portion of a filename
-to see if it matches. PATHNAME version."
-  (let ((e (pathname-type p)))
-    (if e
-      (string= (string-downcase e) (string-downcase ext))
-      nil)))
-
 (defmacro redirect (filename &rest body)
   "Temporarily set *STANDARD-OUTPUT* to FILENAME and execute BODY."
   `(let ((*standard-output* (open ,filename :direction :output :if-does-not-exist :create :if-exists :supersede)))

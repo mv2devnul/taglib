@@ -151,6 +151,13 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; We need to be able to decode many types of string formats, so we borrow and extend
+;;; the constants embedded in the ID3 "spec."
+(defconstant +enc-iso-8859+ 0 "normal 8-bit Latin encoding")
+(defconstant +enc-ucs+      1 "universal character set, 16-bit, uses initial Byte Order Mark (BOM) to determine endianess")
+(defconstant +enc-ucs-be+   2 "universal character set, 16-bit, big-endian, no BOM")
+(defconstant +enc-utf-8+    3 "UCS transformation format, 8-bit as neeed")
+
 ;;; Decode octets as an iso-8859-1 string (encoding == 0)
 (defun stream-decode-iso-string (octets &key (start 0) (end nil))
   (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1))
@@ -202,31 +209,27 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 
 (defmethod stream-read-iso-string-with-len ((instream mem-stream) len)
   "Read an iso-8859-1 string of length 'len' (encoding = 0)"
-  (let ((octets (stream-read-sequence instream len)))
-    (stream-decode-iso-string octets)))
+  (stream-decode-iso-string (stream-read-sequence instream len)))
 
 (defmethod stream-read-ucs-string-with-len ((instream mem-stream) len)
   "Read an ucs-2 string of length 'len' (encoding = 1)"
-  (let ((octets (stream-read-sequence instream len)))
-      (stream-decode-ucs-string octets)))
+  (stream-decode-ucs-string (stream-read-sequence instream len)))
 
 (defmethod stream-read-ucs-be-string-with-len ((instream mem-stream) len)
   "Read an ucs-2-be string of length 'len' (encoding = 2)"
-  (let ((octets (stream-read-sequence instream len)))
-    (stream-decode-ucs-be-string octets)))
+  (stream-decode-ucs-be-string (stream-read-sequence instream len)))
 
 (defmethod stream-read-utf-8-string-with-len ((instream mem-stream) len)
   "Read an utf-8 string of length 'len' (encoding = 3)"
-  (let ((octets (stream-read-sequence instream len)))
-    (stream-decode-utf-8-string octets)))
+  (stream-decode-utf-8-string  (stream-read-sequence instream len)))
 
 (defmethod stream-read-string-with-len ((instream mem-stream) len &key (encoding 0))
   "Read in a string of a given encoding of length 'len'"
   (ecase encoding
-    (0 (stream-read-iso-string-with-len instream len))
-    (1 (stream-read-ucs-string-with-len instream len))
-    (2 (stream-read-ucs-be-string-with-len instream len))
-    (3 (stream-read-utf-8-string-with-len instream len))))
+    (+enc-iso-8859+ (stream-read-iso-string-with-len instream len))
+    (+enc-ucs+      (stream-read-ucs-string-with-len instream len))
+    (+enc-ucs-be+   (stream-read-ucs-be-string-with-len instream len))
+    (+enc-utf-8+    (stream-read-utf-8-string-with-len instream len))))
 
 (defmethod stream-read-iso-string ((instream mem-stream))
   "Read in a null terminated iso-8859-1 string"
@@ -280,10 +283,10 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 (defmethod stream-read-string ((instream mem-stream) &key (encoding 0))
   "Read in a null terminated string of a given encoding."
   (ecase encoding
-    (0 (stream-read-iso-string    instream))
-    (1 (stream-read-ucs-string    instream))
-    (2 (stream-read-ucs-be-string instream))
-    (3 (stream-read-utf-8-string  instream))))
+    (+enc-iso-8859+ (stream-read-iso-string    instream))
+    (+enc-ucs+      (stream-read-ucs-string    instream))
+    (+enc-ucs-be+   (stream-read-ucs-be-string instream))
+    (+enc-utf-8+    (stream-read-utf-8-string  instream))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Files ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar *get-audio-info* t "controls whether the parsing functions also parse audio info like bit-rate, etc")

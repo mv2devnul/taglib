@@ -3,7 +3,7 @@
 (in-package #:cl-user)
 
 (defpackage #:utils
-  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:has-extension #:redirect
+  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:redirect
            #:it #:fastest #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword #:dump-data)
   (:use #:common-lisp))
 
