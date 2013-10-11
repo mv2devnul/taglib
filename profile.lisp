@@ -7,8 +7,10 @@
 ;;; running programs, type "profile-report" to get a profile listing.
 ;;; "profile-reset" clears counters
 ;;; "profil-off" turns of profiling
+(in-package #:cl-user)
+
 (defun profile-on ()
-  (dolist (p '("MP4-ATOM" "MPEG" "AUDIO-STREAMS" "ID3-FRAME" "UTILS" "LOGGING" "ISO-639-2" "MP3-TAG" "MP4-TAG" "FLAC-FRAME"))
+  (dolist (p '("MP4-ATOM" "MPEG" "AUDIO-STREAMS" "ID3-FRAME" "UTILS" "LOGGING" "ISO-639-2" "ABSTRACT-TAG" "FLAC-FRAME"))
     (let ((pkg (find-package p)))
       (mon:monitor-all pkg)
       (format t "Package ~a, ~:d~%" pkg (length mon:*monitored-functions*)))))
