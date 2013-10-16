@@ -51,14 +51,6 @@
   (string-upcase (concatenate 'string "atom-" (as-string name))))
 (utils:memoize 'mk-atom-class-name)
 
-;; (defmethod as-string ((atom-type integer))
-;;   "Given an integer representing an atom type, return the string form"
-;;   (with-output-to-string (s nil)
-;;     (write-char (code-char (ldb (byte 8 24) atom-type)) s)
-;;     (write-char (code-char (ldb (byte 8 16) atom-type)) s)
-;;     (write-char (code-char (ldb (byte 8 8)  atom-type)) s)
-;;     (write-char (code-char (ldb (byte 8 0)  atom-type)) s)))
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun as-octet (c)
     "Used below so that we can create atom 'types' from char/ints"

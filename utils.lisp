@@ -78,14 +78,17 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   `(aif ,test-form
         (progn ,@body)))
 
+;;;(defvar *hashes* nil)
 (defun mk-memoize (func)
   "Takes a normal function object and returns a memoized one"
-  (let* (;(count 0)
+  (let* ((count 0)
          (hash-table (make-hash-table :test 'equal)))
+    ;;(push hash-table *hashes*)
+    ;;(format t "Hashes now: ~a~%" *hashes*)
     #'(lambda (arg)
         ;;(format t "Looking for <~a>~%" arg)
         (multiple-value-bind (value foundp) (gethash arg hash-table)
-          ;;(incf count)
+        (incf count)
 
           ;; (when (> count 20)
           ;;   (break "Breaking as requested")
