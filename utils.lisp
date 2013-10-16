@@ -2,14 +2,19 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:utils)
 
-(defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn user")
+#+CCL (eval-when (:compile-toplevel :load-toplevel :exec)
+        (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
-;;; COMPLETELY UNPORTABLE!!!
+;; #+SBCL (eval-when (:compile-toplevel :load-toplevel :execute)
+;;          (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
+
+(defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
+
 (defun warn-user (format-string &rest args)
-  "print a warning error to *ERROR-OUTPUT* and continue"
+  "Print a warning error to *ERROR-OUTPUT* and continue"
   (when *break-on-warn-user* (break "Breaking in WARN-USER"))
   (format *error-output* "~&********************************************************************************~%")
-  (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
+  #+CCL (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
   (apply #'format *error-output* format-string args)
   (format *error-output* "~&**********************************************************************************~%"))
 
@@ -17,6 +22,7 @@
 
 (defun printable-array (array &optional (max-len *max-raw-bytes-print-len*))
   "Given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
+  (declare #.utils:*standard-optimize-settings*)
   (let* ((len (length array))
          (print-len (min len max-len))
          (printable-array (make-array print-len :displaced-to array)))
@@ -24,6 +30,7 @@
 
 (defun upto-null (string)
   "Trim STRING to end at first NULL found"
+  (declare #.utils:*standard-optimize-settings*)
   (subseq string 0 (position #\Null string)))
 
 (defun dump-data (file-name data)
@@ -39,6 +46,7 @@
 (defun get-bitmask(start width)
   "Create a bit mask that begins at bit START (31 is MSB) and is WIDTH bits wide.
 Example: (get-bitmask 31 11) -->> #xffe00000"
+  (declare #.utils:*standard-optimize-settings*)
   (ash (- (ash 1 width) 1) (- (1+ start) width)))
 
 (defmacro get-bitfield (int start width)
@@ -70,6 +78,27 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   `(aif ,test-form
         (progn ,@body)))
 
-(defmacro fastest (&body body)
-  `(locally (declare (optimize (speed 3) (safety 0) (debug 0)))
-     ,@body))
+(defun mk-memoize (func)
+  "Takes a normal function object and returns a memoized one"
+  (let* (;(count 0)
+         (hash-table (make-hash-table :test 'equal)))
+    #'(lambda (arg)
+        ;;(format t "Looking for <~a>~%" arg)
+        (multiple-value-bind (value foundp) (gethash arg hash-table)
+          ;;(incf count)
+
+          ;; (when (> count 20)
+          ;;   (break "Breaking as requested")
+          ;;   (setf count 0))
+
+          (if foundp
+              (progn
+                ;;(format t "Already seen <~a>~%" arg)
+                value)
+              (progn
+                ;;(format t "First time seen <~a>~%" arg)
+                (setf (gethash arg hash-table) (funcall func arg))))))))
+
+(defmacro memoize (func-name)
+  "Memoize function associated with Function-Name. Simplified version"
+  `(setf (symbol-function ,func-name) (utils::mk-memoize (symbol-function ,func-name))))

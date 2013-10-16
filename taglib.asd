@@ -8,6 +8,7 @@
   :license "Public Domain"
   :depends-on (#:log5 #:optima #:optima.ppcre)
   :components ((:file "packages")
+			   (:file "profile"       :depends-on ("packages"))
                (:file "utils"         :depends-on ("packages"))
                (:file "audio-streams" :depends-on ("packages" "utils"))
                (:file "mpeg"          :depends-on ("packages" "audio-streams" "utils"))

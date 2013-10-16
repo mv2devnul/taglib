@@ -3,8 +3,12 @@
 (in-package #:cl-user)
 
 (defpackage #:utils
-  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:redirect
-           #:it #:fastest #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword #:dump-data)
+  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null #:redirect #:memoize
+           #:it #:*standard-optimize-settings* #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword #:dump-data)
+  (:use #:common-lisp))
+
+(defpackage #:profile
+  (:export #:on #:off #:reset #:report)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2

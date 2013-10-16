@@ -40,19 +40,25 @@
   "Stream initializer. If STREAM-FILENAME is set, MMAP a the file. Else, we assume VECT was set."
   (with-mem-stream-slots (stream)
     (when stream-filename
-      (setf vect (ccl:map-file-to-octet-vector stream-filename)))
+      #+CCL (setf vect (ccl:map-file-to-octet-vector stream-filename))
+      #-CCL (error "Not Yet!")
+      )
     (setf stream-size (length vect))))
 
 (defmethod stream-close ((stream mem-stream))
   "Close a stream, making the underlying object (file or vector) inaccessible."
+  (declare #.utils:*standard-optimize-settings*)
   (with-mem-stream-slots (stream)
     (when stream-filename
-      (ccl:unmap-octet-vector vect))
+      #+CCL (ccl:unmap-octet-vector vect)
+      #-CCL (error "Not Yet")
+      )
     (setf vect nil)))
 
 (defmethod stream-seek ((stream mem-stream) &optional (offset 0) (from :current))
   "Set INDEX to requested value.  No error checking done here, but subsequent reads will fail if INDEX is out-of-bounds.
 As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns the current read-offset in stream."
+  (declare #.utils:*standard-optimize-settings*)
   (with-mem-stream-slots (stream)
     (ecase from
       (:start                  ; INDEX set to OFFSET from start of stream
@@ -66,25 +72,25 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
 
 (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8) (endian :little-endian))
   "Returns a FIXNUM constructed by reading N-BYTES.  BITS-PER-BYTE contols how many bits should be used from each read byte."
-  (fastest
-    (with-mem-stream-slots (stream)
-      (declare (integer index n-bytes stream-size))
-      (when (<= (+ index n-bytes) stream-size)
-        (ecase endian
-          (:little-endian
-           (loop with value = 0
-                 for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
-                   (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
-                   (incf index)
-                 finally (return-from read-n-bytes value)))
-          (:big-endian
-           (loop with value = 0
-                 for low-bit upfrom 0 to (* bits-per-byte (1- n-bytes)) by bits-per-byte do
-                   (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
-                   (incf index)
-                 finally (return-from read-n-bytes value))))))
-    nil))
+  (declare #.utils:*standard-optimize-settings*)
+  (with-mem-stream-slots (stream)
+    (when (<= (+ index n-bytes) stream-size)
+      (ecase endian
+        (:little-endian
+         (loop with value = 0
+               for low-bit downfrom (* bits-per-byte (1- n-bytes)) to 0 by bits-per-byte do
+                 (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
+                 (incf index)
+               finally (return-from read-n-bytes value)))
+        (:big-endian
+         (loop with value = 0
+               for low-bit upfrom 0 to (* bits-per-byte (1- n-bytes)) by bits-per-byte do
+                 (setf (ldb (byte bits-per-byte low-bit) value) (aref vect index))
+                 (incf index)
+               finally (return-from read-n-bytes value))))))
+    nil)
 
+;;; XXX Not sure this does anything...
 (declaim (inline read-n-bytes))
 
 (defmethod stream-read-u8   ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 1 :bits-per-byte bits-per-byte))
@@ -97,8 +103,8 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
 (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
   "Read in a sequence of octets at BITS-PER-BYTE.  If BITS-PER-BYTE == 8, then simply return
 a displaced array from STREAMs underlying vector.  If it is == 7, then we have to create a new vector and read into that."
-  (fastest
-    (with-mem-stream-slots (stream)
+  (declare #.utils:*standard-optimize-settings*)
+  (with-mem-stream-slots (stream)
       (when (> (+ index size) stream-size)
         (setf size (- stream-size index)))
       (ecase bits-per-byte
@@ -108,15 +114,18 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
         (7
          (let* ((last-byte-was-FF nil)
                 (byte nil)
-                (octets (ccl:with-output-to-vector (out)
-                          (dotimes (i size)
-                            (setf byte (stream-read-u8 stream))
-                            (if last-byte-was-FF
-                                (if (not (zerop byte))
-                                    (write-byte byte out))
-                                (write-byte byte out))
-                            (setf last-byte-was-FF (= byte #xFF))))))
-           (values octets size)))))))
+                (octets
+                  #-CCL (error "Not yet")
+                  #+CCL  (ccl:with-output-to-vector (out)
+                           (dotimes (i size)
+                             (setf byte (stream-read-u8 stream))
+                             (if last-byte-was-FF
+                                 (if (not (zerop byte))
+                                     (write-byte byte out))
+                                 (write-byte byte out))
+                             (setf last-byte-was-FF (= byte #xFF))))
+                  ))
+           (values octets size))))))
 
 (defclass mp3-file-stream (mem-stream)
   ((id3-header :accessor id3-header :initform nil :documentation "holds all the ID3 info")
@@ -136,31 +145,35 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 
 (defun make-file-stream (filename)
   "Convenience function for creating a file stream. Detects file type and returns proper type stream."
-  (let* ((new-stream (make-mmap-stream filename))
-         (ret-stream))
+  (declare #.utils:*standard-optimize-settings*)
+  (log5:with-context "make-file-stream"
+    (let* ((new-stream (make-mmap-stream filename))
+           (ret-stream))
 
-    ;; detect file type and make RET-STREAM.  if we don't recognize stream, RET-STREAM will be NULL
-    (cond ((mp4-atom:is-valid-m4-file new-stream)
-           (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
-          ((flac-frame:is-valid-flac-file new-stream)
-           (setf ret-stream (make-instance 'flac-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
-          ((id3-frame:is-valid-mp3-file new-stream)
-           (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream)))))
-    (stream-close new-stream)
-    ret-stream))
+      (log-stream "Looking at ~a" filename)
+      ;; detect file type and make RET-STREAM.  if we don't recognize stream, RET-STREAM will be NULL
+      (cond ((mp4-atom:is-valid-m4-file new-stream)
+             (log-stream "~a is an MP4 file" filename)
+             (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+            ((flac-frame:is-valid-flac-file new-stream)
+             (log-stream "~a is a FLAC file" filename)
+             (setf ret-stream (make-instance 'flac-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+            ((id3-frame:is-valid-mp3-file new-stream)
+             (log-stream "~a is an ID3 file" filename)
+             (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+            (t
+             (log-stream "Unkown file type")))
+      (stream-close new-stream)
+      ret-stream)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;;; We need to be able to decode many types of string formats, so we borrow and extend
-;;; the constants embedded in the ID3 "spec."
-(defconstant +enc-iso-8859+ 0 "normal 8-bit Latin encoding")
-(defconstant +enc-ucs+      1 "universal character set, 16-bit, uses initial Byte Order Mark (BOM) to determine endianess")
-(defconstant +enc-ucs-be+   2 "universal character set, 16-bit, big-endian, no BOM")
-(defconstant +enc-utf-8+    3 "UCS transformation format, 8-bit as neeed")
-
 ;;; Decode octets as an iso-8859-1 string (encoding == 0)
 (defun stream-decode-iso-string (octets &key (start 0) (end nil))
-  (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1))
+  (declare #.utils:*standard-optimize-settings*)
+  #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1)
+  #-CCL (error "Not Yet")
+  )
 
 ;;;
 ;;; XXX: Coded this way because I can't seem to get a simple :external-format :ucs-2 to work correctly
@@ -168,39 +181,51 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 ;;; sometimes encoded as #(00 00))
 (defun stream-decode-ucs-string (octets &key (start 0) (end nil))
   "Decode octets as a UCS string with a BOM (encoding == 1)"
-    (labels ((get-byte-order-mark (octets)
-               (let ((retval 0))
-                 (setf (ldb (byte 8 0) retval) (aref octets 1))
-                 (setf (ldb (byte 8 8) retval) (aref octets 0))
-                 (when (not (or (= #xfffe retval) (= #xfeff retval)))
-                   (error 'audio-stream-condition
-                          :location "stream-decode-ucs-string"
-                          :object nil
-                          :message (format nil "got an invalid byte-order mark of ~x" retval)))
-                 retval)))
+  (declare #.utils:*standard-optimize-settings*)
+  (labels ((get-byte-order-mark (octets)
+             (let ((retval 0))
+               (setf (ldb (byte 8 0) retval) (aref octets 1))
+               (setf (ldb (byte 8 8) retval) (aref octets 0))
+               (when (not (or (= #xfffe retval) (= #xfeff retval)))
+                 (error 'audio-stream-condition
+                        :location "stream-decode-ucs-string"
+                        :object nil
+                        :message (format nil "got an invalid byte-order mark of ~x" retval)))
+               retval)))
 
-      ;; special case: empty (and mis-coded) string
-      (cond ((zerop (length octets))
-             (make-string 0))
-            (t
-             ;;
-             ;; else, we have a (hopefully) properly encoded string
-             (let ((bom (get-byte-order-mark octets)))
-               (ecase (the fixnum bom)
-                 (#xfffe (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2le))
-                 (#xfeff (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2be))
-                 (0      (make-string 0))))))))
+    ;; special case: empty (and mis-coded) string
+    (cond ((zerop (length octets))
+           (make-string 0))
+          (t
+           ;;
+           ;; else, we have a (hopefully) properly encoded string
+           (let ((bom (get-byte-order-mark octets)))
+             (ecase (the fixnum bom)
+               (#xfffe #+CCL (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2le)
+                       #-CCL (error "Not Yet")
+                       )
+               (#xfeff #+CCL (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2be)
+                       #-CCL (error "Not Yet")
+                       )
+               (0      (make-string 0))))))))
 
 (defun stream-decode-ucs-be-string (octets &key (start 0) (end nil))
   "Decode octets as a UCS-BE string (encoding == 2)"
-  (ccl:decode-string-from-octets octets :start start :end end :external-format :ucs-2be))
+  (declare #.utils:*standard-optimize-settings*)
+  #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :ucs-2be)
+  #-CCL (error "Not Yet")
+  )
 
 (defun stream-decode-utf-8-string (octets &key (start 0) (end nil))
   "Decode octets as a utf-8 string"
-  (ccl:decode-string-from-octets octets :start start :end end :external-format :utf-8))
+  (declare #.utils:*standard-optimize-settings*)
+  #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :utf-8)
+  #-CCL (error "Not Yet")
+  )
 
 (defun stream-decode-string (octets &key (start 0) (end nil) (encoding 0))
   "Decode octets depending on encoding"
+  (declare #.utils:*standard-optimize-settings*)
   (ecase encoding
     (0 (stream-decode-iso-string octets    :start start :end end))
     (1 (stream-decode-ucs-string octets    :start start :end end))
@@ -209,90 +234,109 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 
 (defmethod stream-read-iso-string-with-len ((instream mem-stream) len)
   "Read an iso-8859-1 string of length 'len' (encoding = 0)"
+  (declare #.utils:*standard-optimize-settings*)
   (stream-decode-iso-string (stream-read-sequence instream len)))
 
 (defmethod stream-read-ucs-string-with-len ((instream mem-stream) len)
   "Read an ucs-2 string of length 'len' (encoding = 1)"
+  (declare #.utils:*standard-optimize-settings*)
   (stream-decode-ucs-string (stream-read-sequence instream len)))
 
 (defmethod stream-read-ucs-be-string-with-len ((instream mem-stream) len)
   "Read an ucs-2-be string of length 'len' (encoding = 2)"
+  (declare #.utils:*standard-optimize-settings*)
   (stream-decode-ucs-be-string (stream-read-sequence instream len)))
 
 (defmethod stream-read-utf-8-string-with-len ((instream mem-stream) len)
   "Read an utf-8 string of length 'len' (encoding = 3)"
+  (declare #.utils:*standard-optimize-settings*)
   (stream-decode-utf-8-string  (stream-read-sequence instream len)))
 
 (defmethod stream-read-string-with-len ((instream mem-stream) len &key (encoding 0))
   "Read in a string of a given encoding of length 'len'"
+  (declare #.utils:*standard-optimize-settings*)
   (ecase encoding
-    (+enc-iso-8859+ (stream-read-iso-string-with-len instream len))
-    (+enc-ucs+      (stream-read-ucs-string-with-len instream len))
-    (+enc-ucs-be+   (stream-read-ucs-be-string-with-len instream len))
-    (+enc-utf-8+    (stream-read-utf-8-string-with-len instream len))))
+    (0 (stream-read-iso-string-with-len instream len))
+    (1 (stream-read-ucs-string-with-len instream len))
+    (2 (stream-read-ucs-be-string-with-len instream len))
+    (3 (stream-read-utf-8-string-with-len instream len))))
 
 (defmethod stream-read-iso-string ((instream mem-stream))
   "Read in a null terminated iso-8859-1 string"
-  (let ((octets (ccl:with-output-to-vector (out)
-                  (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
-                      (nil)
-                    (when (zerop b)
-                      (return))         ; leave loop w/o writing
-                    (write-byte b out)))))
+  (declare #.utils:*standard-optimize-settings*)
+  (let ((octets #+CCL (ccl:with-output-to-vector (out)
+                        (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
+                            (nil)
+                          (when (zerop b)
+                            (return))   ; leave loop w/o writing
+                          (write-byte b out)))
+                #-CCL (error "Not Yet")
+        ))
     (stream-decode-iso-string octets)))
 
 (defmethod stream-read-ucs-string ((instream mem-stream))
   "Read in a null terminated UCS string."
-  (let ((octets (ccl:with-output-to-vector (out)
-                  (do* ((b0 (stream-read-u8 instream)
-                            (stream-read-u8 instream))
-                        (b1 (stream-read-u8 instream)
-                            (stream-read-u8 instream)))
-                       (nil)
-                    (when (and (zerop b0) (zerop b1))
-                      (return))
-                    (write-byte b0 out)
-                    (write-byte b1 out)))))
+  (declare #.utils:*standard-optimize-settings*)
+  (let ((octets #+CCL (ccl:with-output-to-vector (out)
+                        (do* ((b0 (stream-read-u8 instream)
+                                  (stream-read-u8 instream))
+                              (b1 (stream-read-u8 instream)
+                                  (stream-read-u8 instream)))
+                             (nil)
+                          (when (and (zerop b0) (zerop b1))
+                            (return))
+                          (write-byte b0 out)
+                          (write-byte b1 out)))
+                #-CCL (error "Not Yet")
+                ))
     (stream-decode-ucs-string octets)))
 
 (defmethod stream-read-ucs-be-string ((instream mem-stream))
   "Read in a null terminated UCS-BE string."
-  (let ((octets (ccl:with-output-to-vector (out)
-                  (do* ((b0 (stream-read-u8 instream)
-                            (stream-read-u8 instream))
-                        (b1 (stream-read-u8 instream)
-                            (stream-read-u8 instream)))
-                       (nil)
-                    (when (and (zerop b0) (zerop b1))
-                      (return))
-                    (write-byte b0 out)
-                    (write-byte b1 out)))))
+  (declare #.utils:*standard-optimize-settings*)
+  (let ((octets #+CCL (ccl:with-output-to-vector (out)
+                        (do* ((b0 (stream-read-u8 instream)
+                                  (stream-read-u8 instream))
+                              (b1 (stream-read-u8 instream)
+                                  (stream-read-u8 instream)))
+                             (nil)
+                          (when (and (zerop b0) (zerop b1))
+                            (return))
+                          (write-byte b0 out)
+                          (write-byte b1 out)))
+                #-CCL (error "Not Yet")
+                ))
     (stream-decode-ucs-be-string octets)))
 
 (defmethod stream-read-utf-8-string ((instream mem-stream))
   "Read in a null terminated utf-8 string (encoding == 3)"
-  (let ((octets (ccl:with-output-to-vector (out)
-                  (do ((b (stream-read-u8 instream)
-                          (stream-read-u8 instream)))
-                      (nil)
-                    (when (zerop b)
-                      (return))
-                    (write-byte b out)))))
+  (declare #.utils:*standard-optimize-settings*)
+  (let ((octets #+CCL (ccl:with-output-to-vector (out)
+                        (do ((b (stream-read-u8 instream)
+                                (stream-read-u8 instream)))
+                            (nil)
+                          (when (zerop b)
+                            (return))
+                          (write-byte b out)))
+                #-CCL (error "Not Yet")
+                ))
     (stream-decode-utf-8-string octets)))
 
 (defmethod stream-read-string ((instream mem-stream) &key (encoding 0))
   "Read in a null terminated string of a given encoding."
+  (declare #.utils:*standard-optimize-settings*)
   (ecase encoding
-    (+enc-iso-8859+ (stream-read-iso-string    instream))
-    (+enc-ucs+      (stream-read-ucs-string    instream))
-    (+enc-ucs-be+   (stream-read-ucs-be-string instream))
-    (+enc-utf-8+    (stream-read-utf-8-string  instream))))
+    (0 (stream-read-iso-string    instream))
+    (1 (stream-read-ucs-string    instream))
+    (2 (stream-read-ucs-be-string instream))
+    (3 (stream-read-utf-8-string  instream))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Files ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defvar *get-audio-info* t "controls whether the parsing functions also parse audio info like bit-rate, etc")
 
 (defmethod parse-audio-file ((stream mp4-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
   "Parse an MP4A file by reading it's ATOMS and decoding them."
+  (declare #.utils:*standard-optimize-settings*)
   (handler-case
       (progn
         (mp4-atom:find-mp4-atoms stream)
@@ -303,6 +347,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 
 (defmethod parse-audio-file ((stream flac-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
   "Parse a flac file by reading it's headers and decoding them."
+  (declare #.utils:*standard-optimize-settings*)
   (declare (ignore get-audio-info)) ; audio info comes for "free" by parsing headers
   (handler-case
       (flac-frame:find-flac-frames stream)
@@ -311,6 +356,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 
 (defmethod parse-audio-file ((stream mp3-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
   "Parse an MP3 file by reading it's FRAMES and decoding them."
+  (declare #.utils:*standard-optimize-settings*)
   (handler-case
       (progn
         (id3-frame:find-id3-frames stream)

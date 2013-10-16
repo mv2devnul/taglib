@@ -40,6 +40,7 @@
 
 (defun get-id3v1-genre (n)
   "Given N, a supposed ID3 genre, range check it to make sure it is > 0 and < (sizeof *ID3V1-GENRES*)"
+  (declare #.utils:*standard-optimize-settings*)
   (if (or (> n (1- (length *id3v1-genres*)))
             (< n 0))
         "BAD GENRE"
@@ -57,6 +58,7 @@
 
 ;;; The following probably should be macro-ized in the future---lots of cut/paste going on...
 (defmethod album ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TAL" "TALB"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one album tag")
@@ -66,6 +68,7 @@
       nil))
 
 (defmethod artist ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TP1" "TPE1"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one artist tag")
@@ -75,6 +78,7 @@
       nil))
 
 (defmethod comment ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("COM" "COMM"))))
     (when frames
       (let ((new-frames))
@@ -87,6 +91,7 @@
       nil))
 
 (defmethod year ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TRD" "TDRC"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one year tag")
@@ -96,6 +101,7 @@
       nil))
 
 (defmethod title ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TT2" "TIT2"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one title tag")
@@ -105,6 +111,7 @@
       nil))
 
 (defmethod genre ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TCO" "TCON"))))
     (when frames
       (when (> (length frames) 1)
@@ -134,6 +141,7 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; no V2.1 tags for any of these ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defmethod album-artist ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TP2" "TPE2"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one album-artist tag")
@@ -141,6 +149,7 @@
   nil)
 
 (defmethod composer ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TCM" "TCOM"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one composer tag")
@@ -148,6 +157,7 @@
   nil)
 
 (defmethod copyright ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TCR" "TCOP"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one copyright tag")
@@ -155,6 +165,7 @@
   nil)
 
 (defmethod encoder ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TEN" "TENC"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one encoder tag")
@@ -162,6 +173,7 @@
   nil)
 
 (defmethod groups ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TT1" "TTE1"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one group tag")
@@ -169,6 +181,7 @@
   nil)
 
 (defmethod lyrics ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("ULT" "USLT"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one lyrics tag")
@@ -176,6 +189,7 @@
   nil)
 
 (defmethod writer ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TCM" "TCOM"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one composer tag")
@@ -183,6 +197,7 @@
   nil)
 
 (defmethod compilation ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TCMP"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one compilation tag")
@@ -191,6 +206,7 @@
   nil)
 
 (defmethod disk ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TPA" "TPOS"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one disk number tag")
@@ -198,6 +214,7 @@
   nil)
 
 (defmethod tempo ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TBP" "TBPM"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one tempo tag")
@@ -205,12 +222,14 @@
   nil)
 
 (defun mk-lst (str)
+  (declare #.utils:*standard-optimize-settings*)
   (let ((pos (position #\/ str)))
     (if (null pos)
         (list str)
         (list (subseq str 0 pos) (subseq str (+ 1 pos))))))
 
 (defmethod track ((me mp3-file-stream))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TRK" "TRCK"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one track number tag")
@@ -219,6 +238,7 @@
 
 (defmethod show-tags ((me mp3-file-stream) &key (raw *raw-tags*))
   "Show the tags for an mp3-file.  If RAW is non-nil, dump all the frames; else, print out a subset."
+  (declare #.utils:*standard-optimize-settings*)
   (if raw
       (format t "~a~%~a~%" (stream-filename me)
               (with-output-to-string (s)
