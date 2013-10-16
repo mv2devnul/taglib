@@ -6,7 +6,7 @@
 ;;; Usage: load and compile this file, then at REPL, type "profile:on".  After
 ;;; running programs, type "profile:report" to get a profile listing.
 ;;; "profile:reset" clears counters
-;;; "profil:off" turns of profiling
+;;; "profile:off" turns off profiling
 (in-package #:profile)
 #-CCL (progn
         (defun on     () (error "Not Yet"))
