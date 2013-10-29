@@ -5,17 +5,6 @@
 (log5:defcategory cat-log-mp4-atom)
 (defmacro log-mp4-atom (&rest log-stuff) `(log5:log-for (cat-log-mp4-atom) ,@log-stuff))
 
-(define-condition mp4-atom-condition ()
-  ((location :initarg :location :reader location :initform nil)
-   (object   :initarg :object   :reader object   :initform nil)
-   (messsage :initarg :message  :reader message  :initform "Undefined Condition"))
-  (:report (lambda (condition stream)
-             (format stream "mp4-atom condition at location: <~a> with object: <~a>: message: <~a>"
-                     (location condition) (object condition) (message condition)))))
-
-(defmethod print-object ((me mp4-atom-condition) stream)
-  (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
 ;;; A word about atoms (aka "boxes").  There are three kinds of atoms: ones that are containers, ones
@@ -57,7 +46,7 @@
     (declare #.utils:*standard-optimize-settings*)
     (cond ((typep c 'standard-char) (coerce (char-code c) '(unsigned-byte 8)))
           ((typep c 'integer) (coerce c '(unsigned-byte 8)))
-          (t (error "can any handle characters and integers"))))
+          (t (error "can only handle characters and integers"))))
 
   (defmacro mk-mp4-atom-type (l1 l2 l3 l4)
     "Given 4 chars/ints, create a 32-bit word representing an atom 'type' (aka name)"

@@ -14,13 +14,14 @@
 
 ;;;
 ;;; Set the pathname (aka filename) encoding in CCL for appropriate platorm
+;;;
+;;; A note re filesystem encoding: my music collection is housed on a Mac and shared via SAMBA.
+;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to
+;;; :UTF-8
 (defun set-pathname-encoding (enc)        (setf (ccl:pathname-encoding-name) enc))
 (defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
 (defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 
-;;; A note re filesystem encoding: my music collection is housed on a Mac and shared via SAMBA.
-;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to
-;;; :UTF-8
 
 (defun do-audio-file (&optional (file *song-m4a*) &key (func (constantly t)))
   "Parse one audio file (with condition handling)."
@@ -49,16 +50,11 @@
 
     (cl-fad:walk-directory dir (lambda (f)
                                  (do-audio-file f :func (lambda (s)
-                                                          (cond ((typep s 'mp3-file-stream)
-                                                                 (incf mp3-count)
-                                                                 (when func (funcall func s)))
-                                                                ((typep s 'flac-file-stream)
-                                                                 (incf flac-count)
-                                                                 (when func (funcall func s)))
-                                                                ((typep s 'mp4-file-stream)
-                                                                 (incf mp4-count)
-                                                                 (when func (funcall func s)))
-                                                                ((null s) (incf other-count)))))))
+                                                          (cond ((typep s 'mp3-file-stream)  (incf mp3-count))
+                                                                ((typep s 'flac-file-stream) (incf flac-count))
+                                                                ((typep s 'mp4-file-stream)  (incf mp4-count))
+                                                                ((null s)                    (incf other-count)))
+                                                          (when (and (not (null s)) func) (funcall func s))))))
 
     (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACs, ~:d Others, for a total of ~:d~%"
             mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count))))
@@ -68,11 +64,11 @@
   (let ((audio-streams:*get-audio-info* do-audio-processing))
     (time (do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))
 
-;;;;;;;;;;;;;;;;;;;; Experimental multi-thread code below ;;;;;;;;;;;;;;;;;;;;
-
-(defparameter *END-THREAD* #xdeadbeef)
+;;;;;;;;;;;;;;;;;;;; multi-thread code below ;;;;;;;;;;;;;;;;;;;;
+(defparameter *END-THREAD*  #xdeadbeef)
 (defparameter *MAX-THREADS* 4)
 
+;;; Simple structure to hold a thread's results
 (defstruct chanl-results
   name
   mp3-count
@@ -90,6 +86,11 @@
         (flac-count 0)
         (mp4-count 0)
         (other-count 0))
+
+    ;; This function is run by each thread
+    ;; Thread sits in a loop, reading from CHAN.  If that read
+    ;; returns the integer *END-THREAD*, then thread exits; otherwise,
+    ;; it runs DO-AUDIO-FILE on the file passed in.
     (labels ((thread-reader ()
                (declare (special *me*))
                (let ((f)
@@ -99,29 +100,28 @@
                      (setf f (chanl:recv channel))
                      (when (and (typep f 'integer)
                                 (= f *END-THREAD*))
-                       (chanl:send dead-channel results)
+                       (chanl:send dead-channel results) ; send structure of stats back to parent
                        (return-from thread-reader nil))
 
                      (do-audio-file f :func (lambda (s)
-                                              (cond ((typep s 'mp3-file-stream)
-                                                     (incf mp3-count)
-                                                     (when func (funcall func s)))
-                                                    ((typep s 'flac-file-stream)
-                                                     (incf flac-count)
-                                                     (when func (funcall func s)))
-                                                    ((typep s 'mp4-file-stream)
-                                                     (incf mp4-count)
-                                                     (when func (funcall func s)))
-                                                    ((null s) (incf other-count))))))))))
+                                              (cond ((typep s 'mp3-file-stream)  (incf mp3-count))
+                                                    ((typep s 'flac-file-stream) (incf flac-count))
+                                                    ((typep s 'mp4-file-stream)  (incf mp4-count))
+                                                    ((null s)                    (incf other-count)))
+                                              (when (and (not (null s)) func) (funcall func s)))))))))
 
-      (cl-fad:walk-directory dir (lambda (f)
-                                   (chanl:send channel f)))
+      ;; first, add all files in DIR to CHANNEL
+      (cl-fad:walk-directory dir (lambda (f) (chanl:send channel f)))
 
+      ;; At this point, CHANNEL is stuffed with files.
+      ;; Now, send *MAX-THREADS* "ends" (at end of CHANNEL) and
+      ;; spawn *MAX-THREADS* threads
       (dotimes (i *MAX-THREADS*)
         (chanl:send channel *END-THREAD*))
       (dotimes (i *MAX-THREADS*)
         (chanl:pcall #'thread-reader :initial-bindings `((*me* ,(format nil "reader-thread-~d" i)))))
 
+      ;; sit in loop until we read *MAX-THREADS* results
       (block thread-reap
         (let ((i 0)
               results)
@@ -143,11 +143,12 @@
             (incf flac-count (chanl-results-flac-count results))
             (incf other-count (chanl-results-other-count results))
             (incf i)
+
             (when (= i *MAX-THREADS*)
               (return-from thread-reap *MAX-THREADS*)))))
 
       (format t "All threads done~%")
-      (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACS, ~:d Others, for a total of ~:d~%"
+      (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACS, ~:d Others, for a total of ~:d files~%"
               mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count)))))
 
 (defun mp-time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))

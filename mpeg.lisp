@@ -7,16 +7,6 @@
 (log5:defcategory cat-log-mpeg-frame)
 (defmacro log-mpeg-frame (&rest log-stuff) `(log5:log-for (cat-log-mpeg-frame) ,@log-stuff))
 
-(define-condition mpeg-condition ()
-  ((location :initarg :location :reader location :initform nil)
-   (object   :initarg :object   :reader object   :initform nil)
-   (messsage :initarg :message  :reader message  :initform "Undefined Condition"))
-  (:report (lambda (condition stream)
-             (format stream "MP3 condition at location <~a> with object <~a>: message<~a>"
-                     (location condition) (object condition) (message condition)))))
-
-(define-condition mpeg-bad-header (mpeg-condition) ())
-
 (defconstant +sync-word+  #x7ff "NB: this is 11 bits so as to be able to recognize V2.5")
 
 ;;; the versions

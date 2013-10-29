@@ -6,17 +6,6 @@
 (log5:defcategory cat-log-id3-frame)
 (defmacro log-id3-frame (&rest log-stuff) `(log5:log-for (cat-log-id3-frame) ,@log-stuff))
 
-(define-condition id3-frame-condition ()
-  ((location :initarg :location :reader location :initform nil)
-   (object   :initarg :object   :reader object   :initform nil)
-   (messsage :initarg :message  :reader message  :initform "Undefined Condition"))
-  (:report (lambda (condition stream)
-             (format stream "id3-frame condition at location: <~a> with object: <~a>: message: <~a>"
-                     (location condition) (object condition) (message condition)))))
-
-(defmethod print-object ((me id3-frame-condition) stream)
-  (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ID3 header/extended header/v2.1 header ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass id3-header ()
   ((version        :accessor version        :initarg :version        :initform 0   :documentation "ID3 version: 2, 3, or 4")
@@ -230,7 +219,7 @@ NB: 2.3 and 2.4 extended flags are different..."
         (log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream))
         (handler-case
             (setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
-          (id3-frame-condition (c)
+          (condition (c)
             (utils:warn-user "initialize id3-header got condition ~a" c)
             (log-id3-frame "reading v21 got condition: ~a" c))))
 
@@ -974,7 +963,7 @@ NB: 2.3 and 2.4 extended flags are different..."
       ;; would blow past the end of the file/buffer
       (when (or (> (+ (stream-seek instream) frame-len) (stream-size instream))
                 (null frame-class))
-        (error 'id3-frame-condition :message "bad frame found" :object frame-name :location pos))
+        (error "bad frame at position ~d found: ~a" pos frame-name))
 
       (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream))))
 

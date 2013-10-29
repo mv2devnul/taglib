@@ -6,17 +6,6 @@
 (log5:defcategory cat-log-stream)
 (defmacro log-stream (&rest log-stuff) `(log5:log-for (cat-log-stream) ,@log-stuff))
 
-(define-condition audio-stream-condition ()
-  ((location :initarg :location :reader location :initform nil)
-   (object   :initarg :object   :reader object   :initform nil)
-   (messsage :initarg :message  :reader message  :initform "Undefined Condition"))
-  (:report (lambda (condition stream)
-             (format stream "audio-stream condition at location: <~a> with object: <~a>: message: <~a>"
-                     (location condition) (object condition) (message condition)))))
-
-(defmethod print-object ((me audio-stream-condition) stream)
-  (format stream "location: <~a>, object: <~a>, message: <~a>" (location me) (object me) (message me)))
-
 (deftype octet () '(unsigned-byte 8))
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
@@ -187,10 +176,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
                (setf (ldb (byte 8 0) retval) (aref octets 1))
                (setf (ldb (byte 8 8) retval) (aref octets 0))
                (when (not (or (= #xfffe retval) (= #xfeff retval)))
-                 (error 'audio-stream-condition
-                        :location "stream-decode-ucs-string"
-                        :object nil
-                        :message (format nil "got an invalid byte-order mark of ~x" retval)))
+                 (error "Got invalid byte-order mark of ~x in STREAM-DECODE-UCS-STRING" retval))
                retval)))
 
     ;; special case: empty (and mis-coded) string
@@ -342,7 +328,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
         (mp4-atom:find-mp4-atoms stream)
         (when get-audio-info
           (setf (audio-info stream) (mp4-atom:get-mp4-audio-info stream))))
-    (mp4-atom:mp4-atom-condition (c)
+    (condition (c)
       (utils:warn-user "make-mp4-stream got condition: ~a" c))))
 
 (defmethod parse-audio-file ((stream flac-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
@@ -351,7 +337,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
   (declare (ignore get-audio-info)) ; audio info comes for "free" by parsing headers
   (handler-case
       (flac-frame:find-flac-frames stream)
-    (flac-frame:flac-frame-condition (c)
+    (condition (c)
       (utils:warn-user "make-flac-stream got condition: ~a" c))))
 
 (defmethod parse-audio-file ((stream mp3-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
@@ -362,5 +348,5 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
         (id3-frame:find-id3-frames stream)
         (when get-audio-info
           (setf (audio-info stream) (mpeg:get-mpeg-audio-info stream))))
-    (id3-frame:id3-frame-condition (c)
+    (condition (c)
       (utils:warn-user "make-mp3-stream got condition: ~a" c))))
