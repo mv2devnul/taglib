@@ -389,8 +389,11 @@ Bits   1-0 (2  bits): the emphasis"
             (when (logand (flags vbr) +vbr-frames+)
               (setf (frames vbr) (stream-read-u32 v))
               (log-mpeg-frame "Xing frames set: read ~d" (frames vbr))
+
+              ;; some VBR files have the Xing/Info header, but it is not correctly formulated.
+              ;; just warn the user.
               (when (zerop (frames vbr))
-                (warn-user "warning file ~a Xing/Info header flags has FRAMES set, but field is zero." fn)))
+                (warn-user "file ~a Xing/Info header flags has FRAMES set, but field is zero." fn)))
 
             (when (logand (flags vbr) +vbr-bytes+)
               (setf (bytes vbr) (stream-read-u32 v))
