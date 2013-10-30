@@ -285,25 +285,12 @@ Bits   1-0 (2  bits): the emphasis"
 
         (setf sample-rate (get-sample-rate version sr-index)))
 
-                                        ;(setf padded (ldb (byte 1 1) (ldb (byte 8 8) hdr-u32)))
       (setf padded (get-bitfield hdr-u32 9 1))
-
-                                        ;(setf private (ldb (byte 1 0) (ldb (byte 8 8) hdr-u32)))
       (setf private (get-bitfield hdr-u32 8 1))
-
-                                        ;(setf channel-mode (ldb (byte 2 6) (ldb (byte 8 0) hdr-u32)))
       (setf channel-mode (get-bitfield hdr-u32 7 2))
-
-                                        ;(setf mode-extension (ldb (byte 2 4) (ldb (byte 8 0) hdr-u32)))
       (setf mode-extension (get-bitfield hdr-u32 5 2))
-
-                                        ;(setf copyright (ldb (byte 1 3) (ldb (byte 8 0) hdr-u32)))
       (setf copyright (get-bitfield hdr-u32 3 1))
-
-                                        ;(setf original (ldb (byte 1 2) (ldb (byte 8 0) hdr-u32)))
       (setf original (get-bitfield hdr-u32 2 1))
-
-                                        ;(setf emphasis (ldb (byte 2 0) (ldb (byte 8 0) hdr-u32)))
       (setf emphasis (get-bitfield hdr-u32 1 2))
 
       ;; check emphasis
