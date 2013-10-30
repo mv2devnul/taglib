@@ -13,7 +13,7 @@
 (defparameter *song-flac* "Frank Zappa/Baby Snakes/02. Baby Snakes.flac")
 
 ;;;
-;;; Set the pathname (aka filename) encoding in CCL for appropriate platorm
+;;; Set the pathname (aka filename) encoding in CCL for appropriate platform
 ;;;
 ;;; A note re filesystem encoding: my music collection is housed on a Mac and shared via SAMBA.
 ;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to
