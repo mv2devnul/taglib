@@ -59,6 +59,8 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
       (:end                    ; INDEX set to OFFSET from end of stream
        (setf index (- stream-size offset))))))
 
+(declaim (inline read-n-bytes))
+
 (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8) (endian :little-endian))
   "Returns a FIXNUM constructed by reading N-BYTES.  BITS-PER-BYTE contols how many bits should be used from each read byte."
   (declare #.utils:*standard-optimize-settings*)
@@ -79,10 +81,7 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
                finally (return-from read-n-bytes value))))))
     nil)
 
-;;; XXX Not sure this does anything...
-(declaim (inline read-n-bytes))
-
-(defmethod stream-read-u8   ((stream mem-stream) &key (bits-per-byte 8)) (read-n-bytes stream 1 :bits-per-byte bits-per-byte))
+(defmethod stream-read-u8   ((stream mem-stream) &key (bits-per-byte 8))                         (read-n-bytes stream 1  :bits-per-byte bits-per-byte))
 (defmethod stream-read-u16  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 2  :bits-per-byte bits-per-byte :endian endian))
 (defmethod stream-read-u24  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 3  :bits-per-byte bits-per-byte :endian endian))
 (defmethod stream-read-u32  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 4  :bits-per-byte bits-per-byte :endian endian))
@@ -173,8 +172,8 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
   (declare #.utils:*standard-optimize-settings*)
   (labels ((get-byte-order-mark (octets)
              (let ((retval 0))
-               (setf (ldb (byte 8 0) retval) (aref octets 1))
-               (setf (ldb (byte 8 8) retval) (aref octets 0))
+               (setf (ldb (byte 8 0) retval) (aref octets 1)
+                     (ldb (byte 8 8) retval) (aref octets 0))
                (when (not (or (= #xfffe retval) (= #xfeff retval)))
                  (error "Got invalid byte-order mark of ~x in STREAM-DECODE-UCS-STRING" retval))
                retval)))

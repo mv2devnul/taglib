@@ -84,7 +84,6 @@
       (let ((new-frames))
         (dolist (f frames)
           (push (list (encoding f) (lang f) (desc f) (val f)) new-frames))
-        ;; XXX need to render this into text
         (return-from comment new-frames))))
   (if (v21-tag-header (id3-header me))
       (comment (v21-tag-header (id3-header me)))
@@ -120,7 +119,7 @@
             (end)
             (str (info (first frames))))
 
-        ;; XXX for V23/V24 TCON frames, a genre can be pretty gnarly.
+        ;; For V23/V24 TCON frames, a genre can be pretty gnarly.
         ;; if the first byte of the TCON INFO field is a '(', what is between this '('
         ;; and the next ')' is interpreted as an ID3v2.1 genre number.
         ;; These can stack up (called "refinements") too.

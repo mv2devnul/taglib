@@ -199,8 +199,8 @@
           (log-mpeg-frame "loading frame from pos ~:d" (stream-seek instream))
           (when (null hdr-u32)          ; has header already been read in?
             (log-mpeg-frame "reading in header")
-            (setf pos (stream-seek instream))
-            (setf hdr-u32 (stream-read-u32 instream))
+            (setf pos (stream-seek instream)
+                  hdr-u32 (stream-read-u32 instream))
             (when (null hdr-u32)
               (log-mpeg-frame "hit EOF")
               (return-from load-frame nil)))
@@ -242,33 +242,26 @@ Bits   1-0 (2  bits): the emphasis"
     (with-frame-slots (me)
       ;; check sync word
       (setf sync (get-bitfield hdr-u32 31 11))
-                                        ;(setf (ldb (byte 8 8) sync) (ldb (byte 8 24) hdr-u32))
-                                        ;(setf (ldb (byte 3 5) sync) (ldb (byte 3 5) (ldb (byte 8 16) hdr-u32)))
       (when (not (= sync +sync-word+))
         (log-mpeg-frame "bad sync ~x/~x" sync hdr-u32)
         (return-from parse-header nil))
 
       ;; check version
-                                        ;(setf version (ldb (byte 2 3) (ldb (byte 8 16) hdr-u32)))
       (setf version (get-bitfield hdr-u32 20 2))
       (when (not (valid-version version))
         (log-mpeg-frame "bad version ~d" version)
         (return-from parse-header nil))
 
       ;; check layer
-                                        ;(setf layer (ldb (byte 2 1) (ldb (byte 8 16) hdr-u32)))
       (setf layer (get-bitfield hdr-u32 18 2))
       (when (not (valid-layer layer))
         (log-mpeg-frame "bad layer ~d" layer)
         (return-from parse-header nil))
 
-                                        ;(setf protection (ldb (byte 1 0) (ldb (byte 8 16) hdr-u32)))
-      (setf protection (get-bitfield hdr-u32 16 1))
-
-      (setf samples (get-samples-per-frame version layer))
+      (setf protection (get-bitfield hdr-u32 16 1)
+            samples (get-samples-per-frame version layer))
 
       ;; check bit-rate
-                                        ;(let ((br-index (the fixnum (ldb (byte 4 4) (ldb (byte 8 8) hdr-u32)))))
       (let ((br-index (get-bitfield hdr-u32 15 4)))
         (when (not (valid-bit-rate-index br-index))
           (log-mpeg-frame "bad bit-rate index ~d" br-index)
@@ -277,7 +270,6 @@ Bits   1-0 (2  bits): the emphasis"
         (setf bit-rate (get-bit-rate version layer br-index)))
 
       ;; check sample rate
-                                        ;(let ((sr-index (the fixnum (ldb (byte 2 2) (ldb (byte 8 8) hdr-u32)))))
       (let ((sr-index (get-bitfield hdr-u32 11 2)))
         (when (not (valid-sample-rate-index sr-index))
           (log-mpeg-frame "bad sample-rate index ~d" sr-index)
@@ -285,13 +277,13 @@ Bits   1-0 (2  bits): the emphasis"
 
         (setf sample-rate (get-sample-rate version sr-index)))
 
-      (setf padded (get-bitfield hdr-u32 9 1))
-      (setf private (get-bitfield hdr-u32 8 1))
-      (setf channel-mode (get-bitfield hdr-u32 7 2))
-      (setf mode-extension (get-bitfield hdr-u32 5 2))
-      (setf copyright (get-bitfield hdr-u32 3 1))
-      (setf original (get-bitfield hdr-u32 2 1))
-      (setf emphasis (get-bitfield hdr-u32 1 2))
+      (setf padded (get-bitfield hdr-u32 9 1)
+            private (get-bitfield hdr-u32 8 1)
+            channel-mode (get-bitfield hdr-u32 7 2)
+            mode-extension (get-bitfield hdr-u32 5 2)
+            copyright (get-bitfield hdr-u32 3 1)
+            original (get-bitfield hdr-u32 2 1)
+            emphasis (get-bitfield hdr-u32 1 2))
 
       ;; check emphasis
       (when (not (valid-emphasis emphasis))
@@ -370,8 +362,8 @@ Bits   1-0 (2  bits): the emphasis"
           (setf vbr (make-instance 'vbr-info))
           (let ((v (make-mem-stream (payload me))))
             (stream-seek v i :start)            ; seek to Xing/Info offset
-            (setf (tag vbr) (stream-read-iso-string-with-len v 4))
-            (setf (flags vbr) (stream-read-u32 v))
+            (setf (tag vbr)   (stream-read-iso-string-with-len v 4)
+                  (flags vbr) (stream-read-u32 v))
 
             (when (logand (flags vbr) +vbr-frames+)
               (setf (frames vbr) (stream-read-u32 v))
@@ -411,8 +403,8 @@ Bits   1-0 (2  bits): the emphasis"
 
       (handler-case
           (loop
-            (setf pos (stream-seek in))
-            (setf hdr-u32 (stream-read-u32 in))
+            (setf pos (stream-seek in)
+                  hdr-u32 (stream-read-u32 in))
             (when (null hdr-u32)
               (return-from find-first-sync nil))
             (incf count)
@@ -430,7 +422,7 @@ Bits   1-0 (2  bits): the emphasis"
         (condition (c) (progn
                          (warn-user "Condtion <~a> signaled while looking for first sync" c)
                          (log-mpeg-frame "got a condition while looking for first sync: ~a" c)
-                         (error c)))) ; XXX should I propogate this, or just return nil
+                         (error c))))
       nil)))
 
 (defmethod next-frame ((me frame) &key instream read-payload)
@@ -516,9 +508,9 @@ Bits   1-0 (2  bits): the emphasis"
           (log-mpeg-frame "couldn't get audio-info: only got ~d frames" n-frames)
           (return-from calc-bit-rate-exhaustive))
 
-        (setf is-vbr t)
-        (setf len total-len)
-        (setf bit-rate (float (/ bit-rate-total n-frames)))
+        (setf is-vbr t
+              len total-len
+              bit-rate (float (/ bit-rate-total n-frames)))
         (log-mpeg-frame "len = ~:d, bit-rate = ~f" len bit-rate)))))
 
  (defun get-mpeg-audio-info (in &key) ;; (max-frames *max-frames-to-read*))
@@ -535,29 +527,28 @@ Bits   1-0 (2  bits): the emphasis"
          (return-from get-mpeg-audio-info nil))
 
        (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) info
-         (setf version (version first-frame))
-         (setf layer (layer first-frame))
-         (setf sample-rate (sample-rate first-frame))
+         (setf version (version first-frame)
+               layer (layer first-frame)
+               sample-rate (sample-rate first-frame))
 
          (if (vbr first-frame)
              ;; found a Xing header, now check to see if it is correct
              (if (zerop (frames (vbr first-frame)))
                  (calc-bit-rate-exhaustive in (pos first-frame) info) ; Xing header broken, read all frames to calc
                  ;; Good Xing header, use info in VBR to calc
-                 (progn
-                   (setf n-frames 1)
-                   (setf is-vbr t)
-                   (setf len (float (* (frames (vbr first-frame)) (/ (samples first-frame) (sample-rate first-frame)))))
-                   (setf bit-rate (float (/ (* 8 (bytes (vbr first-frame))) len)))))
+                 (setf n-frames 1
+                       is-vbr   t
+                       len      (float (* (frames (vbr first-frame)) (/ (samples first-frame) (sample-rate first-frame))))
+                       bit-rate (float (/ (* 8 (bytes (vbr first-frame))) len))))
 
              ;; No Xing header found.  Assume CBR and calculate based on first frame
              (let* ((first (pos first-frame))
                     (last (- (audio-streams:stream-size in) (if (id3-frame::v21-tag-header (id3-header in)) 128 0)))
                     (n-fr (round (/ (float (- last first)) (float (size first-frame)))))
                     (n-sec (round (/ (float (* (size first-frame) n-fr)) (float (* 125 (float (/ (bit-rate first-frame) 1000))))))))
-               (setf is-vbr nil)
-               (setf n-frames 1)
-               (setf len n-sec)
-               (setf bit-rate (float (bit-rate first-frame))))))
+               (setf is-vbr nil
+                     n-frames 1
+                     len n-sec
+                     bit-rate (float (bit-rate first-frame))))))
 
              info)))

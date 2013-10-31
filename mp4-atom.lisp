@@ -20,10 +20,10 @@
   (declare #.utils:*standard-optimize-settings*)
   (let ((int 0))
     (declare (integer int))
-    (setf (ldb (byte 8 24) int) (char-code (aref str 0)))
-    (setf (ldb (byte 8 16) int) (char-code (aref str 1)))
-    (setf (ldb (byte 8 8) int)  (char-code (aref str 2)))
-    (setf (ldb (byte 8 0) int)  (char-code (aref str 3)))
+    (setf (ldb (byte 8 24) int) (char-code (aref str 0))
+          (ldb (byte 8 16) int) (char-code (aref str 1))
+          (ldb (byte 8 8) int)  (char-code (aref str 2))
+          (ldb (byte 8 0) int)  (char-code (aref str 3)))
 
     int))
 
@@ -51,10 +51,10 @@
   (defmacro mk-mp4-atom-type (l1 l2 l3 l4)
     "Given 4 chars/ints, create a 32-bit word representing an atom 'type' (aka name)"
     `(let ((retval 0))
-       (setf (ldb (byte 8 24) retval) ,(as-octet l1))
-       (setf (ldb (byte 8 16) retval) ,(as-octet l2))
-       (setf (ldb (byte 8 8) retval)  ,(as-octet l3))
-       (setf (ldb (byte 8 0) retval)  ,(as-octet l4))
+       (setf (ldb (byte 8 24) retval) ,(as-octet l1)
+             (ldb (byte 8 16) retval) ,(as-octet l2)
+             (ldb (byte 8 8) retval)  ,(as-octet l3)
+             (ldb (byte 8 0) retval)  ,(as-octet l4))
        retval)))
 
 (defconstant +itunes-album+          (mk-mp4-atom-type #xa9 #\a #\l #\b) "text: album name")
@@ -98,16 +98,16 @@
 (defconstant +mp4-atom-trak+         (mk-mp4-atom-type #\t #\r #\a #\k))
 (defconstant +mp4-atom-udta+         (mk-mp4-atom-type #\u #\d #\t #\a))
 
-(defun atom-read-loop (mp4-file end func)
-  "Loop from start to end through a file and call FUNC for every ATOM we find. Used
-at top-level and also for container ATOMs that need to read their contents."
-  (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "atom-read-loop"
-    (do ()
-        ((>= (stream-seek mp4-file) end))
-      (log-mp4-atom "atom-read-loop: @~:d before dispatch" (stream-seek mp4-file))
-      (funcall func)
-      (log-mp4-atom "atom-read-loop: @~:d after dispatch" (stream-seek mp4-file)))))
+;; (defun atom-read-loop (mp4-file end func)
+;;   "Loop from start to end through a file and call FUNC for every ATOM we find. Used
+;; at top-level and also for container ATOMs that need to read their contents."
+;;   (declare #.utils:*standard-optimize-settings*)
+;;   (log5:with-context "atom-read-loop"
+;;     (do ()
+;;         ((>= (stream-seek mp4-file) end))
+;;       (log-mp4-atom "atom-read-loop: @~:d before dispatch" (stream-seek mp4-file))
+;;       (funcall func)
+;;       (log-mp4-atom "atom-read-loop: @~:d after dispatch" (stream-seek mp4-file)))))
 
 (defclass mp4-atom ()
   ((atom-file-position :accessor atom-file-position :initarg :atom-file-position)
@@ -147,6 +147,7 @@ to read the payload of an atom."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ILST ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass atom-ilst (mp4-atom) ())
+
 (defmethod initialize-instance :after ((me atom-ilst) &key (mp4-file nil) &allow-other-keys)
   "Construct an ilst atom.  ILST atoms are containers that hold data elements related to tagging.
 Loop through this container and construct constituent atoms"
@@ -155,13 +156,12 @@ Loop through this container and construct constituent atoms"
     (with-slots (atom-size atom-type atom-children) me
       (log-mp4-atom "atom-ilst-init: found ilst atom <~a> @ ~:d, looping for ~:d bytes"
                     (as-string atom-type) (stream-seek mp4-file) (- atom-size 8))
-      (atom-read-loop mp4-file (+ (stream-seek mp4-file)  (- atom-size 8))
-                      (lambda ()
-                        (let ((child (make-mp4-atom mp4-file atom-type)))
-                          ;(log-mp4-atom "adding new child ~a" (vpprint child nil))
-                          (addc me child))))))
-  ;(log-mp4-atom "returning ilst atom: ~a" (vpprint me nil))
-  )
+
+      (let ((end (+ (stream-seek mp4-file) (- atom-size 8))))
+        (loop for current = (stream-seek mp4-file) then (stream-seek mp4-file)
+            while (< current end) do
+              (log-mp4-atom "at ~:d:~:d~%" current end)
+              (addc me (make-mp4-atom mp4-file atom-type)))))))
 
 (defclass atom-©alb (atom-ilst) ())
 (defclass atom-aART (atom-ilst) ())
@@ -197,8 +197,8 @@ Loop through this container and construct constituent atoms"
   (declare #.utils:*standard-optimize-settings*)
    (log5:with-context "atom-data-init"
      (with-slots (atom-size atom-type atom-version atom-flags atom-value atom-parent-type) me
-       (setf atom-version (stream-read-u8 mp4-file))
-       (setf atom-flags (stream-read-u24 mp4-file))
+       (setf atom-version (stream-read-u8 mp4-file)
+             atom-flags (stream-read-u24 mp4-file))
        (assert (= 0 (stream-read-u32 mp4-file)) () "a data atom lacks the required null field") ; XXX is this true?
        (log-mp4-atom "atom-data-init: size = ~:d, name = ~a, version = ~d, flags = ~x" atom-size (as-string atom-type) atom-version atom-flags)
        (setf atom-value (decode-ilst-data-atom atom-type me atom-parent-type mp4-file))
@@ -237,8 +237,8 @@ Loop through this container and construct constituent atoms"
        (declare (ignore tmp)))
        ;(format t "ilist decode, parent = ~a: ~x~%" (as-string atom-parent-type) tmp))
      (let ((a) (b))
-       (setf a (stream-read-u16 mp4-file))
-       (setf b (stream-read-u16 mp4-file))
+       (setf a (stream-read-u16 mp4-file)
+             b (stream-read-u16 mp4-file))
        (stream-seek mp4-file (- (atom-size atom) 16 6) :current) ; seek to end of atom: 16 == header; 4 is a, b, skip read above
        (list a b))))
 
@@ -290,18 +290,18 @@ Loop through this container and construct constituent atoms"
    (resv    :accessor resv)    ; 4 bytes
    (rflag   :accessor rflag)   ; 4 bytes
    (rmask   :accessor rmask)   ; 4 bytes
-   (mhdlr   :accessor mhdlr))) ; null-terminated string (XXX but we're reading it as octets)
+   (mhdlr   :accessor mhdlr))) ; null-terminated string (but we're reading it as octets)
 
 (defmethod initialize-instance :after ((me atom-hdlr) &key (mp4-file nil) &allow-other-keys)
   (with-slots (version flags qtype mtype resv rflag rmask mhdlr atom-size) me
-    (setf version  (stream-read-u8 mp4-file))
-    (setf flags    (stream-read-u24 mp4-file))
-    (setf qtype    (stream-read-u32 mp4-file))
-    (setf mtype    (stream-read-u32 mp4-file))
-    (setf resv     (stream-read-u32 mp4-file))
-    (setf rflag    (stream-read-u32 mp4-file))
-    (setf rmask    (stream-read-u32 mp4-file))
-    (setf mhdlr    (stream-read-sequence mp4-file (- atom-size 32))))) ; 32 is 8-bytes of header plus fields above
+    (setf version  (stream-read-u8 mp4-file)
+          flags    (stream-read-u24 mp4-file)
+          qtype    (stream-read-u32 mp4-file)
+          mtype    (stream-read-u32 mp4-file)
+          resv     (stream-read-u32 mp4-file)
+          rflag    (stream-read-u32 mp4-file)
+          rmask    (stream-read-u32 mp4-file)
+          mhdlr    (stream-read-sequence mp4-file (- atom-size 32))))) ; 32 is 8-bytes of header plus fields above
 
 (defclass atom-mdhd (mp4-atom)
   ((version  :accessor version)
@@ -312,17 +312,18 @@ Loop through this container and construct constituent atoms"
    (duration :accessor duration)
    (lang     :accessor lang)
    (quality  :accessor quality)))
+
 (defmethod initialize-instance :after ((me atom-mdhd) &key (mp4-file nil) &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (version flags c-time m-time scale duration lang quality) me
-    (setf version  (stream-read-u8 mp4-file))
-    (setf flags    (stream-read-u24 mp4-file))
-    (setf c-time   (stream-read-u32 mp4-file))
-    (setf m-time   (stream-read-u32 mp4-file))
-    (setf scale    (stream-read-u32 mp4-file))
-    (setf duration (if (= 0 version) (stream-read-u32 mp4-file) (stream-read-u64 mp4-file)))
-    (setf lang     (stream-read-u16 mp4-file))
-    (setf quality  (stream-read-u16 mp4-file))))
+    (setf version  (stream-read-u8 mp4-file)
+          flags    (stream-read-u24 mp4-file)
+          c-time   (stream-read-u32 mp4-file)
+          m-time   (stream-read-u32 mp4-file)
+          scale    (stream-read-u32 mp4-file)
+          duration (if (= 0 version) (stream-read-u32 mp4-file) (stream-read-u64 mp4-file))
+          lang     (stream-read-u16 mp4-file)
+          quality  (stream-read-u16 mp4-file))))
 
 (defclass atom-esds (mp4-atom)
   ((version      :accessor version)       ; 1 byte
@@ -347,8 +348,8 @@ Loop through this container and construct constituent atoms"
          (len (logand tmp #x7f)))
     (declare (type (unsigned-byte 8) tmp))
     (while (not (zerop (logand #x80 tmp)))
-      (setf tmp (stream-read-u8 instream))
-      (setf len (logior (ash len 7) (logand tmp #x7f))))
+      (setf tmp (stream-read-u8 instream)
+            len (logior (ash len 7) (logand tmp #x7f))))
     len))
 
 ;;; one-byte descriptor tags
@@ -375,22 +376,22 @@ Loop through this container and construct constituent atoms"
 (defmethod initialize-instance :after ((me atom-esds) &key (mp4-file nil) &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
-    (setf version (stream-read-u8 mp4-file))
-    (setf flags (stream-read-u24 mp4-file))
+    (setf version (stream-read-u8 mp4-file)
+          flags (stream-read-u24 mp4-file))
     (assert (= +MP4-ESDescrTag+ (stream-read-u8 mp4-file)) () "Expected description tag of ESDescrTag")
     (let* ((len (read-descriptor-len mp4-file))
            (end-of-atom (+ (stream-seek mp4-file) len)))
-      (setf esid (stream-read-u16 mp4-file))
-      (setf s-priority (stream-read-u8 mp4-file))
+      (setf esid (stream-read-u16 mp4-file)
+            s-priority (stream-read-u8 mp4-file))
       (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of DecConfigDescrTag")
-      (setf len (read-descriptor-len mp4-file))
-      (setf obj-id (stream-read-u8 mp4-file))
-      (setf s-type (stream-read-u8 mp4-file))
-      (setf buf-size (stream-read-u24 mp4-file))
-      (setf max-bit-rate (stream-read-u32 mp4-file))
-      (setf avg-bit-rate (stream-read-u32 mp4-file))
+      (setf len          (read-descriptor-len mp4-file)
+            obj-id       (stream-read-u8 mp4-file)
+            s-type       (stream-read-u8 mp4-file)
+            buf-size     (stream-read-u24 mp4-file)
+            max-bit-rate (stream-read-u32 mp4-file)
+            avg-bit-rate (stream-read-u32 mp4-file))
 
-      ;; XXX should do checking here and/or read rest of atom,
+      ;; Should do checking here and/or read rest of atom,
       ;; but for now, we have what we want, so just seek to end of atom
       (stream-seek mp4-file end-of-atom :start))))
 
@@ -403,9 +404,9 @@ Loop through this container and construct constituent atoms"
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "atom-stsd"
     (with-slots (flags version num-entries) me
-      (setf version (stream-read-u8 mp4-file))
-      (setf flags (stream-read-u24 mp4-file))
-      (setf num-entries (stream-read-u32 mp4-file))
+      (setf version (stream-read-u8 mp4-file)
+            flags   (stream-read-u24 mp4-file)
+            num-entries (stream-read-u32 mp4-file))
       (log-mp4-atom "atom-stsd: version = ~d, flags = ~x, num-fields = ~d" version flags num-entries))))
 
 (defclass atom-mp4a (mp4-atom)
@@ -424,16 +425,16 @@ Loop through this container and construct constituent atoms"
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "atom-mp4a"
     (with-slots (reserved d-ref-idx version revision vendor num-chans samp-size comp-id packet-size samp-rate) me
-      (setf reserved    (stream-read-sequence mp4-file 6))
-      (setf d-ref-idx   (stream-read-u16 mp4-file))
-      (setf version     (stream-read-u16 mp4-file))
-      (setf revision    (stream-read-u16 mp4-file))
-      (setf vendor      (stream-read-u32 mp4-file))
-      (setf num-chans   (stream-read-u16 mp4-file))
-      (setf samp-size   (stream-read-u16 mp4-file))
-      (setf comp-id     (stream-read-u16 mp4-file))
-      (setf packet-size (stream-read-u16 mp4-file))
-      (setf samp-rate   (stream-read-u32 mp4-file)) ; fixed 16.16 floating point number
+      (setf reserved    (stream-read-sequence mp4-file 6)
+            d-ref-idx   (stream-read-u16 mp4-file)
+            version     (stream-read-u16 mp4-file)
+            revision    (stream-read-u16 mp4-file)
+            vendor      (stream-read-u32 mp4-file)
+            num-chans   (stream-read-u16 mp4-file)
+            samp-size   (stream-read-u16 mp4-file)
+            comp-id     (stream-read-u16 mp4-file)
+            packet-size (stream-read-u16 mp4-file)
+            samp-rate   (stream-read-u32 mp4-file)) ; fixed 16.16 floating point number
 
       (read-container-atoms mp4-file me))))
 
@@ -442,11 +443,12 @@ Loop through this container and construct constituent atoms"
   "Loop through a container atom and add it's children to it"
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (atom-children atom-file-position atom-of-interest atom-size atom-type atom-decoded) parent-atom
-    (atom-read-loop mp4-file (+ atom-file-position atom-size)
-                    (lambda ()
-                      (let ((child (make-mp4-atom mp4-file atom-type)))
-                        (log-mp4-atom "read-container-atoms: adding new child ~a" (vpprint child nil))
-                        (addc parent-atom child))))))
+    (let ((end (+ atom-file-position atom-size)))
+      (loop for current = (stream-seek mp4-file) then (stream-seek mp4-file)
+            while (< current end) do
+              (let ((child (make-mp4-atom mp4-file atom-type)))
+                (log-mp4-atom "read-container-atoms: adding new child ~a" (vpprint child nil))
+                (addc parent-atom child))))))
 
 (defclass atom-meta (mp4-atom)
   ((version  :accessor version)
@@ -454,8 +456,8 @@ Loop through this container and construct constituent atoms"
 (defmethod initialize-instance :after ((me atom-meta) &key (mp4-file nil) &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
    (with-slots (version flags) me
-     (setf version  (stream-read-u8 mp4-file))
-     (setf flags    (stream-read-u24 mp4-file))
+     (setf version  (stream-read-u8 mp4-file)
+           flags    (stream-read-u24 mp4-file))
      (read-container-atoms mp4-file me)))
 
 (defun find-atom-class (id)
@@ -519,9 +521,9 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
            (handler-case
                (progn
                  (stream-seek mp4-file 0 :start)
-                 (setf size (stream-read-u32 mp4-file))
-                 (setf header (stream-read-u32 mp4-file))
-                 (setf valid (and (<= size (stream-size mp4-file))
+                 (setf size   (stream-read-u32 mp4-file)
+                       header (stream-read-u32 mp4-file)
+                       valid  (and (<= size (stream-size mp4-file))
                                   (= header +m4-ftyp+))))
              (condition (c)
                (utils:warn-user "File:~a~%is-valid-mp4-file got condition ~a" (stream-filename mp4-file) c)))
@@ -537,12 +539,13 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
                   (stream-filename mp4-file) (stream-seek mp4-file) (stream-size mp4-file))
 
-    (let ((atoms))
-      (atom-read-loop mp4-file (stream-size mp4-file)
-                      (lambda ()
-                        (let ((new-atom (make-mp4-atom mp4-file)))
-                          (when new-atom
-                            (push new-atom atoms)))))
+    (let ((atoms)
+          (end (stream-size mp4-file)))
+      (loop for current = (stream-seek mp4-file) then (stream-seek mp4-file)
+            while (< current end) do
+              (let ((new-atom (make-mp4-atom mp4-file)))
+                (when new-atom
+                  (push new-atom atoms))))
       (setf (mp4-atoms mp4-file) (nreverse atoms))) ; preserve in-file-order
 
     (log-mp4-atom "find-mp4-atoms: returning list of size ~d" (length (mp4-atoms mp4-file)))))
@@ -666,12 +669,12 @@ return trak.mdia.mdhd and trak.mdia.minf.stbl.stsd"
         (when mdhd
           (setf seconds (/ (float (duration mdhd)) (float (scale mdhd)))))
         (when mp4a
-          (setf channels (num-chans mp4a))
-          (setf bits-per-sample (samp-size mp4a))
+          (setf channels (num-chans mp4a)
+                bits-per-sample (samp-size mp4a))
           (let* ((upper (ash (samp-rate mp4a) -16))
                  (lower (logand (samp-rate mp4a) #xffff)))
             (setf sample-rate (+ (float upper) (/ (float lower) 1000))))
         (when esds
-          (setf avg-bit-rate (avg-bit-rate esds))
-          (setf max-bit-rate (max-bit-rate esds))))))
+          (setf avg-bit-rate (avg-bit-rate esds)
+                max-bit-rate (max-bit-rate esds))))))
     info))

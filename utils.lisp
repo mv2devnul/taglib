@@ -2,11 +2,8 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:utils)
 
-#+CCL (eval-when (:compile-toplevel :load-toplevel :exec)
+#+CCL (eval-when (:compile-toplevel :load-toplevel :execute)
         (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
-
-;; #+SBCL (eval-when (:compile-toplevel :load-toplevel :execute)
-;;          (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 (defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
 
@@ -78,28 +75,31 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   `(aif ,test-form
         (progn ,@body)))
 
-;;;(defvar *hashes* nil)
+#+INSTRUMENT-MEMOIZED (progn
+                        (defstruct memoized-funcs
+                          table
+                          calls
+                          finds
+                          news)
+                        (defvar *memoized-funcs* nil))
+
 (defun mk-memoize (func)
   "Takes a normal function object and returns a memoized one"
-  (let* ((count 0)
-         (hash-table (make-hash-table :test 'equal)))
-    ;;(push hash-table *hashes*)
-    ;;(format t "Hashes now: ~a~%" *hashes*)
+  (let* ((hash-table (make-hash-table :test 'equal))
+          #+INSTRUMENT-MEMOIZED (s (make-memoized-funcs :table hash-table :calls 0 :finds 0 :news 0))
+         )
+
+    #+INSTRUMENT-MEMOIZED (push s *memoized-funcs*)
+
     #'(lambda (arg)
-        ;;(format t "Looking for <~a>~%" arg)
         (multiple-value-bind (value foundp) (gethash arg hash-table)
-        (incf count)
-
-          ;; (when (> count 20)
-          ;;   (break "Breaking as requested")
-          ;;   (setf count 0))
-
+          #+INSTRUMENT-MEMOIZED (incf (memoized-funcs-calls s))
           (if foundp
               (progn
-                ;;(format t "Already seen <~a>~%" arg)
+                #+INSTRUMENT-MEMOIZED (incf (memoized-funcs-finds s))
                 value)
               (progn
-                ;;(format t "First time seen <~a>~%" arg)
+                #+INSTRUMENT-MEMOIZED (incf (memoized-funcs-news s))
                 (setf (gethash arg hash-table) (funcall func arg))))))))
 
 (defmacro memoize (func-name)

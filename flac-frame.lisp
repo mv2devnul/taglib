@@ -21,12 +21,12 @@
    (header-len  :accessor header-len  :initarg :header-len  :documentation "how long the info associated w/header is"))
   (:documentation "Representation of FLAC stream header"))
 
-(defmacro with-frame-slots ((instance) &body body)
+(defmacro with-flac-slots ((instance) &body body)
   `(with-slots (pos last-bit header-type header-len) ,instance
      ,@body))
 
 (defmethod vpprint ((me flac-header) stream)
-  (with-slots (pos last-bit header-type header-len) me
+  (with-flac-slots (me)
     (format stream "pos = ~:d, last-bit = ~b, header-type = ~d, length = ~:d"
             pos
             last-bit
@@ -149,20 +149,21 @@
   "Read in the the audio properties from current file position."
   (declare #.utils:*standard-optimize-settings*)
   (let ((info (make-instance 'flac-audio-properties)))
-    (setf (min-block-size info) (stream-read-u16 flac-stream))
-    (setf (max-block-size info) (stream-read-u16 flac-stream))
-    (setf (min-frame-size info) (stream-read-u24 flac-stream))
-    (setf (max-frame-size info) (stream-read-u24 flac-stream))
+    (setf (min-block-size info) (stream-read-u16 flac-stream)
+          (max-block-size info) (stream-read-u16 flac-stream)
+          (min-frame-size info) (stream-read-u24 flac-stream)
+          (max-frame-size info) (stream-read-u24 flac-stream))
     (let* ((int1 (stream-read-u32 flac-stream))
            (int2 (stream-read-u32 flac-stream)))
-      (setf (total-samples info) (logior (ash (get-bitfield int1 3  4) -32) int2))
-      (setf (bits-per-sample info)            (1+ (get-bitfield int1 8  5)))
-      (setf (num-channels info)               (1+ (get-bitfield int1 11 3)))
-      (setf (sample-rate info)                (get-bitfield int1 31 20)))
-    (setf (md5-sig info) (stream-read-u128 flac-stream))
+      (setf (total-samples info)   (logior (ash (get-bitfield int1 3  4) -32) int2)
+            (bits-per-sample info) (1+ (get-bitfield int1 8  5))
+            (num-channels info)    (1+ (get-bitfield int1 11 3))
+            (sample-rate info)     (get-bitfield int1 31 20)
+            (md5-sig info)         (stream-read-u128 flac-stream)))
     info))
 
 (defun flac-show-raw-tag (flac-file-stream out-stream)
+  "Spit out the raw form of comments we found"
   (declare #.utils:*standard-optimize-settings*)
   (format out-stream "Vendor string: <~a>~%" (vendor-str (flac-tags flac-file-stream)))
   (dotimes (i (length (comments (flac-tags flac-file-stream))))
