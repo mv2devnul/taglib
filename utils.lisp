@@ -3,6 +3,7 @@
 (in-package #:utils)
 
 #+CCL (eval-when (:compile-toplevel :load-toplevel :execute)
+        (pushnew :INSTRUMENT-MEMOIZED *features*)
         (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 (defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
@@ -77,16 +78,18 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 
 #+INSTRUMENT-MEMOIZED (progn
                         (defstruct memoized-funcs
+                          name
                           table
                           calls
                           finds
                           news)
                         (defvar *memoized-funcs* nil))
 
-(defun mk-memoize (func)
+(defun mk-memoize (func-name)
   "Takes a normal function object and returns a memoized one"
-  (let* ((hash-table (make-hash-table :test 'equal))
-          #+INSTRUMENT-MEMOIZED (s (make-memoized-funcs :table hash-table :calls 0 :finds 0 :news 0))
+  (let* ((func (symbol-function func-name))
+         (hash-table (make-hash-table :test 'equal))
+          #+INSTRUMENT-MEMOIZED (s (make-memoized-funcs :table hash-table :calls 0 :finds 0 :news 0 :name func-name))
          )
 
     #+INSTRUMENT-MEMOIZED (push s *memoized-funcs*)
@@ -104,4 +107,4 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 
 (defmacro memoize (func-name)
   "Memoize function associated with Function-Name. Simplified version"
-  `(setf (symbol-function ,func-name) (utils::mk-memoize (symbol-function ,func-name))))
+  `(setf (symbol-function ,func-name) (utils::mk-memoize ,func-name)))

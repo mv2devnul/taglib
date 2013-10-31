@@ -29,7 +29,7 @@
            #:stream-read-iso-string #:stream-read-ucs-string #:stream-read-ucs-be-string
            #:stream-read-utf-8-string #:stream-read-string
            #:stream-read-string #:stream-read-sequence #:stream-size
-           #:stream-seek #:stream-close)
+           #:stream-seek #:stream-here #:stream-close)
   (:use #:common-lisp #:utils))
 
 (defpackage #:flac-frame

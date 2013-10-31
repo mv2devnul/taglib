@@ -57,7 +57,7 @@
   (log5:with-context "make-flac-header"
     (let* ((header (stream-read-u32 stream))
            (flac-header (make-instance 'flac-header
-                                       :pos (- (stream-seek stream) 4)
+                                       :pos (- (stream-here stream) 4)
                                        :last-bit (utils:get-bitfield header 31 1)
                                        :header-type (utils:get-bitfield header 30 7)
                                        :header-len (utils:get-bitfield header 23 24))))

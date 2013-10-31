@@ -104,10 +104,10 @@
 ;;   (declare #.utils:*standard-optimize-settings*)
 ;;   (log5:with-context "atom-read-loop"
 ;;     (do ()
-;;         ((>= (stream-seek mp4-file) end))
-;;       (log-mp4-atom "atom-read-loop: @~:d before dispatch" (stream-seek mp4-file))
+;;         ((>= (stream-here mp4-file) end))
+;;       (log-mp4-atom "atom-read-loop: @~:d before dispatch" (stream-here mp4-file))
 ;;       (funcall func)
-;;       (log-mp4-atom "atom-read-loop: @~:d after dispatch" (stream-seek mp4-file)))))
+;;       (log-mp4-atom "atom-read-loop: @~:d after dispatch" (stream-here mp4-file)))))
 
 (defclass mp4-atom ()
   ((atom-file-position :accessor atom-file-position :initarg :atom-file-position)
@@ -155,10 +155,10 @@ Loop through this container and construct constituent atoms"
   (log5:with-context "atom-ilst-initializer"
     (with-slots (atom-size atom-type atom-children) me
       (log-mp4-atom "atom-ilst-init: found ilst atom <~a> @ ~:d, looping for ~:d bytes"
-                    (as-string atom-type) (stream-seek mp4-file) (- atom-size 8))
+                    (as-string atom-type) (stream-here mp4-file) (- atom-size 8))
 
-      (let ((end (+ (stream-seek mp4-file) (- atom-size 8))))
-        (loop for current = (stream-seek mp4-file) then (stream-seek mp4-file)
+      (let ((end (+ (stream-here mp4-file) (- atom-size 8))))
+        (loop for current = (stream-here mp4-file) then (stream-here mp4-file)
             while (< current end) do
               (log-mp4-atom "at ~:d:~:d~%" current end)
               (addc me (make-mp4-atom mp4-file atom-type)))))))
@@ -380,7 +380,7 @@ Loop through this container and construct constituent atoms"
           flags (stream-read-u24 mp4-file))
     (assert (= +MP4-ESDescrTag+ (stream-read-u8 mp4-file)) () "Expected description tag of ESDescrTag")
     (let* ((len (read-descriptor-len mp4-file))
-           (end-of-atom (+ (stream-seek mp4-file) len)))
+           (end-of-atom (+ (stream-here mp4-file) len)))
       (setf esid (stream-read-u16 mp4-file)
             s-priority (stream-read-u8 mp4-file))
       (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of DecConfigDescrTag")
@@ -444,7 +444,7 @@ Loop through this container and construct constituent atoms"
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (atom-children atom-file-position atom-of-interest atom-size atom-type atom-decoded) parent-atom
     (let ((end (+ atom-file-position atom-size)))
-      (loop for current = (stream-seek mp4-file) then (stream-seek mp4-file)
+      (loop for current = (stream-here mp4-file) then (stream-here mp4-file)
             while (< current end) do
               (let ((child (make-mp4-atom mp4-file atom-type)))
                 (log-mp4-atom "read-container-atoms: adding new child ~a" (vpprint child nil))
@@ -477,12 +477,12 @@ Loop through this container and construct constituent atoms"
     ;; didn't find a class, so return ATOM-SKIP class
     (log-mp4-atom "find-atom-class: class not found")
     'atom-skip))
-
+(utils:memoize 'find-atom-class)
 (defun make-mp4-atom (mp4-file &optional parent-type)
   "Get current file position, read in size/type, then construct the correct atom."
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "make-mp4-atom"
-    (let* ((pos (stream-seek mp4-file))
+    (let* ((pos (stream-here mp4-file))
            (siz (stream-read-u32 mp4-file))
            (typ (stream-read-u32 mp4-file))
            (atom))
@@ -499,15 +499,16 @@ Loop through this container and construct constituent atoms"
       atom)))
 
 (defmethod vpprint ((me mp4-atom) stream)
-  (format stream "~a" (with-output-to-string (s)
-                        (with-slots (atom-children atom-file-position atom-size atom-type) me
-                          (format s "ATOM: type: <~a> @ ~:d of size ~:d and child count of ~d"
-                                  (as-string atom-type) atom-file-position atom-size (length atom-children)))
-                        (if (typep me 'atom-data)
-                            (with-slots (atom-version atom-flags atom-value atom-type atom-parent-type) me
-                              (format s " having ilst fields: atom-parent-type = ~a, verison = ~d, flags = ~x, data = ~x"
-                                      (as-string atom-parent-type) atom-version atom-flags
-                                      (if (typep atom-value 'array) (printable-array atom-value) atom-value)))))))
+  (format stream "~a"
+          (with-output-to-string (s)
+            (with-slots (atom-children atom-file-position atom-size atom-type) me
+              (format s "ATOM: type: <~a> @ ~:d of size ~:d and child count of ~d"
+                      (as-string atom-type) atom-file-position atom-size (length atom-children)))
+            (if (typep me 'atom-data)
+                (with-slots (atom-version atom-flags atom-value atom-type atom-parent-type) me
+                  (format s " having ilst fields: atom-parent-type = ~a, verison = ~d, flags = ~x, data = ~x"
+                          (as-string atom-parent-type) atom-version atom-flags
+                          (if (typep atom-value 'array) (printable-array atom-value) atom-value)))))))
 
 (defun is-valid-m4-file (mp4-file)
   "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?
@@ -537,11 +538,11 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
   (log5:with-context "find-mp4-atoms"
 
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
-                  (stream-filename mp4-file) (stream-seek mp4-file) (stream-size mp4-file))
+                  (stream-filename mp4-file) (stream-here mp4-file) (stream-size mp4-file))
 
     (let ((atoms)
           (end (stream-size mp4-file)))
-      (loop for current = (stream-seek mp4-file) then (stream-seek mp4-file)
+      (loop for current = (stream-here mp4-file) then (stream-here mp4-file)
             while (< current end) do
               (let ((new-atom (make-mp4-atom mp4-file)))
                 (when new-atom
@@ -613,7 +614,7 @@ call traverse atom (unless length of path == 1, in which case, we've found our m
                           (format out-stream "~vt~a~%" depth (vpprint atom nil))))))
 
 (defun find-all (base name)
-  "Starting as BASE atom, recursively search for all instances of NAME"
+  "Starting at BASE atom, recursively search for all instances of NAME"
   (declare #.utils:*standard-optimize-settings*)
   (let* ((search-name (if (typep name 'string) (as-int name) name))
          (found))

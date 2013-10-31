@@ -217,7 +217,7 @@ NB: 2.3 and 2.4 extended flags are different..."
     (with-slots (version revision flags size ext-header frames v21-tag-header) me
       (stream-seek instream 128 :end)
       (when (string= "TAG" (stream-read-string-with-len instream 3))
-        (log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-seek instream))
+        (log-id3-frame "looking at last 128 bytes at ~:d to try to read id3v21 header" (stream-here instream))
         (handler-case
             (setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
           (condition (c)
@@ -258,10 +258,10 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context  "get-name-value-pair"
-    (log-id3-frame "reading from ~:d, len ~:d, name-encoding = ~d, value-encoding = ~d" (stream-seek instream) len name-encoding value-encoding)
-    (let* ((old-pos (stream-seek instream))
+    (log-id3-frame "reading from ~:d, len ~:d, name-encoding = ~d, value-encoding = ~d" (stream-here instream) len name-encoding value-encoding)
+    (let* ((old-pos (stream-here instream))
            (name (stream-read-string instream :encoding name-encoding))
-           (name-len (- (stream-seek instream) old-pos))
+           (name-len (- (stream-here instream) old-pos))
            (value))
 
       (log-id3-frame "name = <~a>, name-len = ~d" name name-len)
@@ -926,12 +926,13 @@ NB: 2.3 and 2.4 extended flags are different..."
 
       (log-id3-frame "general case for id <~a> is ~a" id found-class)
       found-class)))
+(utils:memoize 'find-frame-class)
 
 (defun make-frame (version instream fn)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "make-frame"
-    (let* ((pos (stream-seek instream))
+    (let* ((pos (stream-here instream))
            (byte (stream-read-u8 instream))
            frame-name frame-len frame-flags frame-class)
 
@@ -962,7 +963,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
       ;; edge case where found a frame name, but it is not valid or where making this frame
       ;; would blow past the end of the file/buffer
-      (when (or (> (+ (stream-seek instream) frame-len) (stream-size instream))
+      (when (or (> (+ (stream-here instream) frame-len) (stream-size instream))
                 (null frame-class))
         (error "bad frame at position ~d found: ~a" pos frame-name))
 
@@ -977,7 +978,7 @@ NB: 2.3 and 2.4 extended flags are different..."
                (log-id3-frame "Starting loop through ~:d bytes" (stream-size stream))
                (let (frames this-frame)
                  (do ()
-                     ((>= (stream-seek stream) (stream-size stream)))
+                     ((>= (stream-here stream) (stream-size stream)))
                    (handler-case
                        (progn
                          (setf this-frame (make-frame version stream (stream-filename mp3-file)))
@@ -985,7 +986,7 @@ NB: 2.3 and 2.4 extended flags are different..."
                            (log-id3-frame "hit padding: returning ~d frames" (length frames))
                            (return-from read-loop (values t (nreverse frames))))
 
-                         (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-seek stream) (stream-size stream))
+                         (log-id3-frame "bottom of read-loop: pos = ~:d, size = ~:d" (stream-here stream) (stream-size stream))
                          (push this-frame frames))
                      (condition (c)
                        (utils:warn-user "find-id3-frame got condition ~a" c)

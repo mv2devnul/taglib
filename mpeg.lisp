@@ -192,14 +192,13 @@
 (defmethod load-frame ((me frame) &key instream (read-payload nil))
   "Load an MPEG frame from current file position.  If READ-PAYLOAD is set, read in frame's content."
   (declare #.utils:*standard-optimize-settings*)
-  (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "load-frame"
     (handler-case
         (with-frame-slots (me)
-          (log-mpeg-frame "loading frame from pos ~:d" (stream-seek instream))
+          (log-mpeg-frame "loading frame from pos ~:d" (stream-here instream))
           (when (null hdr-u32)          ; has header already been read in?
             (log-mpeg-frame "reading in header")
-            (setf pos (stream-seek instream)
+            (setf pos (stream-here instream)
                   hdr-u32 (stream-read-u32 instream))
             (when (null hdr-u32)
               (log-mpeg-frame "hit EOF")
@@ -396,14 +395,14 @@ Bits   1-0 (2  bits): the emphasis"
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "find-first-sync"
 
-    (log-mpeg-frame "Looking for first sync, begining at file position ~:d" (stream-seek in))
+    (log-mpeg-frame "Looking for first sync, begining at file position ~:d" (stream-here in))
     (let ((hdr-u32)
           (count 0)
           (pos))
 
       (handler-case
           (loop
-            (setf pos (stream-seek in)
+            (setf pos (stream-here in)
                   hdr-u32 (stream-read-u32 in))
             (when (null hdr-u32)
               (return-from find-first-sync nil))
@@ -432,11 +431,11 @@ Bits   1-0 (2  bits): the emphasis"
     (let ((nxt-frame (make-instance 'frame)))
       (when (not (payload me))
         (log-mpeg-frame "no payload load required in current frame, skipping from ~:d forward ~:d bytes"
-                        (stream-seek instream)
+                        (stream-here instream)
                         (- (size me) 4) :current)
         (stream-seek instream (- (size me) 4) :current))
 
-      (log-mpeg-frame "at pos ~:d, read-payload is ~a" (stream-seek instream) read-payload)
+      (log-mpeg-frame "at pos ~:d, read-payload is ~a" (stream-here instream) read-payload)
       (if (load-frame nxt-frame :instream instream :read-payload read-payload)
           nxt-frame
           nil))))
@@ -446,7 +445,7 @@ Bits   1-0 (2  bits): the emphasis"
 (defun map-frames (in func &key (start-pos nil) (read-payload nil) (max nil))
   "Loop through the MPEG audio frames in a file.  If *MAX-FRAMES-TO-READ* is set, return after reading that many frames."
   (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "next-frame"
+  (log5:with-context "map-frames"
     (log-mpeg-frame "mapping frames, start pos ~:d" start-pos)
 
     (when start-pos

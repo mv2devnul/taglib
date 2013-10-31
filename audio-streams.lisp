@@ -44,6 +44,10 @@
       )
     (setf vect nil)))
 
+;;; finding out current file position is so common, we also
+;;; provide a macro
+(defmacro stream-here (stream) `(index ,stream))
+
 (defmethod stream-seek ((stream mem-stream) &optional (offset 0) (from :current))
   "Set INDEX to requested value.  No error checking done here, but subsequent reads will fail if INDEX is out-of-bounds.
 As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns the current read-offset in stream."
