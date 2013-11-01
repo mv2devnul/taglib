@@ -2,9 +2,9 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:utils)
 
-#+CCL (eval-when (:compile-toplevel :load-toplevel :execute)
-        (pushnew :INSTRUMENT-MEMOIZED *features*)
-        (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (pushnew :INSTRUMENT-MEMOIZED *features*)
+  (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
 
 (defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
 
@@ -24,12 +24,13 @@
   (let* ((len (length array))
          (print-len (min len max-len))
          (printable-array (make-array print-len :displaced-to array)))
+    (declare (fixnum max-len len)
+             (type (array (unsigned-byte 8) 1) array))
     (format nil "[~:d of ~:d bytes] <~x>" print-len len printable-array)))
 
-(defun upto-null (string)
+(defmacro upto-null (string)
   "Trim STRING to end at first NULL found"
-  (declare #.utils:*standard-optimize-settings*)
-  (subseq string 0 (position #\Null string)))
+  `(subseq ,string 0 (position #\Null ,string)))
 
 (defun dump-data (file-name data)
   (with-open-file (f file-name :direction :output :if-exists :supersede :element-type '(unsigned-byte 8))

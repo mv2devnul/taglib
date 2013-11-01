@@ -18,8 +18,8 @@
 
 (defmacro with-mem-stream-slots ((instance) &body body)
   `(with-slots (stream-filename index stream-size vect) ,instance
-     (declare (integer index stream-size)
-              (type (array (unsigned-byte 8) 1) vect))
+     (declare (fixnum index stream-size)
+              (type (or (array (unsigned-byte 8) 1) null) vect))
      ,@body))
 
 (defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
@@ -52,7 +52,8 @@
   "Set INDEX to requested value.  No error checking done here, but subsequent reads will fail if INDEX is out-of-bounds.
 As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns the current read-offset in stream."
   (declare #.utils:*standard-optimize-settings*)
-  (with-mem-stream-slots (stream)
+  (declare (fixnum offset))
+(with-mem-stream-slots (stream)
     (ecase from
       (:start                  ; INDEX set to OFFSET from start of stream
        (setf index offset))
@@ -68,6 +69,7 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
 (defun read-n-bytes (stream n-bytes &key (bits-per-byte 8) (endian :little-endian))
   "Returns a FIXNUM constructed by reading N-BYTES.  BITS-PER-BYTE contols how many bits should be used from each read byte."
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum n-bytes))
   (with-mem-stream-slots (stream)
     (when (<= (+ index n-bytes) stream-size)
       (ecase endian

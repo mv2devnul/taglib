@@ -32,7 +32,7 @@
                (setf foo (make-file-stream file))
                (when foo
                  (parse-audio-file foo))    ; only call parse-audio if we got back a known file type
-               (funcall func foo))          ; call func even is foo is null so it can account for unkown file types
+               (funcall func foo))          ; call func even if foo is null so it can account for unkown file types
            (condition (c)
              (utils:warn-user "File: ~a~%Got condition: <~a>" file c)))
       (when foo
