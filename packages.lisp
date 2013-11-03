@@ -2,6 +2,9 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:cl-user)
 
+(defpackage #:tree
+  (:use #:common-lisp))
+
 (defpackage #:utils
   (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null
            #:redirect #:memoize #:it #:*standard-optimize-settings*

@@ -22,7 +22,6 @@
 (defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
 (defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 
-
 (defun do-audio-file (&optional (file *song-m4a*) &key (func (constantly t)))
   "Parse one audio file (with condition handling)."
   (let ((foo))

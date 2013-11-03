@@ -577,11 +577,13 @@ call traverse atom (unless length of path == 1, in which case, we've found our m
     (log-mp4-atom "traverse: ~a not found" path)
     nil))
 
+(defvar *ilst-data* (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+ nil +itunes-ilst-data+))
+
 (defmethod tag-get-value (atoms node)
   "Helper function to extract text from ILST atom's data atom"
   (declare #.utils:*standard-optimize-settings*)
-  (aif (traverse atoms
-                 (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+ node +itunes-ilst-data+))
+  (setf (nth 4 *ilst-data*) node)
+  (aif (traverse atoms *ilst-data*)
        (atom-value it)
        nil))
 
@@ -595,13 +597,19 @@ call traverse atom (unless length of path == 1, in which case, we've found our m
                         (when (= (atom-type atom) +itunes-ilst-data+)
                           (format out-stream "~vt~a~%" depth (vpprint atom nil))))))
 
+;;; define these as constants to limit consing when get-audio-properties-atoms is called
+(defconstant +audio-prop-mdia+ (list +mp4-atom-moov+ +mp4-atom-trak+ +mp4-atom-mdia+))
+(defconstant +audio-prop-mdhd+ (list +audioprop-mdhd+))
+(defconstant +audio-prop-mp4a+ (list +mp4-atom-minf+ +mp4-atom-stbl+ +audioprop-mp4a+))
+(defconstant +audio-prop-esds+ (list +audioprop-esds+))
+
 (defun get-audio-properties-atoms (mp4-file)
   "Get the audio property atoms from MP4-FILE"
   (declare #.utils:*standard-optimize-settings*)
-  (let* ((mdia       (traverse (mp4-atoms mp4-file) (list +mp4-atom-moov+ +mp4-atom-trak+ +mp4-atom-mdia+)))
-         (mdhd       (traverse mdia (list +audioprop-mdhd+)))
-         (audioprop1 (traverse mdia (list +mp4-atom-minf+ +mp4-atom-stbl+ +audioprop-mp4a+)))
-         (audioprop2 (traverse audioprop1 (list +audioprop-esds+))))
+  (let* ((mdia       (traverse (mp4-atoms mp4-file) +audio-prop-mdia+))
+         (mdhd       (traverse mdia +audio-prop-mdhd+))
+         (audioprop1 (traverse mdia +audio-prop-mp4a+))
+         (audioprop2 (traverse audioprop1 +audio-prop-esds+)))
     (if (and mdhd audioprop1 audioprop2)
         (values mdhd audioprop1 audioprop2)
         nil)))
