@@ -87,12 +87,20 @@ As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns 
                finally (return-from read-n-bytes value))))))
     nil)
 
-(defmethod stream-read-u8   ((stream mem-stream) &key (bits-per-byte 8))                         (read-n-bytes stream 1  :bits-per-byte bits-per-byte))
-(defmethod stream-read-u16  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 2  :bits-per-byte bits-per-byte :endian endian))
-(defmethod stream-read-u24  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 3  :bits-per-byte bits-per-byte :endian endian))
-(defmethod stream-read-u32  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 4  :bits-per-byte bits-per-byte :endian endian))
-(defmethod stream-read-u64  ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 8  :bits-per-byte bits-per-byte :endian endian))
-(defmethod stream-read-u128 ((stream mem-stream) &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 16 :bits-per-byte bits-per-byte :endian endian))
+(defun stream-read-u8 (stream)
+  (declare #.utils:*standard-optimize-settings*)
+  (with-mem-stream-slots (stream)
+    (if (<= (+ index 1) stream-size)
+        (let ((val (aref vect index)))
+          (incf index)
+          val)
+        nil)))
+
+(defun stream-read-u16  (stream &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 2  :bits-per-byte bits-per-byte :endian endian))
+(defun stream-read-u24  (stream &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 3  :bits-per-byte bits-per-byte :endian endian))
+(defun stream-read-u32  (stream &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 4  :bits-per-byte bits-per-byte :endian endian))
+(defun stream-read-u64  (stream &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 8  :bits-per-byte bits-per-byte :endian endian))
+(defun stream-read-u128 (stream &key (bits-per-byte 8) (endian :little-endian)) (read-n-bytes stream 16 :bits-per-byte bits-per-byte :endian endian))
 
 (defmethod stream-read-sequence ((stream mem-stream) size &key (bits-per-byte 8))
   "Read in a sequence of octets at BITS-PER-BYTE.  If BITS-PER-BYTE == 8, then simply return

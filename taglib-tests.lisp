@@ -65,8 +65,8 @@
     (time (do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))
 
 ;;;;;;;;;;;;;;;;;;;; multi-thread code below ;;;;;;;;;;;;;;;;;;;;
-(defparameter *END-THREAD*  #xdeadbeef)
-(defparameter *MAX-THREADS* 4)
+(defparameter *end-thread*  #xdeadbeef)
+(defparameter *max-threads* 4)
 
 ;;; Simple structure to hold a thread's results
 (defstruct chanl-results
@@ -99,7 +99,7 @@
                    (with-slots (name mp3-count mp4-count flac-count other-count) results
                      (setf f (chanl:recv channel))
                      (when (and (typep f 'integer)
-                                (= f *END-THREAD*))
+                                (= f *end-thread*))
                        (chanl:send dead-channel results) ; send structure of stats back to parent
                        (return-from thread-reader nil))
 
@@ -116,9 +116,9 @@
       ;; At this point, CHANNEL is stuffed with files.
       ;; Now, send *MAX-THREADS* "ends" (at end of CHANNEL) and
       ;; spawn *MAX-THREADS* threads
-      (dotimes (i *MAX-THREADS*)
-        (chanl:send channel *END-THREAD*))
-      (dotimes (i *MAX-THREADS*)
+      (dotimes (i *max-threads*)
+        (chanl:send channel *end-thread*))
+      (dotimes (i *max-threads*)
         (chanl:pcall #'thread-reader :initial-bindings `((*me* ,(format nil "reader-thread-~d" i)))))
 
       ;; sit in loop until we read *MAX-THREADS* results
@@ -126,7 +126,7 @@
         (let ((i 0)
               results)
 
-          (format t "Waiting on ~d threads~%" *MAX-THREADS*)
+          (format t "Waiting on ~d threads~%" *max-threads*)
           (loop
             (force-output *standard-output*)
             (setf results (chanl:recv dead-channel))
@@ -144,8 +144,8 @@
             (incf other-count (chanl-results-other-count results))
             (incf i)
 
-            (when (= i *MAX-THREADS*)
-              (return-from thread-reap *MAX-THREADS*)))))
+            (when (= i *max-threads*)
+              (return-from thread-reap *max-threads*)))))
 
       (format t "All threads done~%")
       (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACS, ~:d Others, for a total of ~:d files~%"
