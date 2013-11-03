@@ -109,3 +109,8 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 (defmacro memoize (func-name)
   "Memoize function associated with Function-Name. Simplified version"
   `(setf (symbol-function ,func-name) (utils::mk-memoize ,func-name)))
+
+(defun timings (function)
+  (let ((real-base (get-internal-real-time)))
+    (funcall function)
+    (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))
