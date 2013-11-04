@@ -82,7 +82,7 @@
 (defconstant +itunes-track-n+        (mk-mp4-atom-type #\t  #\r #\k #\n) "octet: yet another track number")
 (defconstant +itunes-writer+         (mk-mp4-atom-type #xa9 #\w #\r #\t) "text: who wrote the song")
 (defconstant +itunes-year+           (mk-mp4-atom-type #xa9 #\d #\a #\y) "text: year album was released")
-(defconstant +itunes-ilst-data+      (mk-mp4-atom-type #\d #\a #\t #\a) "Carries the actual data under an ilst atom")
+(defconstant +itunes-ilst-data+      (mk-mp4-atom-type #\d #\a #\t #\a)  "carries the actual data under an ilst atom")
 
 (defconstant +m4-ftyp+               (mk-mp4-atom-type #\f #\t #\y #\p) "This should be the first atom type found in file")
 

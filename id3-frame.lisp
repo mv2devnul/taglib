@@ -457,6 +457,11 @@ NB: 2.3 and 2.4 extended flags are different..."
     (format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d (~a), description <~a>, data: ~a"
             (vpprint-frame-header me) encoding img-format type (get-picture-type type) desc (printable-array data))))
 
+(defmethod picture-info ((me frame-pic))
+  "Used by ABSTRACT-TAG interface to report data about V2.2 cover art"
+  (with-slots (encoding img-format type desc data) me
+    (format nil "Size: ~:d" (length data))))
+
 ;; Version 2, 3, or 4 generic text-info frames
 ;; Text information identifier  "T00" - "TZZ", excluding "TXX", or "T000 - TZZZ", excluding "TXXX"
 ;; Text encoding                $xx
@@ -717,6 +722,11 @@ NB: 2.3 and 2.4 extended flags are different..."
   (with-slots (encoding mime type desc data) me
     (format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d (~a), description <~a>, data: ~a"
             (vpprint-frame-header me) encoding mime type (get-picture-type type) desc (printable-array data))))
+
+(defmethod picture-info ((me frame-apic))
+  "Used by ABSTRACT-TAG interface to report data about V2.3/4 cover art"
+  (with-slots (encoding mime type desc data) me
+    (format nil "Size: ~:d" (length data))))
 
 ;;; V23/V24 COMM frames
 ;;; <Header for 'Comment', ID: "COMM">

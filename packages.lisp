@@ -72,9 +72,11 @@
   (:use #:common-lisp #:audio-streams #:utils))
 
 (defpackage #:id3-frame
-  (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header #:get-frame-info #:is-valid-mp3-file
-           #:encoding #:lang #:desc #:val #:comment #:artist #:album #:year #:comment #:year
-           #:map-id3-frames #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version)
+  (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint #:header
+           #:get-frame-info #:is-valid-mp3-file #:encoding #:lang #:desc #:val
+           #:comment #:artist #:album #:year #:comment #:year #:map-id3-frames
+           #:frames #:year #:title #:genre #:id #:v21-tag-header #:info #:version
+           #:picture-info)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
 ;; (defpackage #:mp3-tag
