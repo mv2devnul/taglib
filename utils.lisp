@@ -28,9 +28,10 @@
              (type (array (unsigned-byte 8) 1) array))
     (format nil "[~:d of ~:d bytes] <~x>" print-len len printable-array)))
 
-(defmacro upto-null (string)
+(declaim (inline upto-null))
+(defun upto-null (string)
   "Trim STRING to end at first NULL found"
-  `(subseq ,string 0 (position #\Null ,string)))
+  (subseq string 0 (position #\Null string)))
 
 (defun dump-data (file-name data)
   (with-open-file (f file-name :direction :output :if-exists :supersede :element-type '(unsigned-byte 8))
