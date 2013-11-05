@@ -126,6 +126,15 @@ to read the payload of an atom."
   (with-slots (atom-size atom-type) me
     (stream-seek mp4-file (- atom-size 8) :current)))
 
+(defun read-container-atoms (mp4-file parent-atom)
+  "Loop through a container atom and add it's children to it"
+  (declare #.utils:*standard-optimize-settings*)
+  (with-slots (atom-children atom-file-position atom-of-interest atom-size atom-type atom-decoded) parent-atom
+    (loop for end = (+ atom-file-position atom-size)
+          for current = (stream-here mp4-file) then (stream-here mp4-file)
+          while (< current end) do
+            (addc parent-atom (make-mp4-atom mp4-file atom-type)))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ILST ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass atom-ilst (mp4-atom) ())
 
@@ -137,12 +146,8 @@ Loop through this container and construct constituent atoms"
     (with-slots (atom-size atom-type atom-children) me
       (log-mp4-atom "atom-ilst-init: found ilst atom <~a> @ ~:d, looping for ~:d bytes"
                     (as-string atom-type) (stream-here mp4-file) (- atom-size 8))
+      (read-container-atoms mp4-file me))))
 
-      (let ((end (+ (stream-here mp4-file) (- atom-size 8))))
-        (loop for current = (stream-here mp4-file) then (stream-here mp4-file)
-            while (< current end) do
-              (log-mp4-atom "at ~:d:~:d~%" current end)
-              (addc me (make-mp4-atom mp4-file atom-type)))))))
 
 (defclass atom-©alb (atom-ilst) ())
 (defclass atom-aART (atom-ilst) ())
@@ -419,17 +424,6 @@ Loop through this container and construct constituent atoms"
 
       (read-container-atoms mp4-file me))))
 
-(defun read-container-atoms (mp4-file parent-atom)
-  "Loop through a container atom and add it's children to it"
-  (declare #.utils:*standard-optimize-settings*)
-  (with-slots (atom-children atom-file-position atom-of-interest atom-size atom-type atom-decoded) parent-atom
-    (let ((end (+ atom-file-position atom-size)))
-      (loop for current = (stream-here mp4-file) then (stream-here mp4-file)
-            while (< current end) do
-              (let ((child (make-mp4-atom mp4-file atom-type)))
-                (log-mp4-atom "read-container-atoms: adding new child ~a" (vpprint child nil))
-                (addc parent-atom child))))))
-
 (defclass atom-meta (mp4-atom)
   ((version  :accessor version)
    (flags    :accessor flags)))
@@ -518,17 +512,15 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
   (declare #.utils:*standard-optimize-settings*)
   (log5:with-context "find-mp4-atoms"
 
+    (stream-seek mp4-file 0 :start)
     (log-mp4-atom "find-mp4-atoms: ~a, before read-file loop, file-position = ~:d, end = ~:d"
                   (stream-filename mp4-file) (stream-here mp4-file) (stream-size mp4-file))
 
-    (let ((atoms)
-          (end (stream-size mp4-file)))
-      (loop for current = (stream-here mp4-file) then (stream-here mp4-file)
-            while (< current end) do
-              (let ((new-atom (make-mp4-atom mp4-file)))
-                (when new-atom
-                  (push new-atom atoms))))
-      (setf (mp4-atoms mp4-file) (nreverse atoms))) ; preserve in-file-order
+    (setf (mp4-atoms mp4-file)
+          (loop for end = (stream-size mp4-file)
+                for current = (stream-here mp4-file) then (stream-here mp4-file)
+                while (< current end)
+                collecting (make-mp4-atom mp4-file)))
 
     (log-mp4-atom "find-mp4-atoms: returning list of size ~d" (length (mp4-atoms mp4-file)))))
 
