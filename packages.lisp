@@ -44,7 +44,7 @@
 
 (defpackage #:mp4-atom
   (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse #:mp4-atom-condition
-           #:atom-file-position #:atom-children #:atom-size #:atom-of-interest #:atom-decoded
+           #:atom-file-pos #:atom-children #:atom-size #:atom-of-interest #:atom-decoded
            #:atom-type #:vpprint #:*tag-path* #:tag-get-value #:mp4-atom-condition
            #:mp4-show-raw-tag-atoms #:get-mp4-audio-info #:is-valid-m4-file
            #:+itunes-album+
@@ -96,7 +96,7 @@
 
 
 (defpackage #:logging
-  (:export #:with-logging)
+  (:export #:with-logging #:stop-logging)
   (:use #:common-lisp #:utils))
 
 (defpackage #:mpeg

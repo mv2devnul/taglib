@@ -980,7 +980,7 @@ NB: 2.3 and 2.4 extended flags are different..."
       (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream))))
 
 (defmethod find-id3-frames ((mp3-file mp3-file-stream))
-  "With an open mp3-file, make sure it is in fact an MP3 file, then read it's header and frames"
+  "With an open mp3-file, make sure it is in fact an MP3 file, then read its header and frames"
 
   (declare #.utils:*standard-optimize-settings*)
   (labels ((read-loop (version stream)

@@ -13,6 +13,9 @@
           ,@body)
      (log5:stop-sender 'trace-log)))
 
+(defun stop-logging ()
+  (log5:stop-sender 'trace-log))
+
 (defparameter *logging-categories* '(mp4-atom::cat-log-mp4-atom
                                      audio-streams::cat-log-stream
                                      mpeg::cat-log-mpeg-frame

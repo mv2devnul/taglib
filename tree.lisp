@@ -27,7 +27,7 @@
   "Depth-first traversal of TREE calling FUNC for each node"
   (when tree
     (funcall func (data tree) depth)
-    (traverse (first-child tree) func  (+ 2 depth))
+    (traverse (first-child tree) func (+ 2 depth))
     (traverse (next-sibling tree) func depth)))
 
 (defun print-tree (tree)

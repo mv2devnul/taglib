@@ -334,7 +334,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 (defvar *get-audio-info* t "controls whether the parsing functions also parse audio info like bit-rate, etc")
 
 (defmethod parse-audio-file ((stream mp4-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
-  "Parse an MP4A file by reading it's ATOMS and decoding them."
+  "Parse an MP4A file by reading its ATOMS and decoding them."
   (declare #.utils:*standard-optimize-settings*)
   (handler-case
       (progn
@@ -345,7 +345,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
       (utils:warn-user "make-mp4-stream got condition: ~a" c))))
 
 (defmethod parse-audio-file ((stream flac-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
-  "Parse a flac file by reading it's headers and decoding them."
+  "Parse a flac file by reading its headers and decoding them."
   (declare #.utils:*standard-optimize-settings*)
   (declare (ignore get-audio-info)) ; audio info comes for "free" by parsing headers
   (handler-case
@@ -354,7 +354,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
       (utils:warn-user "make-flac-stream got condition: ~a" c))))
 
 (defmethod parse-audio-file ((stream mp3-file-stream) &key (get-audio-info *get-audio-info*) &allow-other-keys)
-  "Parse an MP3 file by reading it's FRAMES and decoding them."
+  "Parse an MP3 file by reading its FRAMES and decoding them."
   (declare #.utils:*standard-optimize-settings*)
   (handler-case
       (progn
