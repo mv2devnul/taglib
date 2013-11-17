@@ -92,7 +92,8 @@ string representation"
 
 (defconstant +m4-ftyp+               (mk-mp4-atom-type #\f #\t #\y #\p) "This should be the first atom type found in file")
 
-(defconstant +audioprop-hdlr+        (mk-mp4-atom-type #\h #\d #\l #\r) "Found under trak.mdia and tells what kind of handler it is")
+(defconstant +mp4-atom-hdlr+         (mk-mp4-atom-type #\h #\d #\l #\r) "Found under trak.mdia and tells what kind of handler it is")
+
 (defconstant +audioprop-mdhd+        (mk-mp4-atom-type #\m #\d #\h #\d) "Found under trak.mdia and holds data to calculate length of audio")
 (defconstant +audioprop-stsd+        (mk-mp4-atom-type #\s #\t #\s #\d) "Container atom: found under trak.mdia.minf.stbl and holds bit-rate, etc")
 (defconstant +audioprop-mp4a+        (mk-mp4-atom-type #\m #\p #\4 #\a) "Found under trak.mdia.minf.stbl")
@@ -156,7 +157,6 @@ to read the payload of an atom."
       (loop for end = (+ atom-file-pos atom-size)
             for current = (stream-here mp4-file) then (stream-here mp4-file)
             while (< current end) do
-              ;;(break "Now at ~a/~a" current end)
               (make-mp4-atom mp4-file me)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ILST ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -166,7 +166,6 @@ to read the payload of an atom."
   "Construct an ilst atom.  ILST atoms are containers that hold data elements related to tagging.
 Loop through this container and construct constituent atoms"
   (declare #.utils:*standard-optimize-settings*)
-  ;;(break "ilst")
   (log5:with-context "atom-ilst-initializer"
     (with-mp4-atom-slots (me)
       (log-mp4-atom "atom-ilst-init: found ilst atom <~a> @ ~:d, looping for ~:d bytes"
@@ -267,7 +266,6 @@ Loop through this container and construct constituent atoms"
           rflag    (stream-read-u32 mp4-file)
           rmask    (stream-read-u32 mp4-file)
           mhdlr    (stream-read-sequence mp4-file (- atom-size 32))) ; 32 is 8-bytes of header plus fields above
-    ;;(break "hdlr")
     ))
 
 (defclass atom-mdhd (mp4-atom)
@@ -412,7 +410,6 @@ reading the container atoms"
 
 (defmethod initialize-instance :around ((me atom-meta) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
-  ;;(break "meta")
    (with-slots (version flags) me
      (setf version (stream-read-u8 mp4-file)
            flags   (stream-read-u24 mp4-file)))
@@ -515,38 +512,42 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     (setf (mp4-atoms mp4-file) *tree*)))
 
 
-(defvar *ilst-data* (list +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+ nil +itunes-ilst-data+))
+(defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
+                                +mp4-atom-meta+ +mp4-atom-ilst+ nil
+                                +itunes-ilst-data+)
+  "iTunes artist/album/etc path. The 5th element should be set to
+one of the +iTunes- constants")
 
-(defmethod tag-get-value (atoms node)
+(defmethod tag-get-value (atoms atom-type)
   "Helper function to extract text from ILST atom's data atom"
   (declare #.utils:*standard-optimize-settings*)
-  (aif (tree:find-tree atoms
-                       (lambda (x) (= (atom-type x) node)))
-       (atom-value it)
+  (setf (nth 5 *ilst-data*) atom-type)
+  (aif (tree:at-path atoms *ilst-data* (lambda (x y)
+                                         (= (mp4-atom:atom-type (tree:data x)) y)))
+       (atom-value (tree:data it))
        nil))
 
-;; (defun mp4-show-raw-tag-atoms (mp4-file-stream out-stream)
-;;   (declare #.utils:*standard-optimize-settings*)
-;;   (map-mp4-atom (traverse (mp4-atoms mp4-file-stream) +path-to-ilst+)
-;;                 :depth 0
-;;                 :func (lambda (atom depth)
-;;                         (when (= (atom-type atom) +itunes-ilst-data+)
-;;                           (format out-stream "~vt~a~%" depth (vpprint atom nil))))))
-
-;; ;;; define these as constants to limit consing when get-audio-properties-atoms is called
-;; (defconstant +audio-prop-mdia+ (list +mp4-atom-moov+ +mp4-atom-trak+ +mp4-atom-mdia+))
-;; (defconstant +audio-prop-mdhd+ (list +audioprop-mdhd+))
-;; (defconstant +audio-prop-mp4a+ (list +mp4-atom-minf+ +mp4-atom-stbl+ +audioprop-mp4a+))
-;; (defconstant +audio-prop-esds+ (list +audioprop-esds+))
+(defun mp4-show-raw-tag-atoms (mp4-file-stream out-stream)
+  "Show all the iTunes data atoms"
+  (declare #.utils:*standard-optimize-settings*)
+  (let ((top-node (tree:at-path (mp4-atoms mp4-file-stream)
+                                (list +root+ +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+)
+                                (lambda (x y) (= (mp4-atom:atom-type (tree:data x)) y)))))
+    (loop for node = (tree:first-child top-node)
+            then (tree:next-sibling node) until (null node) do
+            (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
 
 (defun get-audio-properties-atoms (mp4-file)
   "Get the audio property atoms from MP4-FILE"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((mdhd       (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type x) +audioprop-mdhd+))))
-        (audioprop1 (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type x) +audioprop-mp4a+))))
-        (audioprop2 (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type x) +audioprop-esds+)))))
+  (let ((mdhd       (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mdhd+))))
+        (audioprop1 (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mp4a+))))
+        (audioprop2 (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-esds+)))))
+
     (if (and mdhd audioprop1 audioprop2)
-        (values (first mdhd) (first audioprop1) (first audioprop2))
+        (values (tree:data (first mdhd))
+                (tree:data (first audioprop1))
+                (tree:data (first audioprop2)))
         nil)))
 
 (defclass audio-info ()
@@ -573,19 +574,18 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
 (defun get-mp4-audio-info (mp4-file)
   "MP4A audio info is held in under the trak.mdia.mdhd/trak.mdia.minf.stbl/trak.mdia.minf.stbl.mp4a atoms."
   (declare #.utils:*standard-optimize-settings*)
-  t)
-  ;; (let ((info (make-instance 'audio-info)))
-  ;;   (multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
-  ;;     (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) info
-  ;;       (when mdhd
-  ;;         (setf seconds (/ (float (duration mdhd)) (float (scale mdhd)))))
-  ;;       (when mp4a
-  ;;         (setf channels (num-chans mp4a)
-  ;;               bits-per-sample (samp-size mp4a))
-  ;;         (let* ((upper (ash (samp-rate mp4a) -16))
-  ;;                (lower (logand (samp-rate mp4a) #xffff)))
-  ;;           (setf sample-rate (+ (float upper) (/ (float lower) 1000))))
-  ;;       (when esds
-  ;;         (setf avg-bit-rate (avg-bit-rate esds)
-  ;;               max-bit-rate (max-bit-rate esds))))))
-  ;;   info))
+  (let ((info (make-instance 'audio-info)))
+    (multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
+      (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) info
+        (when mdhd
+          (setf seconds (/ (float (duration mdhd)) (float (scale mdhd)))))
+        (when mp4a
+          (setf channels (num-chans mp4a)
+                bits-per-sample (samp-size mp4a))
+          (let* ((upper (ash (samp-rate mp4a) -16))
+                 (lower (logand (samp-rate mp4a) #xffff)))
+            (setf sample-rate (+ (float upper) (/ (float lower) 1000))))
+        (when esds
+          (setf avg-bit-rate (avg-bit-rate esds)
+                max-bit-rate (max-bit-rate esds))))))
+    info))
