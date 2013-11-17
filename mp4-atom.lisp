@@ -538,16 +538,19 @@ one of the +iTunes- constants")
             (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
 
 (defun get-audio-properties-atoms (mp4-file)
-  "Get the audio property atoms from MP4-FILE"
+  "Get the audio property atoms from MP4-FILE.
+MP4A audio info is held in under root.moov.trak.mdia.mdhd,
+root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((mdhd       (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mdhd+))))
-        (audioprop1 (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mp4a+))))
-        (audioprop2 (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-esds+)))))
 
-    (if (and mdhd audioprop1 audioprop2)
+  (let ((mdhd (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mdhd+))))
+        (mp4a (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mp4a+))))
+        (esds (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-esds+)))))
+
+    (if (and mdhd mp4a esds)
         (values (tree:data (first mdhd))
-                (tree:data (first audioprop1))
-                (tree:data (first audioprop2)))
+                (tree:data (first mp4a))
+                (tree:data (first esds)))
         nil)))
 
 (defclass audio-info ()
@@ -572,7 +575,7 @@ one of the +iTunes- constants")
             (if seconds (round (mod seconds 60)) 0))))
 
 (defun get-mp4-audio-info (mp4-file)
-  "MP4A audio info is held in under the trak.mdia.mdhd/trak.mdia.minf.stbl/trak.mdia.minf.stbl.mp4a atoms."
+  "Find and parse the audio information in MP4-FILE"
   (declare #.utils:*standard-optimize-settings*)
   (let ((info (make-instance 'audio-info)))
     (multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
