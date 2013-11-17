@@ -17,7 +17,7 @@
         (defun on ()
           (let ((last-len 0)
                 (cur-len 0))
-            (dolist (p '("MP4-ATOM" "MPEG" "AUDIO-STREAMS" "ID3-FRAME" "UTILS" "ISO-639-2" "ABSTRACT-TAG" "FLAC-FRAME"))
+            (dolist (p '("TREE" "MP4-ATOM" "MPEG" "AUDIO-STREAMS" "ID3-FRAME" "UTILS" "ISO-639-2" "ABSTRACT-TAG" "FLAC-FRAME"))
               (let ((pkg (find-package p)))
                 (mon:monitor-all pkg)
                 (setf cur-len (length mon:*monitored-functions*))
