@@ -9,7 +9,7 @@
   (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null
            #:redirect #:memoize #:it #:*standard-optimize-settings*
            #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword
-           #:dump-data #:timings)
+           #:dump-data #:timings #:dbg #:dbg-helper)
   (:use #:common-lisp))
 
 (defpackage #:profile
@@ -94,10 +94,6 @@
            #:encoder #:groups #:lyrics #:purd #:title #:tool #:writer)
   (:use #:common-lisp #:audio-streams #:id3-frame #:utils))
 
-
-(defpackage #:logging
-  (:export #:with-logging #:stop-logging)
-  (:use #:common-lisp #:utils))
 
 (defpackage #:mpeg
   (:export #:get-mpeg-audio-info #:vpprint)

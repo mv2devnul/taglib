@@ -2,9 +2,6 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:flac-frame)
 
-(log5:defcategory cat-log-flac-frame)
-(defmacro log-flac-frame (&rest log-stuff) `(log5:log-for (cat-log-flac-frame) ,@log-stuff))
-
 ;;; FLAC header types
 (defconstant +metadata-streaminfo+  0)
 (defconstant +metadata-padding+     1)
@@ -36,33 +33,28 @@
 (defun is-valid-flac-file (flac-file)
   "Make sure this is a FLAC file. Look for FLAC header at begining"
   (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "is-valid-flac-file"
-    (stream-seek flac-file 0 :start)
-    (let ((valid nil))
-      (when (> (stream-size flac-file) 4)
-        (unwind-protect
-             (handler-case
-                 (let ((hdr (stream-read-string-with-len flac-file 4)))
-                   (log-flac-frame "got <~a> for flac header" hdr)
-                   (setf valid (string= "fLaC" hdr))
-                   (log-flac-frame "valid = ~a" valid))
-               (condition (c)
-                 (utils:warn-user "is-valid-flac-file: got condition ~a" c)))
-          (stream-seek flac-file 0 :start)))
-        valid)))
+  (stream-seek flac-file 0 :start)
+  (let ((valid nil))
+    (when (> (stream-size flac-file) 4)
+      (unwind-protect
+           (handler-case
+               (let ((hdr (stream-read-string-with-len flac-file 4)))
+                 (setf valid (string= "fLaC" hdr)))
+             (condition (c)
+               (utils:warn-user "is-valid-flac-file: got condition ~a" c)))
+        (stream-seek flac-file 0 :start)))
+    valid))
 
 (defun make-flac-header (stream)
   "Make a flac header from current position in stream"
   (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "make-flac-header"
-    (let* ((header (stream-read-u32 stream))
-           (flac-header (make-instance 'flac-header
-                                       :pos (- (stream-here stream) 4)
-                                       :last-bit (utils:get-bitfield header 31 1)
-                                       :header-type (utils:get-bitfield header 30 7)
-                                       :header-len (utils:get-bitfield header 23 24))))
-      (log-flac-frame "header = ~a" (vpprint flac-header nil))
-      flac-header)))
+  (let* ((header (stream-read-u32 stream))
+         (flac-header (make-instance 'flac-header
+                                     :pos (- (stream-here stream) 4)
+                                     :last-bit (utils:get-bitfield header 31 1)
+                                     :header-type (utils:get-bitfield header 30 7)
+                                     :header-len (utils:get-bitfield header 23 24))))
+    flac-header))
 
 
 (defparameter *flac-tag-pattern* "(^[a-zA-Z]+)=(.*$)" "used to parse FLAC/ORBIS comments")
@@ -84,46 +76,41 @@
 (defun flac-get-tags (stream)
   "Loop through file and find all comment tags."
   (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "flac-get-tags"
-    (let* ((tags (make-instance 'flac-tags))
-           (vendor-len (stream-read-u32 stream :endian :big-endian))
-           (vendor-str (stream-read-utf-8-string-with-len stream vendor-len))
-           (lst-len (stream-read-u32 stream :endian :big-endian)))
+  (let* ((tags (make-instance 'flac-tags))
+         (vendor-len (stream-read-u32 stream :endian :big-endian))
+         (vendor-str (stream-read-utf-8-string-with-len stream vendor-len))
+         (lst-len (stream-read-u32 stream :endian :big-endian)))
 
-      (setf (vendor-str tags) vendor-str)
+    (setf (vendor-str tags) vendor-str)
 
-      (dotimes (i lst-len)
-        (let* ((comment-len (stream-read-u32 stream :endian :big-endian))
-               (comment (stream-read-utf-8-string-with-len stream comment-len)))
-          (push comment (comments tags))
-          (optima:match comment ((optima.ppcre:ppcre *flac-tag-pattern* tag value)
-                                 (log-flac-frame "got ~a/~a" tag value)
-                                 (flac-add-tag tags tag value)))))
-      (setf (comments tags) (nreverse (comments tags)))
-      tags)))
+    (dotimes (i lst-len)
+      (let* ((comment-len (stream-read-u32 stream :endian :big-endian))
+             (comment (stream-read-utf-8-string-with-len stream comment-len)))
+        (push comment (comments tags))
+        (optima:match comment ((optima.ppcre:ppcre *flac-tag-pattern* tag value)
+                               (flac-add-tag tags tag value)))))
+    (setf (comments tags) (nreverse (comments tags)))
+    tags))
 
 (defmethod find-flac-frames ((stream flac-file-stream))
   "Loop through file and find all FLAC headers. If we find comment or audio-info headers, go ahead and parse them too."
   (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "find-flac-frames"
-    (stream-seek stream 4 :start)
+  (stream-seek stream 4 :start)
 
-    (handler-case
-        (let (headers)
-          (loop for h = (make-flac-header stream) then (make-flac-header stream) do
-            (push h headers)
-            (log-flac-frame "Found flac frame: ~a" (vpprint h nil))
-            (cond
-              ((= +metadata-comment+ (header-type h))
-               (setf (flac-tags stream) (flac-get-tags stream)))
-              ((= +metadata-streaminfo+ (header-type h))
-               (setf (audio-info stream) (get-flac-audio-info stream)))
-              (t (stream-seek stream (header-len h) :current)))
-            (when (not (zerop (last-bit h))) (return)))
-          (setf (flac-headers stream) (nreverse headers)))
-      (condition (c)
-        (utils:warn-user "find-flac-frames got condition ~a" c)
-        (log-flac-frame "got condition ~a when finding flac frames" c)))))
+  (handler-case
+      (let (headers)
+        (loop for h = (make-flac-header stream) then (make-flac-header stream) do
+          (push h headers)
+          (cond
+            ((= +metadata-comment+ (header-type h))
+             (setf (flac-tags stream) (flac-get-tags stream)))
+            ((= +metadata-streaminfo+ (header-type h))
+             (setf (audio-info stream) (get-flac-audio-info stream)))
+            (t (stream-seek stream (header-len h) :current)))
+          (when (not (zerop (last-bit h))) (return)))
+        (setf (flac-headers stream) (nreverse headers)))
+    (condition (c)
+      (utils:warn-user "find-flac-frames got condition ~a" c))))
 
 (defclass flac-audio-properties ()
   ((min-block-size  :accessor min-block-size  :initarg :min-block-size  :initform 0)

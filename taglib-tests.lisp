@@ -3,7 +3,7 @@
 (in-package #:cl-user)
 
 (defpackage #:taglib-tests
-  (:use #:common-lisp #:logging #:audio-streams))
+  (:use #:common-lisp #:audio-streams))
 
 (in-package #:taglib-tests)
 
@@ -154,16 +154,3 @@
   "Time parsing of DIR."
   (let ((audio-streams:*get-audio-info* do-audio-processing))
     (time (mp-do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))
-
-
-
-#|
-(defvar foo nil)
-(defun tst ()
-  (let ((*break-on-signals* t))
-    (setf foo (audio-streams:make-file-stream *song-m4a*))
-    (parse-audio-file foo)))
-
-(defun prt ()
-  (tree:traverse mp4-atom::*tree* (lambda (node depth) (format t "~v@tNode: ~a~%" depth (mp4-atom::vpprint node nil))) 1))
-|#

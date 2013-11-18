@@ -115,3 +115,54 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   (let ((real-base (get-internal-real-time)))
     (funcall function)
     (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))
+
+;;; Taken from ASDF
+(defmacro DBG (tag &rest exprs)
+  "debug macro for print-debugging:
+TAG is typically a constant string or keyword to identify who is printing,
+but can be an arbitrary expression returning a tag to be princ'ed first;
+if the expression returns NIL, nothing is printed.
+EXPRS are expressions, which when the TAG was not NIL are evaluated in order,
+with their source code then their return values being printed each time.
+The last expresion is *always* evaluated and its multiple values are returned,
+but its source and return values are only printed if TAG was not NIL;
+previous expressions are not evaluated at all if TAG returned NIL.
+The macro expansion has relatively low overhead in space or time."
+  (let* ((last-expr (car (last exprs)))
+         (other-exprs (butlast exprs))
+         (tag-var (gensym "TAG"))
+         (thunk-var (gensym "THUNK")))
+    `(let ((,tag-var ,tag))
+       (flet ,(when exprs `((,thunk-var () ,last-expr)))
+         (if ,tag-var
+             (DBG-helper ,tag-var
+                         (list ,@(loop :for x :in other-exprs :collect
+                                       `(cons ',x #'(lambda () ,x))))
+                         ',last-expr ,(if exprs `#',thunk-var nil))
+             ,(if exprs `(,thunk-var) '(values)))))))
+
+(defun DBG-helper (tag expressions-thunks last-expression last-thunk)
+  ;; Helper for the above debugging macro
+  (labels
+      ((f (stream fmt &rest args)
+         (with-standard-io-syntax
+           (let ((*print-readably* nil)
+                 (*package* (find-package :cl)))
+             (apply 'format stream fmt args)
+             (finish-output stream))))
+       (z (stream)
+         (f stream "~&"))
+       (e (fmt arg)
+         (f *error-output* fmt arg))
+       (x (expression thunk)
+         (e "~&  ~S => " expression)
+         (let ((results (multiple-value-list (funcall thunk))))
+           (e "~{~S~^ ~}~%" results)
+           (apply 'values results))))
+    (map () #'z (list *standard-output* *error-output* *trace-output*))
+    (e "~A~%" tag)
+    (loop :for (expression . thunk) :in expressions-thunks
+          :do (x expression thunk))
+    (if last-thunk
+        (x last-expression last-thunk)
+        (values))))

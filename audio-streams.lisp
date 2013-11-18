@@ -3,9 +3,6 @@
 
 (in-package #:audio-streams)
 
-(log5:defcategory cat-log-stream)
-(defmacro log-stream (&rest log-stuff) `(log5:log-for (cat-log-stream) ,@log-stuff))
-
 (deftype octet () '(unsigned-byte 8))
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
@@ -148,25 +145,18 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 (defun make-file-stream (filename)
   "Convenience function for creating a file stream. Detects file type and returns proper type stream."
   (declare #.utils:*standard-optimize-settings*)
-  (log5:with-context "make-file-stream"
-    (let* ((new-stream (make-mmap-stream filename))
-           (ret-stream))
+  (let* ((new-stream (make-mmap-stream filename))
+         (ret-stream))
 
-      (log-stream "Looking at ~a" filename)
-      ;; detect file type and make RET-STREAM.  if we don't recognize stream, RET-STREAM will be NULL
-      (cond ((mp4-atom:is-valid-m4-file new-stream)
-             (log-stream "~a is an MP4 file" filename)
-             (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
-            ((flac-frame:is-valid-flac-file new-stream)
-             (log-stream "~a is a FLAC file" filename)
-             (setf ret-stream (make-instance 'flac-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
-            ((id3-frame:is-valid-mp3-file new-stream)
-             (log-stream "~a is an ID3 file" filename)
-             (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
-            (t
-             (log-stream "Unkown file type")))
-      (stream-close new-stream)
-      ret-stream)))
+    ;; detect file type and make RET-STREAM.  if we don't recognize stream, RET-STREAM will be NULL
+    (cond ((mp4-atom:is-valid-m4-file new-stream)
+           (setf ret-stream (make-instance 'mp4-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+          ((flac-frame:is-valid-flac-file new-stream)
+           (setf ret-stream (make-instance 'flac-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream))))
+          ((id3-frame:is-valid-mp3-file new-stream)
+           (setf ret-stream (make-instance 'mp3-file-stream :vect (vect new-stream) :stream-filename (stream-filename new-stream)))))
+    (stream-close new-stream)
+    ret-stream))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
