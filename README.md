@@ -121,8 +121,12 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
    we can then do a FIND-CLASS on the "frame-xxx", and a MAKE-INSTANCE on the found class
    to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
    that reads in data to build class.
-	* __iso-639-2.lisp:__ Converts ISO-639-2 3-character languages into longer, more descriptive strings.
-	* __abstract-tag.lisp:__ The abstract interface for ID3 tags for audio files. The abstract interface is simply one of the following:
+
+   For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
+   a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
+   the frame "payload" as raw OCTETS.
+* __iso-639-2.lisp:__ Converts ISO-639-2 3-character languages into longer, more descriptive strings.
+* __abstract-tag.lisp:__ The abstract interface for ID3 tags for audio files. The abstract interface is simply one of the following:
 	* __album:__ Returns the name of the album.
 	* __album-artist:__ Returns the name of album artist.
 	* __artist:__ Returns recording artist.
@@ -142,9 +146,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 	* __year:__ Returns the year when the song was recorded.
   Each frame class assumes that the STREAM being passed has been made sync-safe.
 
-  For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
-  a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
-  the frame "payload" as raw OCTETS.
 * __mp4-atom.lisp:__ Parses MP4 audio files.  Similar logic to __id-frame.lisp__, but has two main differnces: first,
   it returns a tree stucture (needed, since, that's how M4A atoms/boxes work), and secondly, has an *atom-skip* class
   that records the name and position of an atom, but seeks to the next atom rather than reading in contents.
