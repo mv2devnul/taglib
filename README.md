@@ -108,32 +108,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
 
-## Logging
-
-I have a semi-complete logging strategy in place that is primarily used to figure out what happened when I get
-an unexpected error parsing a file. To see the output of ALL logging statements to *STANDARD-OUTPUT*, you can do the following:
-
-```
-(with-logging ()
-    (test2::test2))
-```
-
-To see only the MP4-ATOM related logging stuff and redirect logging to to a file called "foo.txt":
-
-```
-(with-logging ("foo.txt" :categories (categories '(mp4-atom::cat-log-mp4-atom)))
-    (taglib-tests::test2))
-```
-
-See *logging.lisp* for more info.
-
-If you *really* want to create a lot of output, you can do the following:
-
-```
-(with-logging ("log.txt")
-    (redirect "q.txt" (test2 :dir "somewhere-where-you-have-all-your-audio" :raw t)))
-```
-
 For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 lines in "q.txt".
 
 # Design
@@ -151,7 +125,6 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
    to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
    that reads in data to build class.
 	* __iso-639-2.lisp:__ Converts ISO-639-2 3-character languages into longer, more descriptive strings.
-	* __logging.lisp:__ Defines a logging system based on LOG5. Used to debug flow.  See above for how to use.
 	* __abstract-tag.lisp:__ The abstract interface for ID3 tags for audio files. The abstract interface is simply one of the following:
 	* __album:__ Returns the name of the album.
 	* __album-artist:__ Returns the name of album artist.
