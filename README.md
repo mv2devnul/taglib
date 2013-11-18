@@ -37,7 +37,7 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * WRT error handling: in some cases, I've made them recoverable, but in general, I've went down the path of erroring out when
   I get problems. 
 * I've run this tool across my 21,000+ audio collection and compared the results to some of the tools above, with little to no variations.
-  That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes purchases/matched, and the Amazon matched. YMMV
+  That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes-purchases/matched, and then Amazon-matched. YMMV
 * Parsing the CBR audio info in an MP3 is hideously inefficient if done exhaustively.  Instead, this library, only looks at the first
   MPEG frame and calculates the duration, etc from that.  In addition, if you just want TAG info, you can bind AUDIO-STREAMS:*get-audio-info* to nil.
 * The library is reasonably fast: on a USB 2.0 disk, once the filesystem cache is "hot", it parses my ~21,000 files in about
@@ -45,7 +45,6 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 
 Things to consider adding/changing:
 
-* Go address all the __XXX__ comments (I use __XXX__ to mark places I know I need to fix later).
 * Add more file types.
 * Add writing of tags.
 * Improve error handling.
