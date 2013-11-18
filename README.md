@@ -25,7 +25,7 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * [eyeD3](http://eyed3.nicfit.net/): Great command line tool.
 * [MP3Diags](http://mp3diags.sourceforge.net/): Good GUI-based-tool.  Tends to slow, but very thorough.
 * [MediaInfo](http://mediaarea.net/en/MediaInfo): C++, can dump out all the info to command line and also has a GUI.
-* [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon. 
+* [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon.
   It would have saved me TONS of time.
 
 # General Notes
@@ -35,7 +35,7 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
 * I've parsed just enough of the MP4 atoms/boxes to suit the needs of this tool.  l-smash appears to parse all boxes.  Maybe one day this lib will too.
 * WRT error handling: in some cases, I've made them recoverable, but in general, I've went down the path of erroring out when
-  I get problems. 
+  I get problems.
 * I've run this tool across my 21,000+ audio collection and compared the results to some of the tools above, with little to no variations.
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes-purchases/matched, and then Amazon-matched. YMMV
 * Parsing the CBR audio info in an MP3 is hideously inefficient if done exhaustively.  Instead, this library, only looks at the first
@@ -56,7 +56,7 @@ Things to consider adding/changing:
 (let (foo)
     (unwind-protect
         (setf foo (parse-mp4-file "01 Keep Yourself Alive.m4a"))
-    (when foo 
+    (when foo
 	    (mp4-tag:show-tags foo)
 		(stream-close foo)))
 
@@ -107,8 +107,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
 
-For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 lines in "q.txt".
-
 # Design
 
 ## The Files
@@ -148,7 +146,7 @@ For my 21,000+ files, this generates 218,788,792 lines in "log.txt" and 240,727 
   a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
   the frame "payload" as raw OCTETS.
 * __mp4-atom.lisp:__ Parses MP4 audio files.  Similar logic to __id-frame.lisp__, but has two main differnces: first,
-  it returns a tree stucture (needed, since, that's how M4A atoms/boxes work, and secondly, has an *atom-skip* class
+  it returns a tree stucture (needed, since, that's how M4A atoms/boxes work), and secondly, has an *atom-skip* class
   that records the name and position of an atom, but seeks to the next atom rather than reading in contents.
 
   As noted in the comments of this file, there are three kinds of "boxes/atoms":
@@ -178,7 +176,7 @@ walker (main thread) walks the requested directory, adding each filename to an u
 \*MAX-THREADS\* \*END-THREAD\* symbols, creates \*MAX-THREADS\* worker threads who read from the channel, and then sits in a loop reading
 from \*dead-channel\* until it has done \*MAX-THREADS\* recv's.
 
-The worker threads parse the filename they retrieve from \*channel\* until they get the \*END-THREAD\* symbol, whereupon they write their thread 
+The worker threads parse the filename they retrieve from \*channel\* until they get the \*END-THREAD\* symbol, whereupon they write their thread
 id to \*dead-channel\* and return (ie exit). Here are some timings:
 
 | # Threads   | Time (seconds) |
@@ -187,4 +185,3 @@ id to \*dead-channel\* and return (ie exit). Here are some timings:
 |           5 |            ~18 |
 |           2 |            ~17 |
 |           1 |            ~25 |
-
