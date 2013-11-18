@@ -31,16 +31,13 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 
 * As the author(s) of taglib state in their comments, parsing ID3s is actually pretty hard. There are so many broken taggers out there
   that it is tough to compensate for all their errors.
-* The parsing of MP3 audio properties (mpeg.lisp) is far from complete, especially when dealing with odd case WRT Xing headers.
 * I've parsed just enough of the MP4 atoms/boxes to suit the needs of this tool.  l-smash appears to parse all boxes.  Maybe one day this lib will too.
 * WRT error handling: in some cases, I've made them recoverable, but in general, I've went down the path of erroring out when
   I get problems.
 * I've run this tool across my 21,000+ audio collection and compared the results to some of the tools above, with little to no variations.
-  That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes-purchases/matched, and then Amazon-matched. YMMV
+  That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes-purchases/matched, and then Amazon-matched. YMMV.
 * Parsing the CBR audio info in an MP3 is hideously inefficient if done exhaustively.  Instead, this library, only looks at the first
   MPEG frame and calculates the duration, etc from that.  In addition, if you just want TAG info, you can bind AUDIO-STREAMS:*get-audio-info* to nil.
-* The library is reasonably fast: on a USB 2.0 disk, once the filesystem cache is "hot", it parses my ~21,000 files in about
-  24 seconds (while getting audio-info)
 
 Things to consider adding/changing:
 
