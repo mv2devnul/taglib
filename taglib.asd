@@ -5,7 +5,7 @@
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
   :license "Public Domain"
-  :depends-on (#:log5 #:optima #:optima.ppcre)
+  :depends-on (#:optima #:optima.ppcre)
   :components ((:file "packages")
                (:file "profile"       :depends-on ("packages"))
                (:file "utils"         :depends-on ("packages"))

@@ -12,7 +12,6 @@ Currently reads MP3/MP4/FLAC audio files.
 
 All avalailable via quicklisp
 
-* log5
 * optima and optima.ppcre (for quick parsing of FLAC tags)
 
 # References
