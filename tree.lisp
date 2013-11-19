@@ -1,5 +1,12 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: TREE; -*-
-;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
+;;; Adapted from http://gajon.org/trees-linked-lists-common-lisp/. Originally written by Jorge Gajon
+;;; From Jorge's original web page:
+;;; "PLEASE NOTE, that if you need to represent trees in a production program you
+;;;  should not use lists as described here unless you have a good reason.
+;;;  This is only an exercise in understanding how cons cells work."
+;;;
+;;; I will replace with more efficient code once things settle down.
+
 (in-package #:tree)
 
 (declaim (inline #:first-child #:add-child #:next-sibling #:data))
