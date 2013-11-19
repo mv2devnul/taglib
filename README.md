@@ -116,11 +116,14 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
    and xxxx is a valid ID3V2.[34] frame name.  Upon finding a frame name in an MP3 file,
    we can then do a FIND-CLASS on the "frame-xxx", and a MAKE-INSTANCE on the found class
    to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
-   that reads in data to build class.
+   that reads in data to build class).
 
    For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
    a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
    the frame "payload" as raw OCTETS.
+
+   Each frame class assumes that the STREAM being passed has been made sync-safe.
+
 * __iso-639-2.lisp:__ Converts ISO-639-2 3-character languages into longer, more descriptive strings.
 * __abstract-tag.lisp:__ The abstract interface for ID3 tags for audio files. The abstract interface is simply one of the following:
 	* __album:__ Returns the name of the album.
@@ -140,16 +143,16 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 	* __track:__ Returns the track number of this file.  Like *disk*, if present, may be a single number or two numbers (ie track 1 of 20).
 	* __writer:__ Returns name of who wrote this song.
 	* __year:__ Returns the year when the song was recorded.
-  Each frame class assumes that the STREAM being passed has been made sync-safe.
 
 * __mp4-atom.lisp:__ Parses MP4 audio files.  Similar logic to __id-frame.lisp__, but has two main differnces: first,
-  it returns a tree stucture (needed, since, that's how M4A atoms/boxes work), and secondly, has an *atom-skip* class
+  it returns a tree structure (needed, since, that's how M4A atoms/boxes work), and secondly, has an *atom-skip* class
   that records the name and position of an atom, but seeks to the next atom rather than reading in contents.
 
   As noted in the comments of this file, there are three kinds of "boxes/atoms":
     * Pure container atoms: have no data and are only used to contain other atoms.  This is akin to a UNIX filesystem's directory notion.
     * Pure "data" atoms: has no nested atoms.  Only has a payload.
     * A mixture of both.
+* __tree.lisp:__ The tree library (used by mp4-atom).  Adapted from
 * __mpeg.lisp:__ Parses the audio information (ie the non-ID3 info) in an MP3 file.
 * __packages.lisp:__ Holds all the package definitions.
 * __taglib-tests.asd:__ Contains build instructions for taglib-tests.lisp.  An ASDF file.
