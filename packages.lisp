@@ -3,6 +3,8 @@
 (in-package #:cl-user)
 
 (defpackage #:tree
+  (:export #:make-node #:add-child #:first-child #:next-sibling #:data
+           #:traverse #:print-tree #:find-tree #:at-path)
   (:use #:common-lisp))
 
 (defpackage #:utils

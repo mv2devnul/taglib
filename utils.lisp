@@ -4,7 +4,9 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (pushnew :INSTRUMENT-MEMOIZED *features*)
-  (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0))))
+  #+DBG (defvar *standard-optimize-settings* '(optimize (debug 3)))
+  #-DBG (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0)))
+  )
 
 (defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
 

@@ -2,7 +2,7 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 ;;;
 
-;(pushnew :I-AM-MARKV *features*)
+#+SBCL (declaim (sb-ext:muffle-conditions sb-ext:compiler-note style-warning))
 
 (asdf:defsystem #:taglib-tests
   :description "Simple demo/test code for taglib"

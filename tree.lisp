@@ -75,6 +75,3 @@
             (utils:aif (at-path node (rest path) cmp)
                        (return-from at-path utils:it))))
   nil)
-
-(let ((pkg (find-package :tree)))
-  (do-all-symbols (sym pkg) (when (eql (symbol-package sym) pkg) (export sym pkg))))

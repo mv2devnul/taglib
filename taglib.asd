@@ -1,11 +1,13 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: CL-USER; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
+(pushnew :DBG *features*)
+
 (asdf:defsystem #:taglib
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
   :license "Public Domain"
-  :depends-on (#:optima #:optima.ppcre)
+  :depends-on (#:optima #:optima.ppcre #:flexi-streams #:babel #:alexandria)
   :components ((:file "packages")
                (:file "profile"       :depends-on ("packages"))
                (:file "utils"         :depends-on ("packages"))

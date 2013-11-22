@@ -409,28 +409,28 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-pic (id3-frame)
   ((encoding   :accessor encoding)
    (img-format :accessor img-format)
-   (type       :accessor type)
+   (ptype      :accessor ptype)
    (desc       :accessor desc)
    (data       :accessor data)))
 
 (defmethod initialize-instance :after ((me frame-pic) &key instream)
   (declare #.utils:*standard-optimize-settings*)
-  (with-slots (id len encoding img-format type desc data) me
-    (setf encoding (stream-read-u8 instream)
+  (with-slots (id len encoding img-format ptype desc data) me
+    (setf encoding   (stream-read-u8 instream)
           img-format (stream-read-iso-string-with-len instream 3)
-          type (stream-read-u8 instream))
+          ptype      (stream-read-u8 instream))
     (multiple-value-bind (n v) (get-name-value-pair instream (- len 5) encoding -1)
       (setf desc n
             data v))))
 
 (defmethod vpprint ((me frame-pic) stream)
-  (with-slots (encoding img-format type desc data) me
+  (with-slots (encoding img-format ptype desc data) me
     (format stream "frame-pic: ~a,  encoding ~d, img-format type: <~a>, picture type: ~d (~a), description <~a>, data: ~a"
-            (vpprint-frame-header me) encoding img-format type (get-picture-type type) desc (printable-array data))))
+            (vpprint-frame-header me) encoding img-format ptype (get-picture-type ptype) desc (printable-array data))))
 
 (defmethod picture-info ((me frame-pic))
   "Used by ABSTRACT-TAG interface to report data about V2.2 cover art"
-  (with-slots (encoding img-format type desc data) me
+  (with-slots (encoding img-format ptype desc data) me
     (format nil "Size: ~:d" (length data))))
 
 ;; Version 2, 3, or 4 generic text-info frames
@@ -664,29 +664,29 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-apic (id3-frame)
   ((encoding :accessor encoding)
    (mime     :accessor mime)
-   (type     :accessor type)
+   (ptype    :accessor ptype)
    (desc     :accessor desc)
    (data     :accessor data))
   (:documentation "Holds an attached picture (cover art)"))
 
 (defmethod initialize-instance :after ((me frame-apic) &key instream)
   (declare #.utils:*standard-optimize-settings*)
-  (with-slots (id len encoding mime type desc data) me
+  (with-slots (id len encoding mime ptype desc data) me
     (setf encoding (stream-read-u8 instream)
           mime     (stream-read-iso-string instream)
-          type     (stream-read-u8 instream))
+          ptype    (stream-read-u8 instream))
     (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 (length mime) 1 1) encoding -1)
       (setf desc n
             data v))))
 
 (defmethod vpprint ((me frame-apic) stream)
-  (with-slots (encoding mime type desc data) me
+  (with-slots (encoding mime ptype desc data) me
     (format stream "frame-apic: ~a, encoding ~d, mime type: ~a, picture type: ~d (~a), description <~a>, data: ~a"
-            (vpprint-frame-header me) encoding mime type (get-picture-type type) desc (printable-array data))))
+            (vpprint-frame-header me) encoding mime ptype (get-picture-type ptype) desc (printable-array data))))
 
 (defmethod picture-info ((me frame-apic))
   "Used by ABSTRACT-TAG interface to report data about V2.3/4 cover art"
-  (with-slots (encoding mime type desc data) me
+  (with-slots (encoding mime ptype desc data) me
     (format nil "Size: ~:d" (length data))))
 
 ;;; V23/V24 COMM frames

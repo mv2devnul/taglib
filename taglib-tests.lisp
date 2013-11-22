@@ -18,7 +18,10 @@
 ;;; A note re filesystem encoding: my music collection is housed on a Mac and shared via SAMBA.
 ;;; In order to make sure we get valid pathnames, we need to set CCL's filesystem encoding to
 ;;; :UTF-8
-(defun set-pathname-encoding (enc)        (setf (ccl:pathname-encoding-name) enc))
+(defun set-pathname-encoding (enc)
+  #+CCL (setf (ccl:pathname-encoding-name) enc)
+  t)
+
 (defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
 (defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 

@@ -22,12 +22,13 @@
 (defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
 (defun make-mmap-stream (f) (make-instance 'mem-stream :stream-filename f))
 
+;;; XXX from quickutil/alexandria---should change to qtlc:utilize
 (defmethod initialize-instance :after ((stream mem-stream) &key)
   "Stream initializer. If STREAM-FILENAME is set, MMAP a the file. Else, we assume VECT was set."
   (with-mem-stream-slots (stream)
     (when stream-filename
       #+CCL (setf vect (ccl:map-file-to-octet-vector stream-filename))
-      #-CCL (error "Not Yet!")
+      #-CCL (setf vect (alexandria:read-file-into-byte-vector stream-filename))
       )
     (setf stream-size (length vect))))
 
@@ -37,7 +38,7 @@
   (with-mem-stream-slots (stream)
     (when stream-filename
       #+CCL (ccl:unmap-octet-vector vect)
-      #-CCL (error "Not Yet")
+      #-CCL ; nothing to do here
       )
     (setf vect nil)))
 
@@ -50,7 +51,7 @@
 As a convenience, OFFSET and FROM are optional, so (STREAM-SEEK stream) returns the current read-offset in stream."
   (declare #.utils:*standard-optimize-settings*)
   (declare (fixnum offset))
-(with-mem-stream-slots (stream)
+  (with-mem-stream-slots (stream)
     (ecase from
       (:start                  ; INDEX set to OFFSET from start of stream
        (setf index offset))
@@ -113,17 +114,14 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
         (7
          (let* ((last-byte-was-FF nil)
                 (byte nil)
-                (octets
-                  #-CCL (error "Not yet")
-                  #+CCL  (ccl:with-output-to-vector (out)
-                           (dotimes (i size)
-                             (setf byte (stream-read-u8 stream))
-                             (if last-byte-was-FF
-                                 (if (not (zerop byte))
-                                     (write-byte byte out))
-                                 (write-byte byte out))
-                             (setf last-byte-was-FF (= byte #xFF))))
-                  ))
+                (octets (flexi-streams:with-output-to-sequence (out)
+                          (dotimes (i size)
+                            (setf byte (stream-read-u8 stream))
+                            (if last-byte-was-FF
+                                (if (not (zerop byte))
+                                    (write-byte byte out))
+                                (write-byte byte out))
+                            (setf last-byte-was-FF (= byte #xFF))))))
            (values octets size))))))
 
 (defclass mp3-file-stream (mem-stream)
@@ -164,7 +162,7 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 (defun stream-decode-iso-string (octets &key (start 0) (end nil))
   (declare #.utils:*standard-optimize-settings*)
   #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1)
-  #-CCL (error "Not Yet")
+  #-CCL (babel:octets-to-string octets :start start :end end :encoding :iso-8859-1)
   )
 
 ;;;
@@ -191,10 +189,10 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
            (let ((bom (get-byte-order-mark octets)))
              (ecase (the fixnum bom)
                (#xfffe #+CCL (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2le)
-                       #-CCL (error "Not Yet")
+                       #-CCL (babel:octets-to-string octets :start (+ 2 start) :end end :encoding :ucs-2le)
                        )
                (#xfeff #+CCL (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2be)
-                       #-CCL (error "Not Yet")
+                       #-CCL (babel:octets-to-string octets :start (+ 2 start) :end end :encoding :ucs-2be)
                        )
                (0      (make-string 0))))))))
 
@@ -202,14 +200,14 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
   "Decode octets as a UCS-BE string (encoding == 2)"
   (declare #.utils:*standard-optimize-settings*)
   #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :ucs-2be)
-  #-CCL (error "Not Yet")
+  #-CCL (babel:octets-to-string octets :start start :end end :encoding :ucs-2be)
   )
 
 (defun stream-decode-utf-8-string (octets &key (start 0) (end nil))
   "Decode octets as a utf-8 string"
   (declare #.utils:*standard-optimize-settings*)
   #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :utf-8)
-  #-CCL (error "Not Yet")
+  #-CCL (babel:octets-to-string octets :start start :end end :encoding :utf-8)
   )
 
 (defun stream-decode-string (octets &key (start 0) (end nil) (encoding 0))
@@ -253,62 +251,54 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 (defmethod stream-read-iso-string ((instream mem-stream))
   "Read in a null terminated iso-8859-1 string"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((octets #+CCL (ccl:with-output-to-vector (out)
-                        (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
-                            (nil)
-                          (when (zerop b)
-                            (return))   ; leave loop w/o writing
-                          (write-byte b out)))
-                #-CCL (error "Not Yet")
-        ))
+  (let ((octets (flexi-streams:with-output-to-sequence (out)
+                  (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
+                      (nil)
+                    (when (zerop b)
+                      (return))         ; leave loop w/o writing
+                    (write-byte b out)))))
     (stream-decode-iso-string octets)))
 
 (defmethod stream-read-ucs-string ((instream mem-stream))
   "Read in a null terminated UCS string."
   (declare #.utils:*standard-optimize-settings*)
-  (let ((octets #+CCL (ccl:with-output-to-vector (out)
-                        (do* ((b0 (stream-read-u8 instream)
-                                  (stream-read-u8 instream))
-                              (b1 (stream-read-u8 instream)
-                                  (stream-read-u8 instream)))
-                             (nil)
-                          (when (and (zerop b0) (zerop b1))
-                            (return))
-                          (write-byte b0 out)
-                          (write-byte b1 out)))
-                #-CCL (error "Not Yet")
-                ))
+  (let ((octets (flexi-streams:with-output-to-sequence (out)
+                  (do* ((b0 (stream-read-u8 instream)
+                            (stream-read-u8 instream))
+                        (b1 (stream-read-u8 instream)
+                            (stream-read-u8 instream)))
+                       (nil)
+                    (when (and (zerop b0) (zerop b1))
+                      (return))
+                    (write-byte b0 out)
+                    (write-byte b1 out)))))
     (stream-decode-ucs-string octets)))
 
 (defmethod stream-read-ucs-be-string ((instream mem-stream))
   "Read in a null terminated UCS-BE string."
   (declare #.utils:*standard-optimize-settings*)
-  (let ((octets #+CCL (ccl:with-output-to-vector (out)
-                        (do* ((b0 (stream-read-u8 instream)
-                                  (stream-read-u8 instream))
-                              (b1 (stream-read-u8 instream)
-                                  (stream-read-u8 instream)))
-                             (nil)
-                          (when (and (zerop b0) (zerop b1))
-                            (return))
-                          (write-byte b0 out)
-                          (write-byte b1 out)))
-                #-CCL (error "Not Yet")
-                ))
+  (let ((octets (flexi-streams:with-output-to-sequence (out)
+                  (do* ((b0 (stream-read-u8 instream)
+                            (stream-read-u8 instream))
+                        (b1 (stream-read-u8 instream)
+                            (stream-read-u8 instream)))
+                       (nil)
+                    (when (and (zerop b0) (zerop b1))
+                      (return))
+                    (write-byte b0 out)
+                    (write-byte b1 out)))))
     (stream-decode-ucs-be-string octets)))
 
 (defmethod stream-read-utf-8-string ((instream mem-stream))
   "Read in a null terminated utf-8 string (encoding == 3)"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((octets #+CCL (ccl:with-output-to-vector (out)
-                        (do ((b (stream-read-u8 instream)
-                                (stream-read-u8 instream)))
-                            (nil)
-                          (when (zerop b)
-                            (return))
-                          (write-byte b out)))
-                #-CCL (error "Not Yet")
-                ))
+  (let ((octets (flexi-streams:with-output-to-sequence (out)
+                  (do ((b (stream-read-u8 instream)
+                          (stream-read-u8 instream)))
+                      (nil)
+                    (when (zerop b)
+                      (return))
+                    (write-byte b out)))))
     (stream-decode-utf-8-string octets)))
 
 (defmethod stream-read-string ((instream mem-stream) &key (encoding 0))
