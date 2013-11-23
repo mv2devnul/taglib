@@ -206,11 +206,9 @@
 (defmethod compilation ((me mp3-file-stream))
   (declare #.utils:*standard-optimize-settings*)
   (let ((frames (get-frames me '("TCMP" "TCP"))))
-    (when frames
-      (assert (= 1 (length frames)) () "There can be only one compilation tag")
-      (let ((str (info (first frames))))
-        (return-from compilation (if (string= "1" str) "yes" "no")))))
-  nil)
+    (if frames
+      (info (first frames))
+      "no")))
 
 (defmethod disk ((me mp3-file-stream))
   (declare #.utils:*standard-optimize-settings*)
@@ -360,7 +358,7 @@
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
         (when artist (format t "~4tartist: ~a~%" artist))
         (when comment (format t "~4tcomment: ~a~%" comment))
-        (when compilation (format t "~4tcompilation: ~[no~;yes;unknown~]~%" (if compilation compilation 2)))
+        (format t "~4tcompilation: ~[no~;yes~;unknown~]~%" (if compilation compilation 2))
         (when composer (format t "~4tcomposer: ~a~%" composer))
         (when copyright (format t "~4tcopyright: ~a~%" copyright))
 ;;;        (when cover (format t "~4tcover: Number of covers: :~d~%" cover))

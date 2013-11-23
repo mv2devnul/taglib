@@ -468,7 +468,31 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-tbp (frame-text-info) ())
 (defclass frame-tcm (frame-text-info) ())
 (defclass frame-tco (frame-text-info) ())
-(defclass frame-tcp (frame-text-info) ())
+
+(defclass frame-itunes-compilation (frame-raw)
+  ((info :accessor info)))
+
+(defmethod initialize-instance :after ((me frame-itunes-compilation) &key &allow-other-keys)
+  "iTunes compilation weirdness: I have seen this encoded soooo many ways..."
+  (declare #.utils:*standard-optimize-settings*)
+  (with-slots (len octets info) me
+    (setf info
+          (cond
+            ((= 1 len) (if (= 0 (aref octets 0)) "0" "1"))
+            ((= 2 len) (if (= #x30 (aref octets 1)) "0" "1"))
+            ((= 3 len) (if (typep me 'frame-tcp)
+                           (upto-null (stream-decode-string octets :start 1 :encoding (aref octets 0)))
+                           "0"))
+            ((= 4 len) "0")
+            (t (upto-null (stream-decode-string octets :start 1 :encoding (aref octets 0))))))))
+
+(defmethod vpprint ((me frame-itunes-compilation) stream)
+  (with-slots (octets info) me
+      (format stream "frame-itunes-compilation: ~a, octets:<~a>, info:~a"
+              (vpprint-frame-header me) (printable-array octets) info)))
+
+(defclass frame-tcp (frame-itunes-compilation) ())
+
 (defclass frame-tcr (frame-text-info) ())
 (defclass frame-tda (frame-text-info) ())
 (defclass frame-tdy (frame-text-info) ())
@@ -573,7 +597,9 @@ NB: 2.3 and 2.4 extended flags are different..."
 ;;; V23/V24 text-info frames
 (defclass frame-talb (frame-text-info) ())
 (defclass frame-tbpm (frame-text-info) ())
-(defclass frame-tcmp (frame-text-info) ())
+
+(defclass frame-tcmp (frame-itunes-compilation) ())
+
 (defclass frame-tcom (frame-text-info) ())
 (defclass frame-tcon (frame-text-info) ())
 (defclass frame-tcop (frame-text-info) ())

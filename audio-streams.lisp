@@ -22,7 +22,6 @@
 (defun make-mem-stream (v) (make-instance 'mem-stream :vect v))
 (defun make-mmap-stream (f) (make-instance 'mem-stream :stream-filename f))
 
-;;; XXX from quickutil/alexandria---should change to qtlc:utilize
 (defmethod initialize-instance :after ((stream mem-stream) &key)
   "Stream initializer. If STREAM-FILENAME is set, MMAP a the file. Else, we assume VECT was set."
   (with-mem-stream-slots (stream)
@@ -36,8 +35,7 @@
   "Close a stream, making the underlying object (file or vector) inaccessible."
   (declare #.utils:*standard-optimize-settings*)
   (with-mem-stream-slots (stream)
-    (when stream-filename
-      #+CCL (ccl:unmap-octet-vector vect))
+    #+CCL (when stream-filename (ccl:unmap-octet-vector vect))
     (setf vect nil)))
 
 ;;; finding out current file position is so common, we also

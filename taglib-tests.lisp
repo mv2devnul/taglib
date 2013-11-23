@@ -40,7 +40,6 @@
       (when foo
         (stream-close foo)))))
 
-
 (defun do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
                                                   (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file audio found."
