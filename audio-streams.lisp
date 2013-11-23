@@ -37,9 +37,7 @@
   (declare #.utils:*standard-optimize-settings*)
   (with-mem-stream-slots (stream)
     (when stream-filename
-      #+CCL (ccl:unmap-octet-vector vect)
-      #-CCL ; nothing to do here
-      )
+      #+CCL (ccl:unmap-octet-vector vect))
     (setf vect nil)))
 
 ;;; finding out current file position is so common, we also
@@ -159,17 +157,17 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Strings ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; Decode octets as an iso-8859-1 string (encoding == 0)
-(defun stream-decode-iso-string (octets &key (start 0) (end nil))
+(defun stream-decode-iso-string (octets &key (start 0) (end (length octets)))
   (declare #.utils:*standard-optimize-settings*)
   #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :iso-8859-1)
-  #-CCL (babel:octets-to-string octets :start start :end end :encoding :iso-8859-1)
+  #-CCL (flexi-streams:octets-to-string octets :start start :end end :external-format :iso-8859-1)
   )
 
 ;;;
 ;;; XXX: Coded this way because I can't seem to get a simple :external-format :ucs-2 to work correctly
 ;;; AND some taggers encode a UCS-2 empty string w/o a byte-order mark (i.e. null strings are
 ;;; sometimes encoded as #(00 00))
-(defun stream-decode-ucs-string (octets &key (start 0) (end nil))
+(defun stream-decode-ucs-string (octets &key (start 0) (end (length octets)))
   "Decode octets as a UCS string with a BOM (encoding == 1)"
   (declare #.utils:*standard-optimize-settings*)
   (labels ((get-byte-order-mark (octets)
@@ -189,28 +187,28 @@ a displaced array from STREAMs underlying vector.  If it is == 7, then we have t
            (let ((bom (get-byte-order-mark octets)))
              (ecase (the fixnum bom)
                (#xfffe #+CCL (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2le)
-                       #-CCL (babel:octets-to-string octets :start (+ 2 start) :end end :encoding :ucs-2le)
+                       #-CCL (flexi-streams:octets-to-string octets :start (+ 2 start) :end end :external-format :ucs-2le)
                        )
                (#xfeff #+CCL (ccl:decode-string-from-octets octets :start (+ 2 start) :end end :external-format :ucs-2be)
-                       #-CCL (babel:octets-to-string octets :start (+ 2 start) :end end :encoding :ucs-2be)
+                       #-CCL (flexi-streams:octets-to-string octets :start (+ 2 start) :end end :external-format :ucs-2be)
                        )
                (0      (make-string 0))))))))
 
-(defun stream-decode-ucs-be-string (octets &key (start 0) (end nil))
+(defun stream-decode-ucs-be-string (octets &key (start 0) (end (length octets)))
   "Decode octets as a UCS-BE string (encoding == 2)"
   (declare #.utils:*standard-optimize-settings*)
   #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :ucs-2be)
-  #-CCL (babel:octets-to-string octets :start start :end end :encoding :ucs-2be)
+  #-CCL (flexi-streams:octets-to-string octets :start start :end end :external-format :ucs-2be)
   )
 
-(defun stream-decode-utf-8-string (octets &key (start 0) (end nil))
+(defun stream-decode-utf-8-string (octets &key (start 0) (end (length octets)))
   "Decode octets as a utf-8 string"
   (declare #.utils:*standard-optimize-settings*)
   #+CCL (ccl:decode-string-from-octets octets :start start :end end :external-format :utf-8)
-  #-CCL (babel:octets-to-string octets :start start :end end :encoding :utf-8)
+  #-CCL (flexi-streams:octets-to-string octets :start start :end end :external-format :utf-8)
   )
 
-(defun stream-decode-string (octets &key (start 0) (end nil) (encoding 0))
+(defun stream-decode-string (octets &key (start 0) (end (length octets)) (encoding 0))
   "Decode octets depending on encoding"
   (declare #.utils:*standard-optimize-settings*)
   (ecase encoding

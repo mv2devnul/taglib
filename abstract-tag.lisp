@@ -205,11 +205,11 @@
 
 (defmethod compilation ((me mp3-file-stream))
   (declare #.utils:*standard-optimize-settings*)
-  (let ((frames (get-frames me '("TCMP"))))
+  (let ((frames (get-frames me '("TCMP" "TCP"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one compilation tag")
       (let ((str (info (first frames))))
-        (return-from compilation (if str 1 0)))))
+        (return-from compilation (if (string= "1" str) "yes" "no")))))
   nil)
 
 (defmethod disk ((me mp3-file-stream))
