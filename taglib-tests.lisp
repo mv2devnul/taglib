@@ -48,7 +48,6 @@
         (flac-count 0)
         (mp4-count 0)
         (other-count 0))
-
     (cl-fad:walk-directory dir (lambda (f)
                                  (do-audio-file f :func (lambda (s)
                                                           (cond ((typep s 'mp3-file-stream)  (incf mp3-count))
