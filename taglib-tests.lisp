@@ -8,9 +8,9 @@
 (in-package #:taglib-tests)
 
 ;;; some convenient songs to parse
-(defparameter *song-m4a*  "Queen/Queen I/01 Keep Yourself Alive.m4a")
-(defparameter *song-mp3*  "Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
-(defparameter *song-flac* "Frank Zappa/Baby Snakes/02. Baby Snakes.flac")
+(defparameter *song-m4a*  "../Music/Queen/Queen I/01 Keep Yourself Alive.m4a")
+(defparameter *song-mp3*  "../Music/Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
+(defparameter *song-flac* "../Music/Frank Zappa/Baby Snakes/02. Baby Snakes.flac")
 
 ;;;
 ;;; Set the pathname (aka filename) encoding in CCL for appropriate platform
@@ -40,7 +40,7 @@
       (when foo
         (stream-close foo)))))
 
-(defun do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
+(defun do-audio-dir (&optional (dir "../Music/Queen") &key (file-system-encoding :utf-8)
                                                   (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
