@@ -314,8 +314,8 @@
     (assert (not (and genre genre-x)))
     (cond
       (genre   (format nil "~d (~a)" genre (get-id3v1-genre (1- genre))))
-      (genre-x (format nil "~d (~a)" genre-x (get-id3v1-genre (1- genre-x))))
-      (t       "None"))))
+      (genre-x genre-x)
+      (t       "not present"))))
 (defmethod track ((me mp4-file-stream))
   (let ((track   (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-track+))
         (track-n (mp4-atom:tag-get-value (mp4-atoms me) mp4-atom:+itunes-track-n+)))
