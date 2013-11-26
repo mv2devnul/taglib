@@ -6,7 +6,9 @@ A pure Lisp implementation for reading audio tags and audio information.
 
 Currently reads MP3/MP4/FLAC audio files.
 
-**Mostly complete.  Your mileage may vary. Most definitely, NOT portable.  Heavily dependent on Clozure CCL.**
+**Mostly complete.  Your mileage may vary.
+**Runs (in single-thread mode) under CCL, SBCL, ECL, CLISP, and ABCL
+  Note: CCL works well.  I'm still in progress of making the others work well. YMMV.
 
 # Dependencies
 
@@ -108,7 +110,9 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 ## The Files
 
 * __audio-streams.lisp:__ creates a STREAM-like interface to audio files and vectors, thus read/seek devolve into
-  simple array-references.  For files, it uses CCL's MAP-FILE-TO-OCTET-VECTOR function to mmap the file.
+  simple array-references.  Under CCL, uses MAP-FILE-TO-OCTET-VECTOR function to mmap the file. Other Lisps just
+  slurp in the whole file (probably should revisit this, but since we use displaced arrays for dissecting the file,
+  this would require a rewrite.
 * __flac-frame.lisp:__ Parses FLAC files.
 * __id3-frame.lisp:__ Parses the ID3 frames in an MP3 file.
    For each frame type we are interested in, DEFCLASS a class with
@@ -177,7 +181,7 @@ walker (main thread) walks the requested directory, adding each filename to an u
 from \*dead-channel\* until it has done \*MAX-THREADS\* recv's.
 
 The worker threads parse the filename they retrieve from \*channel\* until they get the \*END-THREAD\* symbol, whereupon they write their thread
-id to \*dead-channel\* and return (ie exit). Here are some timings:
+id to \*dead-channel\* and return (ie exit). Here are some preliminary timings:
 
 | # Threads   | Time (seconds) |
 | ----------- | -------------- |
@@ -185,3 +189,7 @@ id to \*dead-channel\* and return (ie exit). Here are some timings:
 |           5 |            ~18 |
 |           2 |            ~17 |
 |           1 |            ~25 |
+
+Note: threading does NOT currently work on ECL (missing support in bordeaux threads)
+or on my custom built CLISP with POSIX-THREADS turned on (fails with RECURSIVE MUTEX error).
+ABCL kinda/sorta works (seems to be a problem with ATOM-TYPE being unbound
