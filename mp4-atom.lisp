@@ -74,7 +74,7 @@ string representation"
 (defconstant +itunes-disk+           (mk-mp4-atom-type #\d  #\i #\s #\k) "octets: disk number, can be n of N")
 (defconstant +itunes-encoder+        (mk-mp4-atom-type #xa9 #\e #\n #\c) "text: who encoded")
 (defconstant +itunes-genre+          (mk-mp4-atom-type #\g  #\n #\r #\e) "octets: genre of file")
-(defconstant +itunes-genre-x+        (mk-mp4-atom-type #xa9 #\n #\r #\e) "text: yet another genre atom")
+(defconstant +itunes-genre-x+        (mk-mp4-atom-type #xa9 #\g #\e #\n) "text: yet another genre atom")
 (defconstant +itunes-groups+         (mk-mp4-atom-type #xa9 #\g #\r #\p) "text: ???")
 (defconstant +itunes-lyrics+         (mk-mp4-atom-type #xa9 #\l #\y #\r) "text: lyrics tag")
 (defconstant +itunes-purchased-date+ (mk-mp4-atom-type #\p  #\u #\r #\d) "text: when song was purchased")
@@ -150,13 +150,6 @@ to read the payload of an atom."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ILST ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass atom-ilst (mp4-container-atom) ())
 
-;; (defmethod initialize-instance :around ((me atom-ilst) &key mp4-file  &allow-other-keys)
-;;   "Construct an ilst atom.  ILST atoms are containers that hold data elements related to tagging.
-;; Loop through this container and construct constituent atoms"
-;;   (declare #.utils:*standard-optimize-settings*)
-;;   (with-mp4-atom-slots (me)
-;;     (call-next-method)))
-
 (defclass atom-©alb (atom-ilst) ())
 (defclass atom-aART (atom-ilst) ())
 (defclass atom-©art (atom-ilst) ())
@@ -168,7 +161,7 @@ to read the payload of an atom."
 (defclass atom-disk (atom-ilst) ())
 (defclass atom-©enc (atom-ilst) ())
 (defclass atom-gnre (atom-ilst) ())
-(defclass atom-©nre (atom-ilst) ())
+(defclass atom-©gen (atom-ilst) ())
 (defclass atom-©grp (atom-ilst) ())
 (defclass atom-©lyr (atom-ilst) ())
 (defclass atom-purd (atom-ilst) ())
@@ -201,6 +194,7 @@ to read the payload of an atom."
                                +itunes-genre-x+ +itunes-lyrics+ +itunes-purchased-date+
                                +itunes-title+ +itunes-tool+ +itunes-writer+))
                  (stream-read-utf-8-string-with-len mp4-file (- (atom-size me) 16)))
+
                 ((member (atom-type parent)
                          (list +itunes-track+
                                +itunes-track-n+
@@ -210,11 +204,14 @@ to read the payload of an atom."
                         (b (stream-read-u16 mp4-file)))
                    (stream-seek mp4-file (- (atom-size me) 16 6) :current)
                    (list a b)))
+
                 ((member (atom-type parent)
                          (list +itunes-tempo+ +itunes-genre+))
                  (stream-read-u16 mp4-file))
+
                 ((= (atom-type parent) +itunes-compilation+)
                  (stream-read-u8 mp4-file))
+
                 ((= (atom-type parent) +itunes-cover-art+)
                  (stream-read-sequence mp4-file (- (atom-size me) 16)))))))
 
