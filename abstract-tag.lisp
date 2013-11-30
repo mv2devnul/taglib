@@ -46,6 +46,25 @@
         "BAD GENRE"
         (aref *id3v1-genres* n)))
 
+;;; The abstract tag interface
+(defgeneric album (stream))
+(defgeneric album (stream))
+(defgeneric artist (stream))
+(defgeneric comment (stream))
+(defgeneric composer (stream))
+(defgeneric copyright (stream))
+(defgeneric cover (stream))
+(defgeneric year (stream))
+(defgeneric encoder (stream))
+(defgeneric groups (stream))
+(defgeneric lyrics (stream))
+(defgeneric title (stream))
+(defgeneric writer (stream))
+(defgeneric compilation (stream))
+(defgeneric disk (stream))
+(defgeneric tempo (stream))
+(defgeneric genre (stream))
+
 ;;;;;;;;;;;;;;;;;;;; MP3 ;;;;;;;;;;;;;;;;;;;;
 (defun get-frames (stream names)
   "Given a MP3-STREAM, search its frames for NAMES.  Return file-order list of matching frames"
