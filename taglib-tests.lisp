@@ -8,9 +8,9 @@
 (in-package #:taglib-tests)
 
 ;;; some convenient songs to parse
-(defparameter *song-m4a*  "../Music/Queen/Queen I/01 Keep Yourself Alive.m4a")
-(defparameter *song-mp3*  "../Music/Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
-(defparameter *song-flac* "../Music/Frank Zappa/Baby Snakes/02. Baby Snakes.flac")
+(defparameter *song-m4a*  "/home/markv/Music/Queen/Queen I/01 Keep Yourself Alive.m4a")
+(defparameter *song-mp3*  "/home/markv/Music/Queen/Sheer Heart Attack/07 In The Lap Of The Gods.mp3")
+(defparameter *song-flac* "/home/markv/Music/Frank Zappa/Baby Snakes/02. Baby Snakes.flac")
 
 ;;;
 ;;; Set the pathname (aka filename) encoding in CCL for appropriate platform
@@ -20,12 +20,13 @@
 ;;; :UTF-8
 (defun set-pathname-encoding (enc)
   #+CCL (setf (ccl:pathname-encoding-name) enc)
+  #-CCL (declare (ignore enc))
   t)
 
 (defun set-pathname-encoding-for-osx ()   (set-pathname-encoding :utf-8))
 (defun set-pathname-encoding-for-linux () (set-pathname-encoding nil))
 
-(defun do-audio-file (&optional (file *song-m4a*) &key (func (constantly t)))
+(defun do-audio-file (&key (file *song-m4a*) (func (constantly t)))
   "Parse one audio file (with condition handling)."
   (let ((foo))
     (unwind-protect
@@ -40,8 +41,8 @@
       (when foo
         (stream-close foo)))))
 
-(defun do-audio-dir (&optional (dir "../Music/Queen") &key (file-system-encoding :utf-8)
-                                                  (func #'abstract-tag:show-tags))
+(defun do-audio-dir (&key (dir "/home/markv/Music/Queen") (file-system-encoding :utf-8)
+                          (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
   (let ((mp3-count 0)
@@ -49,20 +50,22 @@
         (mp4-count 0)
         (other-count 0))
     (cl-fad:walk-directory dir (lambda (f)
-                                 (do-audio-file f :func (lambda (s)
-                                                          (cond ((typep s 'mp3-file-stream)  (incf mp3-count))
-                                                                ((typep s 'flac-file-stream) (incf flac-count))
-                                                                ((typep s 'mp4-file-stream)  (incf mp4-count))
-                                                                ((null s)                    (incf other-count)))
-                                                          (when (and (not (null s)) func) (funcall func s))))))
+                                 (do-audio-file :file f
+                                   :func (lambda (s)
+                                           (cond ((typep s 'mp3-file-stream)  (incf mp3-count))
+                                                 ((typep s 'flac-file-stream) (incf flac-count))
+                                                 ((typep s 'mp4-file-stream)  (incf mp4-count))
+                                                 ((null s)                    (incf other-count)))
+                                           (when (and (not (null s)) func) (funcall func s))))))
 
     (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACs, ~:d Others, for a total of ~:d~%"
             mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count))))
 
-(defun time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
+(defun time-test (&key (dir "/home/markv/Music/Queen") (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
+  (set-pathname-encoding file-system-encoding)
   (let ((audio-streams:*get-audio-info* do-audio-processing))
-    (time (do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))
+    (time (do-audio-dir :dir dir :file-system-encoding file-system-encoding :func nil))))
 
 ;;;;;;;;;;;;;;;;;;;; multi-thread code below ;;;;;;;;;;;;;;;;;;;;
 (defparameter *end-thread*  #xdeadbeef)
@@ -76,7 +79,7 @@
   mp4-count
   other-count)
 
-(defun mp-do-audio-dir (&optional (dir "Queen") &key (file-system-encoding :utf-8)
+(defun mp-do-audio-dir (&key (dir "/home/markv/Music/Queen") (file-system-encoding :utf-8)
                                                      (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
@@ -103,7 +106,7 @@
                        (chanl:send dead-channel results) ; send structure of stats back to parent
                        (return-from thread-reader nil))
 
-                     (do-audio-file f :func (lambda (s)
+                     (do-audio-file :file f :func (lambda (s)
                                               (cond ((typep s 'mp3-file-stream)  (incf mp3-count))
                                                     ((typep s 'flac-file-stream) (incf flac-count))
                                                     ((typep s 'mp4-file-stream)  (incf mp4-count))
@@ -151,7 +154,8 @@
       (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACS, ~:d Others, for a total of ~:d files~%"
               mp3-count mp4-count flac-count other-count (+ mp3-count mp4-count flac-count other-count)))))
 
-(defun mp-time-test (&optional (dir "Queen") &key (file-system-encoding :utf-8) (do-audio-processing t))
+(defun mp-time-test (&key (dir "/home/markv/Music/Queen") (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
+  (set-pathname-encoding file-system-encoding)
   (let ((audio-streams:*get-audio-info* do-audio-processing))
-    (time (mp-do-audio-dir dir :file-system-encoding file-system-encoding :func nil))))
+    (time (mp-do-audio-dir :dir dir :file-system-encoding file-system-encoding :func nil))))
