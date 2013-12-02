@@ -176,8 +176,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 
 ## Experimental Stuff
 
-**Multi-threading currently broken.
-
 I've recently added some (very) rudimentary multi-threading (see taglib-tests.lisp) using the CHANL package.
 
 CURRENTLY BROKEN
