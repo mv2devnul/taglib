@@ -157,7 +157,7 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
     * Pure container atoms: have no data and are only used to contain other atoms.  This is akin to a UNIX filesystem's directory notion.
     * Pure "data" atoms: has no nested atoms.  Only has a payload.
     * A mixture of both.
-* __tree.lisp:__ The tree library (used by mp4-atom).  Adapted from
+* __tree.lisp:__ The tree library (used by mp4-atom).  Adapted from code from [Jorge Gajon](http://gajon.org/trees-linked-lists-common-lisp/)
 * __mpeg.lisp:__ Parses the audio information (ie the non-ID3 info) in an MP3 file.
 * __packages.lisp:__ Holds all the package definitions.
 * __taglib-tests.asd:__ Contains build instructions for taglib-tests.lisp.  An ASDF file.
