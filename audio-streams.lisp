@@ -3,6 +3,7 @@
 
 (in-package #:audio-streams)
 
+;;;; Generic stream support
 (deftype octet () '(unsigned-byte 8))
 (deftype octets () '(simple-array octet (*)))
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
@@ -36,11 +37,9 @@
   (declare #.utils:*standard-optimize-settings*)
   (pathname (flex:flexi-stream-stream stream)))
 
-(defgeneric stream-seek (stream &optional offset from))
-
-(defmethod stream-seek ((stream flex:flexi-stream)
-                        &optional (offset 0) (from :current))
-  "Move the FILE-POSITION of a file"
+(defun stream-seek (stream
+                    &optional (offset 0) (from :current))
+  "Move the FILE-POSITION of a stream"
   (declare #.utils:*standard-optimize-settings*)
   (declare (fixnum offset))
   (ecase from
@@ -49,17 +48,9 @@
     (:end (file-position stream (- (stream-size stream)
                                    offset)))))
 
-(defmethod stream-seek ((stream flex:in-memory-input-stream)
-                        &optional (offset 0) (from :current))
-  "Move the index of an in-memory stream"
-  (declare #.utils:*standard-optimize-settings*)
-  (ecase from
-    (:start (file-position stream offset))
-    (:current (file-position stream (+ (file-position stream) offset)))
-    (:end (file-position stream (- (stream-size stream) offset)))))
-
 (declaim (inline read-n-bytes))
 
+;;;; Support for the uxx readers
 (defun read-n-bytes (stream n-bytes
                      &key (bits-per-byte 8) (endian :little-endian))
   "Returns a FIXNUM constructed by reading N-BYTES.  BITS-PER-BYTE controls how
@@ -83,6 +74,7 @@ many bits should be used from each read byte."
                  (setf (ldb (byte bits-per-byte low-bit) value) it))
            finally (return-from read-n-bytes value)))))
 
+;;;; Number readers
 (defun stream-read-u8 (stream)
   (declare #.utils:*standard-optimize-settings*)
   (read-byte stream nil nil))
@@ -98,6 +90,7 @@ many bits should be used from each read byte."
 (defun stream-read-u128 (stream &key (bits-per-byte 8) (endian :little-endian))
   (read-n-bytes stream 16 :bits-per-byte bits-per-byte :endian endian))
 
+;;;; Sequences
 (defun stream-read-sequence (stream size &key (bits-per-byte 8))
   "Read in a sequence of octets at BITS-PER-BYTE"
   (declare #.utils:*standard-optimize-settings*)
@@ -116,7 +109,7 @@ many bits should be used from each read byte."
                           (setf last-byte-was-FF (= byte #xFF))))))
          (values octets size)))))
 
-;;;; Strings
+;;;; Strings: decoders
 
 ;;; Decode octets as an iso-8859-1 string (encoding == 0)
 (defun stream-decode-iso-string (octets &key (start 0) (end (length octets)))
@@ -187,6 +180,7 @@ many bits should be used from each read byte."
     (2 (stream-decode-ucs-be-string octets :start start :end end))
     (3 (stream-decode-utf-8-string octets  :start start :end end))))
 
+;;;; Strings: readers
 (defun stream-read-iso-string-with-len (instream len)
   "Read an iso-8859-1 string of length 'len' (encoding = 0)"
   (declare #.utils:*standard-optimize-settings*)
@@ -283,7 +277,7 @@ many bits should be used from each read byte."
   "controls whether the parsing functions parse audio info like bit-rate, etc")
 
 (defun open-audio-file (filename &optional (get-audio-info *get-audio-info*))
-  "Open and parse FILENAME"
+  "Open and parse FILENAME for tag and optionally audio info"
   (declare #.utils:*standard-optimize-settings*)
   (let ((stream)
         (info))
