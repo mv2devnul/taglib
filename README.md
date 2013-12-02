@@ -6,7 +6,7 @@ A pure Lisp implementation for reading audio tags and audio information.
 
 Currently reads MP3/MP4/FLAC audio files.
 
-Runs (in single-thread mode) under CCL, SBCL, CLISP, and ABCL
+Runs (in single-thread mode) under CCL, SBCL, CLISP, and ABCL.
 Note: my primary Lisp variant is CCL, so it's the most tested; however,
 this code should run on any Lisp that is supported by FLEXI-STREAMS
 
