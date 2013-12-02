@@ -6,15 +6,16 @@ A pure Lisp implementation for reading audio tags and audio information.
 
 Currently reads MP3/MP4/FLAC audio files.
 
-**Mostly complete.  Your mileage may vary.
-**Runs (in single-thread mode) under CCL, SBCL, ECL, CLISP, and ABCL
-  Note: CCL works well.  I'm still in progress of making the others work well. YMMV.
+Runs (in single-thread mode) under CCL, SBCL, CLISP, and ABCL
+Note: my primary Lisp variant is CCL, so it's the most tested; however,
+this code should run on any Lisp that is supported by FLEXI-STREAMS
 
 # Dependencies
 
 All avalailable via quicklisp
 
-* optima and optima.ppcre (for quick parsing of FLAC tags)
+* optima and optima.ppcre: for quick parsing of FLAC tags
+* flexi-streams: for in-memory streams
 
 # References
 
@@ -175,7 +176,13 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 
 ## Experimental Stuff
 
-I've recently added some (very) rudimentary multi-threading (see taglib-tests.lisp) using the CHANL package.  First, the filesystem
+**Multi-threading currently broken.
+
+I've recently added some (very) rudimentary multi-threading (see taglib-tests.lisp) using the CHANL package.
+
+CURRENTLY BROKEN
+
+First, the filesystem
 walker (main thread) walks the requested directory, adding each filename to an unbounded channel (\*channel\*).  The main thread then sends
 \*MAX-THREADS\* \*END-THREAD\* symbols, creates \*MAX-THREADS\* worker threads who read from the channel, and then sits in a loop reading
 from \*dead-channel\* until it has done \*MAX-THREADS\* recv's.

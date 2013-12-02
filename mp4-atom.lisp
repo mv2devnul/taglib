@@ -143,7 +143,7 @@ to read the payload of an atom."
   (declare #.utils:*standard-optimize-settings*)
   (with-mp4-atom-slots (me)
     (loop for end = (+ atom-file-pos atom-size)
-          for current = (stream-here mp4-file) then (stream-here mp4-file)
+          for current = (stream-seek mp4-file) then (stream-seek mp4-file)
           while (< current end) do
             (make-mp4-atom mp4-file me))))
 
@@ -323,7 +323,7 @@ to read the payload of an atom."
           flags (stream-read-u24 mp4-file))
     (assert (= +MP4-ESDescrTag+ (stream-read-u8 mp4-file)) () "Expected description tag of ESDescrTag")
     (let* ((len (read-descriptor-len mp4-file))
-           (end-of-atom (+ (stream-here mp4-file) len)))
+           (end-of-atom (+ (stream-seek mp4-file) len)))
       (setf esid (stream-read-u16 mp4-file)
             s-priority (stream-read-u8 mp4-file))
       (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of DecConfigDescrTag")
@@ -407,7 +407,7 @@ reading the container atoms"
 (defun make-mp4-atom (mp4-file parent)
   "Get current file position, read in size/type, then construct the correct atom."
   (declare #.utils:*standard-optimize-settings*)
-  (let* ((pos (stream-here mp4-file))
+  (let* ((pos (stream-seek mp4-file))
          (siz (stream-read-u32 mp4-file))
          (typ (stream-read-u32 mp4-file))
          (atom))
@@ -445,33 +445,41 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
         (size)
         (header))
     (when (> (stream-size mp4-file) 8)
-      (unwind-protect
-           (handler-case
-               (progn
-                 (stream-seek mp4-file 0 :start)
-                 (setf size   (stream-read-u32 mp4-file)
-                       header (stream-read-u32 mp4-file)
-                       valid  (and (<= size (stream-size mp4-file))
-                                   (= header +m4-ftyp+))))
-             (condition (c)
-               (utils:warn-user "File:~a~%is-valid-mp4-file got condition ~a" (stream-filename mp4-file) c)))
-
-        (stream-seek mp4-file 0 :start)))
+      (stream-seek mp4-file 0 :start)
+      (setf size   (stream-read-u32 mp4-file)
+            header (stream-read-u32 mp4-file)
+            valid  (and (<= size (stream-size mp4-file))
+                        (= header +m4-ftyp+))))
+    (stream-seek mp4-file 0 :start)
     valid))
 
-(defmethod find-mp4-atoms ((mp4-file mp4-file-stream))
-  "Given a valid MP4 file MP4-FILE, look for the 'right' atoms and return them."
+(defclass mp4-file ()
+  ((filename   :accessor filename :initform nil :initarg :filename
+               :documentation "filename that was parsed")
+   (mp4-atoms  :accessor mp4-atoms  :initform nil
+               :documentation "holds tree of parsed MP4 atoms/boxes")
+   (audio-info :accessor audio-info :initform nil
+               :documentation "holds the bit-rate, etc info"))
+  (:documentation "Stream for parsing MP4 audio files"))
+
+(defun parse-audio-file (instream &optional (get-audio-info nil))
+  "Given a valid MP4 file, look for the 'right' atoms and return them."
   (declare #.utils:*standard-optimize-settings*)
-  (stream-seek mp4-file 0 :start)
+  (stream-seek instream 0 :start)
   (setf *in-progress* nil)
 
   ;; Construct our fake "root" for our tree, which recursively reads all atoms
   (tree:make-node (make-instance 'mp4-container-atom
                                  :atom-type +root+
                                  :atom-file-pos 0
-                                 :atom-size (stream-size mp4-file)
-                                 :mp4-file mp4-file))
-    (setf (mp4-atoms mp4-file) *tree*))
+                                 :atom-size (stream-size instream)
+                                 :mp4-file instream))
+  (let ((parsed-info (make-instance 'mp4-file
+                                    :filename (stream-filename instream))))
+    (setf (mp4-atoms parsed-info) *tree*)
+    (when get-audio-info
+      (setf (audio-info parsed-info) (get-mp4-audio-info parsed-info)))
+    parsed-info))
 
 (defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
                                 +mp4-atom-meta+ +mp4-atom-ilst+ nil

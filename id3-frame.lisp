@@ -14,36 +14,6 @@
    (v21-tag-header :accessor v21-tag-header :initarg :v21-tag-header :initform nil :documentation "old-style v2.1 header (if present)"))
   (:documentation "The ID3 header, found at start of file"))
 
-(defun is-valid-mp3-file (mp3-file)
-  "Make sure this is an MP3 file. Look for ID3 header at begining (versions 2, 3, 4) and/or end (version 2.1)
-Written in this fashion so as to be 'crash-proof' when passed an arbitrary file."
-  (declare #.utils:*standard-optimize-settings*)
-
-  (let ((id3)
-        (valid nil)
-        (version)
-        (tag))
-
-    (when (> (stream-size mp3-file) 4)
-      (unwind-protect
-           (handler-case
-               (progn
-                 (stream-seek mp3-file 0 :start)
-                 (setf id3     (stream-read-string-with-len mp3-file 3)
-                       version (stream-read-u8 mp3-file))
-                 (when (> (stream-size mp3-file) 128)
-                   (stream-seek mp3-file 128 :end)
-                   (setf tag (stream-read-string-with-len mp3-file 3)))
-
-                 (setf valid (or (and (string= "ID3" id3)
-                                      (or (= 2 version) (= 3 version) (= 4 version)))
-                                 (string= tag "TAG"))))
-             (condition (c)
-               (utils:warn-user "is-valid-mp3-file got condition ~a" c)
-               (setf valid nil)))
-        (stream-seek mp3-file 0 :start)))
-    valid))
-
  (defclass v21-tag-header ()
    ((title    :accessor title    :initarg :title    :initform nil)
     (artist   :accessor artist   :initarg :artist   :initform nil)
@@ -240,9 +210,9 @@ NB: 2.3 and 2.4 extended flags are different..."
 ;;; the bytes an raw octets.
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (declare #.utils:*standard-optimize-settings*)
-  (let* ((old-pos  (stream-here instream))
+  (let* ((old-pos  (stream-seek instream))
          (name     (stream-read-string instream :encoding name-encoding))
-         (name-len (- (stream-here instream) old-pos))
+         (name-len (- (stream-seek instream) old-pos))
          (value))
 
     (setf value (if (>= value-encoding 0)
@@ -910,7 +880,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun make-frame (version instream fn)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
   (declare #.utils:*standard-optimize-settings*)
-  (let* ((pos  (stream-here instream))
+  (let* ((pos  (stream-seek instream))
          (byte (stream-read-u8 instream))
          frame-name frame-len frame-flags frame-class)
 
@@ -934,22 +904,57 @@ NB: 2.3 and 2.4 extended flags are different..."
 
     ;; edge case where found a frame name, but it is not valid or where making this frame
     ;; would blow past the end of the file/buffer
-    (when (or (> (+ (stream-here instream) frame-len) (stream-size instream))
+    (when (or (> (+ (stream-seek instream) frame-len) (stream-size instream))
               (null frame-class))
       (error "bad frame at position ~d found: ~a" pos frame-name))
 
     (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream)))
 
-(defmethod find-id3-frames ((mp3-file mp3-file-stream))
-  "With an open mp3-file, make sure it is in fact an MP3 file, then read its header and frames"
+(defun is-valid-mp3-file (instream)
+  "Make sure this is an MP3 file. Look for ID3 header at begining (versions 2,
+ 3, 4) and/or end (version 2.1) Written in this fashion so as to be
+ 'crash-proof' when passed an arbitrary file."
+  (declare #.utils:*standard-optimize-settings*)
+
+  (let ((id3)
+        (valid nil)
+        (version)
+        (tag))
+
+    (when (> (stream-size instream) 4)
+      (stream-seek instream 0 :start)
+      (setf id3     (stream-read-string-with-len instream 3)
+            version (stream-read-u8 instream))
+      (when (> (stream-size instream) 128)
+        (stream-seek instream 128 :end)
+        (setf tag (stream-read-string-with-len instream 3)))
+
+      (setf valid (or (and (string= "ID3" id3)
+                           (or (= 2 version) (= 3 version) (= 4 version)))
+                      (string= tag "TAG"))))
+    (stream-seek instream 0 :start)
+    valid))
+
+(defclass mp3-file ()
+  ((filename   :accessor filename :initform nil :initarg :filename
+               :documentation "filename that was parsed")
+   (id3-header :accessor id3-header :initform nil
+               :documentation "holds all the ID3 info")
+   (audio-info :accessor audio-info :initform nil
+               :documentation "holds the bit-rate, etc info"))
+  (:documentation "Output of parsing MP3 files"))
+
+(defun parse-audio-file (instream &optional get-audio-info)
+  "Parse an MP3 file"
   (declare #.utils:*standard-optimize-settings*)
   (labels ((read-loop (version stream)
              (let (frames this-frame)
                (do ()
-                   ((>= (stream-here stream) (stream-size stream)))
+                   ((>= (stream-seek stream) (stream-size stream)))
                  (handler-case
                      (progn
-                       (setf this-frame (make-frame version stream (stream-filename mp3-file)))
+                       (setf this-frame (make-frame version stream
+                                                    (stream-filename instream)))
                        (when (null this-frame)
                          (return-from read-loop (values t (nreverse frames))))
 
@@ -958,29 +963,50 @@ NB: 2.3 and 2.4 extended flags are different..."
                      (utils:warn-user "find-id3-frame got condition ~a" c)
                      (return-from read-loop (values nil (nreverse frames))))))
 
-               (values t (nreverse frames))))) ; reverse this so we have frames in "file order"
+               (values t (nreverse frames))))) ; frames in "file order"
 
-    (setf (id3-header mp3-file) (make-instance 'id3-header :instream mp3-file))
-    (with-slots (size ext-header frames flags version) (id3-header mp3-file)
+    (let ((parsed-info (make-instance 'mp3-file
+                                      :filename (stream-filename instream))))
+      (setf (id3-header parsed-info) (make-instance 'id3-header :instream instream))
+      (with-slots (size ext-header frames flags version) (id3-header parsed-info)
 
-      ;; At this point, we switch from reading the file stream and create a memory stream
-      ;; rationale: it may need to be unsysnc'ed and it helps prevent run-away reads with
-      ;; mis-formed frames
-      (when (not (zerop size))
-        (let ((mem-stream (make-mem-stream (stream-read-sequence mp3-file size
-                                                                 :bits-per-byte (if (header-unsynchronized-p flags) 7 8)))))
+        ;; At this point, we switch from reading the file stream and create a
+        ;; memory stream rationale: it may need to be unsysnc'ed and it helps
+        ;; prevent run-away reads with mis-formed frames
+        (when (not (zerop size))
+          (let ((mem-stream
+                  (make-audio-stream (stream-read-sequence
+                                      instream size
+                                      :bits-per-byte
+                                      (if (header-unsynchronized-p flags) 7 8)))))
 
-          ;; Must make extended header here since it is subject to unsynchronization.
-          (when (header-extended-p flags)
-            (setf ext-header (make-instance 'id3-ext-header :instream mem-stream :version version)))
+            ;; Make extended header here since it is subject to unsynchronization.
+            (when (header-extended-p flags)
+              (setf ext-header (make-instance 'id3-ext-header
+                                              :instream mem-stream
+                                              :version version)))
 
-          ;; Start reading frames from memory stream
-          (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
-            (if (not _ok)
-                (warn-user "File ~a had errors finding mp3 frames. potentially missed frames!" (stream-filename mp3-file)))
-            (setf frames _frames)
-            _ok))))))
+            ;; Start reading frames from memory stream
+            (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
+              (if (not _ok)
+                  (warn-user
+                   "File ~a had errors finding mp3 frames. potentially missed frames!"
+                   (stream-filename instream)))
+              (setf frames _frames))))
+        (when get-audio-info
+          (mpeg:get-mpeg-audio-info instream parsed-info))
+        parsed-info))))
 
-(defun map-id3-frames (mp3-file &key (func (constantly t)))
+(defun map-id3-frames (mp3 &key (func (constantly t)))
   "Iterates through the ID3 frames found in an MP3 file"
-  (mapcar func (frames (id3-header mp3-file))))
+  (mapcar func (frames (id3-header mp3))))
+
+(defun get-frames (mp3 names)
+  "Given a MP3 file's info, search its frames for NAMES.
+Return file-order list of matching frames"
+  (let (found-frames)
+    (map-id3-frames mp3
+                    :func (lambda (f)
+                            (when (member (id f) names :test #'string=)
+                              (push f found-frames))))
+    (nreverse found-frames)))

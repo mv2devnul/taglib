@@ -36,13 +36,9 @@
   (stream-seek flac-file 0 :start)
   (let ((valid nil))
     (when (> (stream-size flac-file) 4)
-      (unwind-protect
-           (handler-case
-               (let ((hdr (stream-read-string-with-len flac-file 4)))
-                 (setf valid (string= "fLaC" hdr)))
-             (condition (c)
-               (utils:warn-user "is-valid-flac-file: got condition ~a" c)))
-        (stream-seek flac-file 0 :start)))
+      (let ((hdr (stream-read-string-with-len flac-file 4)))
+        (setf valid (string= "fLaC" hdr))))
+    (stream-seek flac-file 0 :start)
     valid))
 
 (defun make-flac-header (stream)
@@ -50,7 +46,7 @@
   (declare #.utils:*standard-optimize-settings*)
   (let* ((header (stream-read-u32 stream))
          (flac-header (make-instance 'flac-header
-                                     :pos (- (stream-here stream) 4)
+                                     :pos (- (stream-seek stream) 4)
                                      :last-bit (utils:get-bitfield header 31 1)
                                      :header-type (utils:get-bitfield header 30 7)
                                      :header-len (utils:get-bitfield header 23 24))))
@@ -92,25 +88,41 @@
     (setf (comments tags) (nreverse (comments tags)))
     tags))
 
-(defmethod find-flac-frames ((stream flac-file-stream))
-  "Loop through file and find all FLAC headers. If we find comment or audio-info headers, go ahead and parse them too."
-  (declare #.utils:*standard-optimize-settings*)
-  (stream-seek stream 4 :start)
+(defclass flac-file ()
+  ((filename     :accessor filename :initform nil :initarg :filename
+                 :documentation "filename that was parsed")
+   (flac-headers :accessor flac-headers :initform nil
+                 :documentation "holds all the flac headers in file")
+   (audio-info   :accessor audio-info   :initform nil
+                 :documentation "parsed audio info")
+   (flac-tags    :accessor flac-tags    :initform nil
+                 :documentation "parsed comment tags."))
+  (:documentation "Stream for parsing flac files"))
 
-  (handler-case
-      (let (headers)
-        (loop for h = (make-flac-header stream) then (make-flac-header stream) do
-          (push h headers)
-          (cond
-            ((= +metadata-comment+ (header-type h))
-             (setf (flac-tags stream) (flac-get-tags stream)))
-            ((= +metadata-streaminfo+ (header-type h))
-             (setf (audio-info stream) (get-flac-audio-info stream)))
-            (t (stream-seek stream (header-len h) :current)))
-          (when (not (zerop (last-bit h))) (return)))
-        (setf (flac-headers stream) (nreverse headers)))
-    (condition (c)
-      (utils:warn-user "find-flac-frames got condition ~a" c))))
+(defun parse-audio-file (instream &optional (get-audio-info nil))
+  "Loop through file and find all FLAC headers. If we find comment or audio-info
+headers, go ahead and parse them too."
+  (declare #.utils:*standard-optimize-settings*)
+  (declare (ignore get-audio-info)) ; audio info comes for "free"
+
+  (stream-seek instream 4 :start)
+
+  (let ((parsed-info (make-instance 'flac-file
+                                    :filename (stream-filename instream))))
+    (let (headers)
+      (loop for h = (make-flac-header instream)
+              then (make-flac-header instream) do
+                (push h headers)
+                (cond
+                  ((= +metadata-comment+ (header-type h))
+                   (setf (flac-tags parsed-info) (flac-get-tags instream)))
+                  ((= +metadata-streaminfo+ (header-type h))
+                   (setf (audio-info parsed-info) (get-flac-audio-info instream)))
+                  (t (stream-seek instream (header-len h) :current)))
+                (when (not (zerop (last-bit h)))
+                  (return)))
+      (setf (flac-headers parsed-info) (nreverse headers)))
+    parsed-info))
 
 (defclass flac-audio-properties ()
   ((min-block-size  :accessor min-block-size  :initarg :min-block-size  :initform 0)

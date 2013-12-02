@@ -187,7 +187,7 @@
   (handler-case
       (with-frame-slots (me)
         (when (null hdr-u32)            ; has header already been read in?
-          (setf pos     (stream-here instream)
+          (setf pos     (stream-seek instream)
                 hdr-u32 (stream-read-u32 instream))
           (when (null hdr-u32)
             (return-from load-frame nil)))
@@ -326,7 +326,7 @@ Bits   1-0 (2  bits): the emphasis"
                      (= (aref payload (+ i 3)) (char-code #\o))))
 
         (setf vbr (make-instance 'vbr-info))
-        (let ((v (make-mem-stream (payload me))))
+        (let ((v (make-audio-stream (payload me))))
           (stream-seek v i :start)      ; seek to Xing/Info offset
           (setf (tag vbr)   (stream-read-iso-string-with-len v 4)
                 (flags vbr) (stream-read-u32 v))
@@ -353,7 +353,7 @@ Bits   1-0 (2  bits): the emphasis"
     (format stream "tag = ~a, flags = 0x~x, frame~p = ~:d, bytes = ~:d, tocs = ~d, scale = ~d, "
             tag flags frames frames bytes tocs scale)))
 
-(defun find-first-sync (in)
+(defun find-first-sync (instream)
   (declare #.utils:*standard-optimize-settings*)
   (let ((hdr-u32)
         (count 0)
@@ -361,22 +361,23 @@ Bits   1-0 (2  bits): the emphasis"
 
     (handler-case
         (loop
-          (setf pos     (stream-here in)
-                hdr-u32 (stream-read-u32 in))
+          (setf pos     (stream-seek instream)
+                hdr-u32 (stream-read-u32 instream))
           (when (null hdr-u32)
             (return-from find-first-sync nil))
           (incf count)
 
           (when (= (logand hdr-u32 #xffe00000) #xffe00000) ; magic number is potential sync frame header
             (let ((hdr (make-instance 'frame :hdr-u32 hdr-u32 :pos pos)))
-              (if (load-frame hdr :instream in :read-payload t)
+              (if (load-frame hdr :instream instream :read-payload t)
                   (progn
-                    (check-vbr hdr (stream-filename in))
+                    (check-vbr hdr (stream-filename instream))
                     (return-from find-first-sync hdr))))))
       (condition (c) (progn
                        (warn-user "Condtion <~a> signaled while looking for first sync" c)
                        (error c))))
     nil))
+
 (defmethod next-frame ((me frame) &key instream read-payload)
   "Get next frame.  If READ-PAYLOAD is true, read in contents for frame, else, seek to next frame header."
   (declare #.utils:*standard-optimize-settings*)
@@ -423,15 +424,16 @@ Bits   1-0 (2  bits): the emphasis"
             (round (/ bit-rate 1000))
             (floor (/ len 60)) (round (mod len 60)))))
 
-(defun calc-bit-rate-exhaustive (in start info)
-  "Map every MPEG frame in IN and calculate the bit-rate"
+(defun calc-bit-rate-exhaustive (instream start info)
+  "Map every MPEG frame in INSTREAM and calculate the bit-rate"
   (declare #.utils:*standard-optimize-settings*)
   (let ((total-len      0)
         (last-bit-rate  nil)
         (bit-rate-total 0)
         (vbr            nil))
+
     (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) info
-      (map-frames in (lambda (f)
+      (map-frames instream (lambda (f)
                        (incf n-frames)
                        (incf total-len (float (/ (samples f) (sample-rate f))))
                        (incf bit-rate-total (bit-rate f))
@@ -449,16 +451,17 @@ Bits   1-0 (2  bits): the emphasis"
       (setf is-vbr   t
             len      total-len
             bit-rate (float (/ bit-rate-total n-frames))))))
-(defun get-mpeg-audio-info (in &key) ;; (max-frames *max-frames-to-read*))
+
+(defun get-mpeg-audio-info (instream mp3-file)
   "Get MPEG Layer 3 audio information.
  If the first MPEG frame we find is a Xing/Info header, return that as info.
  Else, we assume CBR and calculate the duration, etc."
   (declare #.utils:*standard-optimize-settings*)
-  (let ((first-frame (find-first-sync in))
+  (let ((first-frame (find-first-sync instream))
         (info        (make-instance 'mpeg-audio-info)))
 
     (when (null first-frame)
-      (return-from get-mpeg-audio-info nil))
+      (return-from get-mpeg-audio-info))
 
     (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) info
       (setf version     (version first-frame)
@@ -468,21 +471,28 @@ Bits   1-0 (2  bits): the emphasis"
       (if (vbr first-frame)
           ;; found a Xing header, now check to see if it is correct
           (if (zerop (frames (vbr first-frame)))
-              (calc-bit-rate-exhaustive in (pos first-frame) info) ; Xing header broken, read all frames to calc
+              ;; Xing header broken, read all frames to calc
+              (calc-bit-rate-exhaustive instream (pos first-frame) info)
               ;; Good Xing header, use info in VBR to calc
               (setf n-frames 1
                     is-vbr   t
-                    len      (float (* (frames (vbr first-frame)) (/ (samples first-frame) (sample-rate first-frame))))
+                    len      (float (* (frames (vbr first-frame))
+                                       (/ (samples first-frame)
+                                          (sample-rate first-frame))))
                     bit-rate (float (/ (* 8 (bytes (vbr first-frame))) len))))
 
-          ;; No Xing header found.  Assume CBR and calculate based on first frame
+          ;; No Xing header found. Assume CBR and calculate based on first frame
           (let* ((first (pos first-frame))
-                 (last (- (audio-streams:stream-size in) (if (id3-frame::v21-tag-header (id3-header in)) 128 0)))
-                 (n-fr (round (/ (float (- last first)) (float (size first-frame)))))
-                 (n-sec (round (/ (float (* (size first-frame) n-fr)) (float (* 125 (float (/ (bit-rate first-frame) 1000))))))))
+                 (last (- (stream-size instream)
+                          (if (id3-frame:v21-tag-header
+                               (id3-frame:id3-header mp3-file)) 128 0)))
+                 (n-fr (round (/ (float (- last first))
+                                 (float (size first-frame)))))
+                 (n-sec (round (/ (float (* (size first-frame) n-fr))
+                                  (float (* 125 (float
+                                                 (/ (bit-rate first-frame) 1000))))))))
             (setf is-vbr   nil
                   n-frames 1
                   len      n-sec
                   bit-rate (float (bit-rate first-frame))))))
-
-    info))
+    (setf (id3-frame:audio-info mp3-file) info)))
