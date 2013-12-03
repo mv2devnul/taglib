@@ -178,8 +178,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 
 I've recently added some (very) rudimentary multi-threading (see taglib-tests.lisp) using the CHANL package.
 
-CURRENTLY BROKEN
-
 First, the filesystem
 walker (main thread) walks the requested directory, adding each filename to an unbounded channel (\*channel\*).  The main thread then sends
 \*MAX-THREADS\* \*END-THREAD\* symbols, creates \*MAX-THREADS\* worker threads who read from the channel, and then sits in a loop reading

@@ -119,9 +119,11 @@ string representation"
   (let* ((old *in-progress*)
          (*in-progress* (tree:make-node me)))
     (if old
-        (tree:add-child old *in-progress*)
-        (setf *tree* *in-progress*))
-    (call-next-method)))
+        (progn
+          (tree:add-child old *in-progress*)
+          (call-next-method))
+        (let ((*tree* *in-progress*)) ; must use dynamic binding for multi-threading
+          (call-next-method)))))
 
 (defmacro with-mp4-atom-slots ((instance) &body body)
   `(with-slots (atom-file-pos atom-size atom-type) ,instance
@@ -466,20 +468,20 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
   "Given a valid MP4 file, look for the 'right' atoms and return them."
   (declare #.utils:*standard-optimize-settings*)
   (stream-seek instream 0 :start)
-  (setf *in-progress* nil)
+  (let ((*in-progress* nil)) ; dynamic binding for multi-threading
 
-  ;; Construct our fake "root" for our tree, which recursively reads all atoms
-  (tree:make-node (make-instance 'mp4-container-atom
-                                 :atom-type +root+
-                                 :atom-file-pos 0
-                                 :atom-size (stream-size instream)
-                                 :mp4-file instream))
-  (let ((parsed-info (make-instance 'mp4-file
-                                    :filename (stream-filename instream))))
-    (setf (mp4-atoms parsed-info) *tree*)
-    (when get-audio-info
-      (setf (audio-info parsed-info) (get-mp4-audio-info parsed-info)))
-    parsed-info))
+    ;; Construct our fake "root" for our tree, which recursively reads all atoms
+    (tree:make-node (make-instance 'mp4-container-atom
+                                   :atom-type +root+
+                                   :atom-file-pos 0
+                                   :atom-size (stream-size instream)
+                                   :mp4-file instream))
+    (let ((parsed-info (make-instance 'mp4-file
+                                      :filename (stream-filename instream))))
+      (setf (mp4-atoms parsed-info) *tree*)
+      (when get-audio-info
+        (setf (audio-info parsed-info) (get-mp4-audio-info parsed-info)))
+      parsed-info)))
 
 (defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
                                 +mp4-atom-meta+ +mp4-atom-ilst+ nil
@@ -506,15 +508,19 @@ one of the +iTunes- constants")
             then (tree:next-sibling node) until (null node) do
             (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
 
+(defun tmp (a b)
+  (declare (optimize (debug 3) (speed 0)))
+  (= (atom-type (tree:data a)) b))
+
 (defun get-audio-properties-atoms (mp4-file)
   "Get the audio property atoms from MP4-FILE.
 MP4A audio info is held in under root.moov.trak.mdia.mdhd,
 root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
   (declare #.utils:*standard-optimize-settings*)
 
-  (let ((mdhd (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mdhd+))))
-        (mp4a (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mp4a+))))
-        (esds (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-esds+)))))
+  (let ((mdhd (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (funcall #'tmp x +audioprop-mdhd+)))) ;(= (atom-type (tree:data x)) +audioprop-mdhd+))))
+        (mp4a (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (funcall #'tmp x +audioprop-mp4a+)))) ;(= (atom-type (tree:data x)) +audioprop-mp4a+))))
+        (esds (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (funcall #'tmp x +audioprop-esds+)))));(= (atom-type (tree:data x)) +audioprop-esds+)))))
 
     (if (and mdhd mp4a esds)
         (values (tree:data (first mdhd))
