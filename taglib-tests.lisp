@@ -85,14 +85,14 @@
 
 (defun mp-do-audio-dir (&key (dir "/home/markv/Music/Queen")
                              (file-system-encoding :utf-8)
-                             (func #'abstract-tag:show-tags))
+                             (func nil))
   "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
-  (let ((channel (make-instance 'chanl:unbounded-channel))
+  (let ((channel      (make-instance 'chanl:unbounded-channel))
         (dead-channel (make-instance 'chanl:unbounded-channel))
-        (mp3-count 0)
-        (flac-count 0)
-        (mp4-count 0)
+        (mp3-count   0)
+        (flac-count  0)
+        (mp4-count   0)
         (other-count 0))
 
     ;; This function is run by each thread
