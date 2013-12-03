@@ -508,19 +508,15 @@ one of the +iTunes- constants")
             then (tree:next-sibling node) until (null node) do
             (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
 
-(defun tmp (a b)
-  (declare (optimize (debug 3) (speed 0)))
-  (= (atom-type (tree:data a)) b))
-
 (defun get-audio-properties-atoms (mp4-file)
   "Get the audio property atoms from MP4-FILE.
 MP4A audio info is held in under root.moov.trak.mdia.mdhd,
 root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
   (declare #.utils:*standard-optimize-settings*)
 
-  (let ((mdhd (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (funcall #'tmp x +audioprop-mdhd+)))) ;(= (atom-type (tree:data x)) +audioprop-mdhd+))))
-        (mp4a (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (funcall #'tmp x +audioprop-mp4a+)))) ;(= (atom-type (tree:data x)) +audioprop-mp4a+))))
-        (esds (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (funcall #'tmp x +audioprop-esds+)))));(= (atom-type (tree:data x)) +audioprop-esds+)))))
+  (let ((mdhd (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mdhd+))))
+        (mp4a (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mp4a+))))
+        (esds (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-esds+)))))
 
     (if (and mdhd mp4a esds)
         (values (tree:data (first mdhd))
