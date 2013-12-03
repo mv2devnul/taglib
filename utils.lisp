@@ -3,7 +3,6 @@
 (in-package #:utils)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (pushnew :INSTRUMENT-MEMOIZED *features*)
   #+DBG (defvar *standard-optimize-settings* '(optimize (debug 3)))
   #-DBG (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0)))
   )
@@ -12,7 +11,9 @@
 
 (defun warn-user (format-string &rest args)
   "Print a warning error to *ERROR-OUTPUT* and continue"
-  (when *break-on-warn-user* (break "Breaking in WARN-USER"))
+  (declare #.utils:*standard-optimize-settings*)
+  (when *break-on-warn-user*
+    (break "Breaking in WARN-USER"))
   (format *error-output* "~&********************************************************************************~%")
   #+CCL (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
   (apply #'format *error-output* format-string args)
@@ -33,9 +34,11 @@
 (declaim (inline upto-null))
 (defun upto-null (string)
   "Trim STRING to end at first NULL found"
+  (declare #.utils:*standard-optimize-settings*)
   (subseq string 0 (position #\Null string)))
 
 (defun dump-data (file-name data)
+  (declare #.utils:*standard-optimize-settings*)
   (with-open-file (f file-name :direction :output :if-exists :supersede :element-type '(unsigned-byte 8))
     (write-sequence data f)))
 
@@ -80,40 +83,24 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   `(aif ,test-form
         (progn ,@body)))
 
-#+INSTRUMENT-MEMOIZED (progn
-                        (defstruct memoized-funcs
-                          name
-                          table
-                          calls
-                          finds
-                          news)
-                        (defvar *memoized-funcs* nil))
-
 (defun mk-memoize (func-name)
   "Takes a normal function object and returns a memoized one"
+  (declare #.utils:*standard-optimize-settings*)
   (let* ((func (symbol-function func-name))
-         (hash-table (make-hash-table :test 'equal))
-          #+INSTRUMENT-MEMOIZED (s (make-memoized-funcs :table hash-table :calls 0 :finds 0 :news 0 :name func-name))
-         )
-
-    #+INSTRUMENT-MEMOIZED (push s *memoized-funcs*)
+         (hash-table (make-hash-table :test 'equal)))
 
     #'(lambda (arg)
         (multiple-value-bind (value foundp) (gethash arg hash-table)
-          #+INSTRUMENT-MEMOIZED (incf (memoized-funcs-calls s))
           (if foundp
-              (progn
-                #+INSTRUMENT-MEMOIZED (incf (memoized-funcs-finds s))
-                value)
-              (progn
-                #+INSTRUMENT-MEMOIZED (incf (memoized-funcs-news s))
-                (setf (gethash arg hash-table) (funcall func arg))))))))
+              value
+              (setf (gethash arg hash-table) (funcall func arg)))))))
 
 (defmacro memoize (func-name)
-  "Memoize function associated with Function-Name. Simplified version"
+  "Memoize function associated with FUNC-NAME. Simplified version"
   `(setf (symbol-function ,func-name) (utils::mk-memoize ,func-name)))
 
 (defun timings (function)
+  (declare #.utils:*standard-optimize-settings*)
   (let ((real-base (get-internal-real-time)))
     (funcall function)
     (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))
@@ -145,6 +132,7 @@ The macro expansion has relatively low overhead in space or time."
 
 (defun DBG-helper (tag expressions-thunks last-expression last-thunk)
   ;; Helper for the above debugging macro
+  (declare #.utils:*standard-optimize-settings*)
   (labels
       ((f (stream fmt &rest args)
          (with-standard-io-syntax
