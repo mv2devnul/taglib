@@ -2,11 +2,13 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
 (pushnew :DBG *features*)
+;;; Theoretically, CLISP should run multi-threaded, but it keeps crashing...
+#+(or :ccl :sbcl :abcl) (pushnew :ENABLE-MP *features*)
 (asdf:defsystem #:taglib
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
   :license "Public Domain"
-  :depends-on (#:optima #:optima.ppcre #:flexi-streams #:alexandria)
+  :depends-on (#:optima #:optima.ppcre #:flexi-streams #+ENABLE-MP #:bordeaux-threads)
   :components ((:file "packages")
                (:file "profile"       :depends-on ("packages"))
                (:file "utils"         :depends-on ("packages"))

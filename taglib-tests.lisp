@@ -71,7 +71,8 @@
     (time (do-audio-dir :dir dir
             :file-system-encoding file-system-encoding :func nil))))
 
-;;;;;;;;;;;;;;;;;;;; multi-thread code below ;;;;;;;;;;;;;;;;;;;;
+;;;; multi-thread code below
+#+ENABLE-MP (progn
 (defparameter *end-thread*  #xdeadbeef)
 (defparameter *max-threads* 4)
 
@@ -176,3 +177,4 @@
   (set-pathname-encoding file-system-encoding)
   (let ((audio-streams:*get-audio-info* do-audio-processing))
     (time (mp-do-audio-dir :dir dir :file-system-encoding file-system-encoding :func nil))))
+)
