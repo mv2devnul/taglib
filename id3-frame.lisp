@@ -442,6 +442,8 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-itunes-compilation (frame-raw)
   ((info :accessor info)))
 
+(defclass frame-tcp (frame-itunes-compilation) ())
+
 (defmethod initialize-instance :after ((me frame-itunes-compilation) &key &allow-other-keys)
   "iTunes compilation weirdness: I have seen this encoded soooo many ways..."
   (declare #.utils:*standard-optimize-settings*)
@@ -460,8 +462,6 @@ NB: 2.3 and 2.4 extended flags are different..."
   (with-slots (octets info) me
       (format stream "frame-itunes-compilation: ~a, octets:<~a>, info:~a"
               (vpprint-frame-header me) (printable-array octets) info)))
-
-(defclass frame-tcp (frame-itunes-compilation) ())
 
 (defclass frame-tcr (frame-text-info) ())
 (defclass frame-tda (frame-text-info) ())
