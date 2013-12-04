@@ -428,21 +428,13 @@ Bits   1-0 (2  bits): the emphasis"
   "Map every MPEG frame in INSTREAM and calculate the bit-rate"
   (declare #.utils:*standard-optimize-settings*)
   (let ((total-len      0)
-        (last-bit-rate  nil)
-        (bit-rate-total 0)
-        (vbr            nil))
+        (bit-rate-total 0))
 
     (with-slots (is-vbr sample-rate bit-rate len version layer n-frames) info
       (map-frames instream (lambda (f)
-                       (incf n-frames)
-                       (incf total-len (float (/ (samples f) (sample-rate f))))
-                       (incf bit-rate-total (bit-rate f))
-                       (if (null last-bit-rate)
-                           (setf last-bit-rate (bit-rate f))
-                           (progn
-                             (when (not (= last-bit-rate (bit-rate f)))
-                               (setf vbr t))
-                             (setf last-bit-rate (bit-rate f)))))
+                             (incf n-frames)
+                             (incf total-len (float (/ (samples f) (sample-rate f))))
+                             (incf bit-rate-total (bit-rate f)))
                   :read-payload nil :start-pos start)
 
       (when (or (< n-frames 10) (zerop bit-rate-total))
