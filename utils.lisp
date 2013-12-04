@@ -83,17 +83,33 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   `(aif ,test-form
         (progn ,@body)))
 
+;;; in multi-thread mode, need to protect insertions into hash-table
+;;; Note: CCL hash-tables are thread-safe, but some other implementations
+;;; don't appear to be...
+(defstruct locked-hash-table lock hash-table)
+#+ENABLE-MP (defmacro with-lock ((l) &body body)
+              `(bt:with-lock-held (,l)
+                 ,@body))
+#-ENABLE-MP (defmacro with-lock ((l) &body body)
+              (declare (ignore l))
+              `(progn
+                 ,@body))
+
 (defun mk-memoize (func-name)
   "Takes a normal function object and returns a memoized one"
   (declare #.utils:*standard-optimize-settings*)
   (let* ((func (symbol-function func-name))
-         (hash-table (make-hash-table :test 'equal)))
+         (the-hash-table (make-locked-hash-table
+                          :lock #+ENABLE-MP (bt:make-lock) #-ENABLE-MP nil
+                          :hash-table (make-hash-table :test 'equal))))
 
-    #'(lambda (arg)
-        (multiple-value-bind (value foundp) (gethash arg hash-table)
-          (if foundp
-              value
-              (setf (gethash arg hash-table) (funcall func arg)))))))
+    (with-slots (lock hash-table) the-hash-table
+      #'(lambda (arg)
+          (multiple-value-bind (value foundp) (gethash arg hash-table)
+            (if foundp
+                value
+                (with-lock (lock)
+                  (setf (gethash arg hash-table) (funcall func arg)))))))))
 
 (defmacro memoize (func-name)
   "Memoize function associated with FUNC-NAME. Simplified version"
@@ -113,7 +129,7 @@ but can be an arbitrary expression returning a tag to be princ'ed first;
 if the expression returns NIL, nothing is printed.
 EXPRS are expressions, which when the TAG was not NIL are evaluated in order,
 with their source code then their return values being printed each time.
-The last expresion is *always* evaluated and its multiple values are returned,
+The last expression is *always* evaluated and its multiple values are returned,
 but its source and return values are only printed if TAG was not NIL;
 previous expressions are not evaluated at all if TAG returned NIL.
 The macro expansion has relatively low overhead in space or time."
