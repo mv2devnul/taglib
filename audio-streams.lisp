@@ -19,7 +19,7 @@
     (etypecase arg
       (string (make-file-stream arg))
       (pathname (make-file-stream arg))
-      (octets (flex:make-in-memory-input-stream arg)))))
+      (vector (flex:make-in-memory-input-stream arg)))))
 
 (defgeneric stream-size (stream))
 
@@ -99,7 +99,7 @@ many bits should be used from each read byte."
          (values octets (read-sequence octets stream))))
     (7 (let* ((last-byte-was-FF nil)
               (byte nil)
-              (octets (flex:with-output-to-sequence (out)
+              (octets (flex:with-output-to-sequence (out :element-type 'octet)
                         (dotimes (i size)
                           (setf byte (stream-read-u8 stream))
                           (if last-byte-was-FF
