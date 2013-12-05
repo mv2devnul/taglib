@@ -123,7 +123,10 @@ string representation"
           (tree:add-child old *in-progress*)
           (call-next-method))
         (let ((*tree* *in-progress*)) ; must use dynamic binding for multi-threading
-          (call-next-method)))))
+          (call-next-method)
+          ;; HACK ALERT: this is the top of the tree, so stuff the root
+          ;; in the TREE slot of a container atom
+          (setf (tree me) *tree*)))))
 
 (defmacro with-mp4-atom-slots ((instance) &body body)
   `(with-slots (atom-file-pos atom-size atom-type) ,instance
@@ -139,7 +142,8 @@ to read the payload of an atom."
   (with-mp4-atom-slots (me)
     (stream-seek mp4-file (- atom-size 8) :current)))
 
-(defclass mp4-container-atom (mp4-atom) ())
+(defclass mp4-container-atom (mp4-atom)
+  ((tree :accessor tree)))
 
 (defmethod initialize-instance :after ((me mp4-container-atom) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
@@ -467,21 +471,22 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
 (defun parse-audio-file (instream &optional (get-audio-info nil))
   "Given a valid MP4 file, look for the 'right' atoms and return them."
   (declare #.utils:*standard-optimize-settings*)
-  (stream-seek instream 0 :start)
-  (let ((*in-progress* nil)) ; dynamic binding for multi-threading
 
-    ;; Construct our fake "root" for our tree, which recursively reads all atoms
-    (tree:make-node (make-instance 'mp4-container-atom
-                                   :atom-type +root+
-                                   :atom-file-pos 0
-                                   :atom-size (stream-size instream)
-                                   :mp4-file instream))
-    (let ((parsed-info (make-instance 'mp4-file
-                                      :filename (stream-filename instream))))
-      (setf (mp4-atoms parsed-info) *tree*)
-      (when get-audio-info
-        (setf (audio-info parsed-info) (get-mp4-audio-info parsed-info)))
-      parsed-info)))
+  (stream-seek instream 0 :start)
+
+  (let* ((*in-progress* nil)          ; dynamic binding for multi-threading
+         (parsed-info (make-instance 'mp4-file
+                                     :filename (stream-filename instream))))
+    (setf (mp4-atoms parsed-info)
+          (tree
+           (make-instance 'mp4-container-atom
+                          :atom-type +root+
+                          :atom-file-pos 0
+                          :atom-size (stream-size instream)
+                          :mp4-file instream)))
+    (when get-audio-info
+      (setf (audio-info parsed-info) (get-mp4-audio-info parsed-info)))
+    parsed-info))
 
 (defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
                                 +mp4-atom-meta+ +mp4-atom-ilst+ nil
