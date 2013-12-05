@@ -4,6 +4,6 @@
 (asdf:defsystem #:taglib-tests
   :description "Simple demo/test code for taglib"
   :author "Mark VandenBrink"
-  :license "Public Domain"
+  :license "UNLICENSE <http://unlicense.org/>"
   :depends-on (#:taglib #:cl-fad #+(or :ccl :sbcl :abcl) #:chanl)
   :components ((:file "taglib-tests")))

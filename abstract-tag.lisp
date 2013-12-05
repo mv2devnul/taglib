@@ -2,7 +2,9 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:abstract-tag)
 
-(defparameter *raw-tags* nil)
+(defparameter *raw-tags* nil
+  "Controls whether or not we print 'raw' tags (aka frames) or
+textual representation of tags")
 
 (defparameter *id3v1-genres*
   #("Blues" "Classic Rock" "Country" "Dance" "Disco" "Funk" "Grunge"
@@ -11,23 +13,25 @@
     "Pranks" "Soundtrack" "Euro-Techno" "Ambient" "Trip-Hop" "Vocal"
     "Jazz+Funk" "Fusion" "Trance" "Classical" "Instrumental" "Acid" "House"
     "Game" "Sound Clip" "Gospel" "Noise" "Alternative Rock" "Bass" "Soul"
-    "Punk" "Space" "Meditative" "Instrumental Pop" "Instrumental Rock" "Ethnic"
-    "Gothic" "Darkwave" "Techno-Industrial" "Electronic" "Pop-Folk" "Eurodance"
-    "Dream" "Southern Rock" "Comedy" "Cult" "Gangsta" "Top 40" "Christian Rap"
-    "Pop/Funk" "Jungle" "Native American" "Cabaret" "New Wave" "Psychedelic"
-    "Rave" "Showtunes" "Trailer" "Lo-Fi" "Tribal" "Acid Punk" "Acid Jazz"
-    "Polka" "Retro" "Musical" "Rock & Roll" "Hard Rock" "Folk" "Folk/Rock"
-    "National Folk" "Swing" "Fusion" "Bebob" "Latin" "Revival" "Celtic"
-    "Bluegrass" "Avantgarde" "Gothic Rock" "Progressive Rock" "Psychedelic Rock"
+    "Punk" "Space" "Meditative" "Instrumental Pop" "Instrumental Rock"
+    "Ethnic" "Gothic" "Darkwave" "Techno-Industrial" "Electronic"
+    "Pop-Folk" "Eurodance" "Dream" "Southern Rock" "Comedy" "Cult"
+    "Gangsta" "Top 40" "Christian Rap" "Pop/Funk" "Jungle" "Native
+    American" "Cabaret" "New Wave" "Psychedelic" "Rave" "Showtunes"
+    "Trailer" "Lo-Fi" "Tribal" "Acid Punk" "Acid Jazz" "Polka" "Retro"
+    "Musical" "Rock & Roll" "Hard Rock" "Folk" "Folk/Rock" "National Folk"
+    "Swing" "Fusion" "Bebob" "Latin" "Revival" "Celtic" "Bluegrass"
+    "Avantgarde" "Gothic Rock" "Progressive Rock" "Psychedelic Rock"
     "Symphonic Rock" "Slow Rock" "Big Band" "Chorus" "Easy Listening"
     "Acoustic" "Humour" "Speech" "Chanson" "Opera" "Chamber Music" "Sonata"
-    "Symphony" "Booty Bass" "Primus" "Porn Groove" "Satire" "Slow Jam" "Club"
-    "Tango" "Samba" "Folklore" "Ballad" "Power Ballad" "Rhythmic Soul"
-    "Freestyle" "Duet" "Punk Rock" "Drum Solo" "A Cappella" "Euro-House" "Dance Hall"
-    "Goa" "Drum & Bass" "Club-House" "Hardcore" "Terror" "Indie"
-    "BritPop" "Negerpunk" "Polsk Punk" "Beat" "Christian Gangsta Rap" "Heavy Metal"
-    "Black Metal" "Crossover" "Contemporary Christian" "Christian Rock"
-    "Merengue" "Salsa" "Thrash Metal" "Anime" "Jpop" "Synthpop"))
+    "Symphony" "Booty Bass" "Primus" "Porn Groove" "Satire" "Slow Jam"
+    "Club" "Tango" "Samba" "Folklore" "Ballad" "Power Ballad" "Rhythmic
+    Soul" "Freestyle" "Duet" "Punk Rock" "Drum Solo" "A Cappella"
+    "Euro-House" "Dance Hall" "Goa" "Drum & Bass" "Club-House" "Hardcore"
+    "Terror" "Indie" "BritPop" "Negerpunk" "Polsk Punk" "Beat" "Christian
+    Gangsta Rap" "Heavy Metal" "Black Metal" "Crossover" "Contemporary
+    Christian" "Christian Rock" "Merengue" "Salsa" "Thrash Metal" "Anime"
+    "Jpop" "Synthpop"))
 
 (defun find-genre (name)
   "For debug purpose only: test function to return index of genre, given a name.
@@ -40,7 +44,8 @@ Ignores case and returns first complete match"
       (incf i))))
 
 (defun get-id3v1-genre (n)
-  "Given N, a supposed ID3 genre, range check it to make sure it is > 0 and < (sizeof *ID3V1-GENRES*)"
+  "Given N, a supposed ID3 genre, range check it to make sure it
+is > 0 and < (sizeof *ID3V1-GENRES*)"
   (declare #.utils:*standard-optimize-settings*)
   (if (or (> n (1- (length *id3v1-genres*)))
             (< n 0))
@@ -150,9 +155,11 @@ Ignores case and returns first complete match"
         ;; only allow one (no refinements) OR we can handle the simple string case
         (when (and (>= (length str) 1) (eq #\( (aref str 0)))
           (setf count (count #\( str))
-          (when (> count 1) (warn-user "Don't support genre refinement yet, found ~d genres" count))
+          (when (> count 1)
+            (warn-user "Don't support genre refinement yet, found ~d genres" count))
           (setf end (position #\) str))
-          (when (null end) (warn-user "Bad format for genre, ending paren is missing"))
+          (when (null end)
+            (warn-user "Bad format for genre, ending paren is missing"))
           (setf str (get-id3v1-genre (parse-integer (subseq str 1 end)))))
         (return-from genre str))))
 
@@ -160,7 +167,7 @@ Ignores case and returns first complete match"
       (get-id3v1-genre (genre (id3-frame:v21-tag-header (id3-frame:id3-header me))))
       nil))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; no V2.1 tags for any of these ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; No V2.1 tags for any of these
 (defmethod album-artist ((me id3-frame:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
   (let ((frames (id3-frame:get-frames me '("TP2" "TPE2"))))
@@ -241,6 +248,7 @@ Ignores case and returns first complete match"
   nil)
 
 (defun mk-lst (str)
+  "Transform 'N/M' to (N M)"
   (declare #.utils:*standard-optimize-settings*)
   (let ((pos (position #\/ str)))
     (if (null pos)
@@ -256,7 +264,8 @@ Ignores case and returns first complete match"
   nil)
 
 (defmethod show-tags ((me id3-frame:mp3-file) &key (raw *raw-tags*))
-  "Show the tags for an MP3.  If RAW is non-nil, dump all the frames; else, print out a subset."
+  "Show the tags for an MP3.  If RAW is non-nil, dump all the frames;
+else, print out a subset."
   (declare #.utils:*standard-optimize-settings*)
   (if raw
       (format t "~a~%~a~%" (id3-frame:filename me)
@@ -283,9 +292,11 @@ Ignores case and returns first complete match"
             (track (track me))
             (writer (writer me))
             (year (year me)))
+
         (format t "~a~%~a~%" (id3-frame:filename me)
                 (if (id3-frame:audio-info me)
                     (mpeg::vpprint (id3-frame:audio-info me) nil) ""))
+
         (when album (format t "~4talbum: ~a~%" album))
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
         (when artist (format t "~4tartist: ~a~%" artist))
@@ -322,7 +333,9 @@ Ignores case and returns first complete match"
 (defmethod compilation  ((me mp4-atom:mp4-file)) (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-compilation+))
 (defmethod disk         ((me mp4-atom:mp4-file)) (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-disk+))
 (defmethod tempo        ((me mp4-atom:mp4-file)) (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-tempo+))
+
 (defmethod genre        ((me mp4-atom:mp4-file))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((genre   (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-genre+))
         (genre-x (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-genre-x+)))
     (assert (not (and genre genre-x)))
@@ -330,7 +343,9 @@ Ignores case and returns first complete match"
       (genre   (format nil "~d (~a)" genre (get-id3v1-genre (1- genre))))
       (genre-x genre-x)
       (t       "not present"))))
+
 (defmethod track ((me mp4-atom:mp4-file))
+  (declare #.utils:*standard-optimize-settings*)
   (let ((track   (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-track+))
         (track-n (mp4-atom:tag-get-value (mp4-atom:mp4-atoms me) mp4-atom:+itunes-track-n+)))
     (assert (not (and track track-n)))
@@ -341,6 +356,8 @@ Ignores case and returns first complete match"
 (defmethod show-tags ((me mp4-atom:mp4-file) &key (raw *raw-tags*))
   "Show the tags for an MP4-FILE. If RAW is non-nil, dump the DATA atoms;
 else show subset of DATA atoms"
+  (declare #.utils:*standard-optimize-settings*)
+
   (format t "~a~%" (mp4-atom:filename me))
   (if raw
       (progn
@@ -403,12 +420,16 @@ else show subset of DATA atoms"
 (defmethod year         ((me flac-frame:flac-file)) (get-flac-tag-info me "date"))
 (defmethod title        ((me flac-frame:flac-file)) (get-flac-tag-info me "title"))
 (defmethod genre        ((me flac-frame:flac-file)) (get-flac-tag-info me "genre"))
-(defmethod track        ((me flac-frame:flac-file)) (let ((tr (get-flac-tag-info me "tracknumber"))
-                                                      (tn (get-flac-tag-info me "tracktotal")))
-                                                  (if tn (list tr tn) tr)))
+
+(defmethod track        ((me flac-frame:flac-file))
+  (let ((tr (get-flac-tag-info me "tracknumber"))
+        (tn (get-flac-tag-info me "tracktotal")))
+    (if tn (list tr tn) tr)))
 
 (defmethod show-tags ((me flac-frame:flac-file) &key (raw *raw-tags*))
   "Show the tags for a FLAC-FILE."
+  (declare #.utils:*standard-optimize-settings*)
+
   (format t "~a~%" (flac-frame:filename me))
   (if raw
       (flac-frame:flac-show-raw-tag me t)

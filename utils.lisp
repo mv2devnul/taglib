@@ -3,19 +3,23 @@
 (in-package #:utils)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  #+DBG (defvar *standard-optimize-settings* '(optimize (debug 3)))
-  #-DBG (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0)))
-  )
+#+dbg
+  (defvar *standard-optimize-settings* '(optimize (debug 3)))
+#-dbg
+  (defvar *standard-optimize-settings* '(optimize (speed 3) (safety 0) (space 0) (debug 0)))
+)
 
 (defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
 
 (defun warn-user (format-string &rest args)
   "Print a warning error to *ERROR-OUTPUT* and continue"
   (declare #.utils:*standard-optimize-settings*)
+
   (when *break-on-warn-user*
     (break "Breaking in WARN-USER"))
+
   (format *error-output* "~&********************************************************************************~%")
-  #+CCL (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
+#+ccl (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
   (apply #'format *error-output* format-string args)
   (format *error-output* "~&**********************************************************************************~%"))
 
@@ -24,6 +28,7 @@
 (defun printable-array (array &optional (max-len *max-raw-bytes-print-len*))
   "Given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((len (length array))
          (print-len (min len max-len))
          (printable-array (make-array print-len :displaced-to array)))
@@ -48,7 +53,8 @@
      ,@body
      (finish-output *standard-output*)))
 
-(defun get-bitmask(start width)
+(declaim (inline get-bitmask))
+(defun get-bitmask (start width)
   "Create a bit mask that begins at bit START (31 is MSB) and is WIDTH bits wide.
 Example: (get-bitmask 31 11) -->> #xffe00000"
   (declare #.utils:*standard-optimize-settings*)
@@ -87,6 +93,7 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 ;;; Note: CCL hash-tables are thread-safe, but some other implementations
 ;;; don't appear to be...
 (defstruct locked-hash-table lock hash-table)
+
 #+(or :ccl :sbcl :abcl)
 (defmacro with-lock ((l) &body body)
   `(bt:with-lock-held (,l)
@@ -125,7 +132,7 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
     (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))
 
 ;;; Taken from ASDF
-(defmacro DBG (tag &rest exprs)
+(defmacro dbg (tag &rest exprs)
   "debug macro for print-debugging:
 TAG is typically a constant string or keyword to identify who is printing,
 but can be an arbitrary expression returning a tag to be princ'ed first;
@@ -143,13 +150,13 @@ The macro expansion has relatively low overhead in space or time."
     `(let ((,tag-var ,tag))
        (flet ,(when exprs `((,thunk-var () ,last-expr)))
          (if ,tag-var
-             (DBG-helper ,tag-var
+             (dbg-helper ,tag-var
                          (list ,@(loop :for x :in other-exprs :collect
                                        `(cons ',x #'(lambda () ,x))))
                          ',last-expr ,(if exprs `#',thunk-var nil))
              ,(if exprs `(,thunk-var) '(values)))))))
 
-(defun DBG-helper (tag expressions-thunks last-expression last-thunk)
+(defun dbg-helper (tag expressions-thunks last-expression last-thunk)
   ;; Helper for the above debugging macro
   (declare #.utils:*standard-optimize-settings*)
   (labels

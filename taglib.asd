@@ -6,7 +6,7 @@
 (asdf:defsystem #:taglib
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
-  :license "Public Domain"
+  :license "UNLICENSE <http://unlicense.org/>"
   :depends-on (#:optima #:optima.ppcre #:flexi-streams
                         #+(or :ccl :sbcl :abcl) #:bordeaux-threads)
   :components ((:file "packages")

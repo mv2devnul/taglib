@@ -12,10 +12,14 @@
 (defconstant +metadata-picture+     6)
 
 (defclass flac-header ()
-  ((pos         :accessor pos         :initarg :pos         :documentation "file location of this flac header")
-   (last-bit    :accessor last-bit    :initarg :last-bit    :documentation "if set, this is the last flac header in file")
-   (header-type :accessor header-type :initarg :header-type :documentation "one of the flac header types above")
-   (header-len  :accessor header-len  :initarg :header-len  :documentation "how long the info associated w/header is"))
+  ((pos         :accessor pos         :initarg :pos
+                :documentation "file location of this flac header")
+   (last-bit    :accessor last-bit    :initarg :last-bit
+                :documentation "if set, this is the last flac header in file")
+   (header-type :accessor header-type :initarg :header-type
+                :documentation "one of the flac header types above")
+   (header-len  :accessor header-len  :initarg :header-len
+                :documentation "how long the info associated w/header is"))
   (:documentation "Representation of FLAC stream header"))
 
 (defmacro with-flac-slots ((instance) &body body)
@@ -33,7 +37,9 @@
 (defun is-valid-flac-file (flac-file)
   "Make sure this is a FLAC file. Look for FLAC header at begining"
   (declare #.utils:*standard-optimize-settings*)
+
   (stream-seek flac-file 0 :start)
+
   (let ((valid nil))
     (when (> (stream-size flac-file) 4)
       (let ((hdr (stream-read-string-with-len flac-file 4)))
@@ -44,6 +50,7 @@
 (defun make-flac-header (stream)
   "Make a flac header from current position in stream"
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((header (stream-read-u32 stream))
          (flac-header (make-instance 'flac-header
                                      :pos (- (stream-seek stream) 4)
@@ -53,7 +60,8 @@
     flac-header))
 
 
-(defparameter *flac-tag-pattern* "(^[a-zA-Z]+)=(.*$)" "used to parse FLAC/ORBIS comments")
+(defparameter *flac-tag-pattern*
+  "(^[a-zA-Z]+)=(.*$)" "regex used to parse FLAC/ORBIS comments")
 
 (defclass flac-tags ()
   ((vendor-str :accessor vendor-str :initarg :vendor-str :initform nil)
@@ -103,6 +111,7 @@
   "Loop through file and find all FLAC headers. If we find comment or audio-info
 headers, go ahead and parse them too."
   (declare #.utils:*standard-optimize-settings*)
+
   (declare (ignore get-audio-info)) ; audio info comes for "free"
 
   (stream-seek instream 4 :start)
@@ -147,6 +156,7 @@ headers, go ahead and parse them too."
 (defun get-flac-audio-info (flac-stream)
   "Read in the the audio properties from current file position."
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((info (make-instance 'flac-audio-properties)))
     (setf (min-block-size info) (stream-read-u16 flac-stream)
           (max-block-size info) (stream-read-u16 flac-stream)
@@ -164,6 +174,7 @@ headers, go ahead and parse them too."
 (defun flac-show-raw-tag (flac-file-stream out-stream)
   "Spit out the raw form of comments we found"
   (declare #.utils:*standard-optimize-settings*)
+
   (format out-stream "Vendor string: <~a>~%" (vendor-str (flac-tags flac-file-stream)))
   (dotimes (i (length (comments (flac-tags flac-file-stream))))
     (format out-stream "~4t[~d]: <~a>~%" i (nth i (comments (flac-tags flac-file-stream))))))
