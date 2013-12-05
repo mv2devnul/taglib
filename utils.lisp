@@ -87,13 +87,16 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 ;;; Note: CCL hash-tables are thread-safe, but some other implementations
 ;;; don't appear to be...
 (defstruct locked-hash-table lock hash-table)
-#+ENABLE-MP (defmacro with-lock ((l) &body body)
-              `(bt:with-lock-held (,l)
-                 ,@body))
-#-ENABLE-MP (defmacro with-lock ((l) &body body)
-              (declare (ignore l))
-              `(progn
-                 ,@body))
+#+(or :ccl :sbcl :abcl)
+(defmacro with-lock ((l) &body body)
+  `(bt:with-lock-held (,l)
+     ,@body))
+
+#-(or :ccl :sbcl :abcl)
+(defmacro with-lock ((l) &body body)
+  (declare (ignore l))
+  `(progn
+     ,@body))
 
 (defun mk-memoize (func-name)
   "Takes a normal function object and returns a memoized one"
