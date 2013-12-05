@@ -73,6 +73,7 @@
 
 ;;;; multi-thread code below
 #+ENABLE-MP (progn
+
 (defparameter *end-thread*  #xdeadbeef)
 (defparameter *max-threads* 4)
 

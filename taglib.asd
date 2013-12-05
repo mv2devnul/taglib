@@ -8,7 +8,9 @@
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"
   :author "Mark VandenBrink"
   :license "Public Domain"
-  :depends-on (#:optima #:optima.ppcre #:flexi-streams #+ENABLE-MP #:bordeaux-threads)
+  :depends-on (#:optima #:optima.ppcre #:flexi-streams
+                        #+ENABLE-MP #:bordeaux-threads
+                        )
   :components ((:file "packages")
                (:file "profile"       :depends-on ("packages"))
                (:file "utils"         :depends-on ("packages"))
