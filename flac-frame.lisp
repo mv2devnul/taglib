@@ -42,7 +42,7 @@
 
   (let ((valid nil))
     (when (> (stream-size flac-file) 4)
-      (let ((hdr (stream-read-string-with-len flac-file 4)))
+      (let ((hdr (stream-read-iso-string flac-file 4)))
         (setf valid (string= "fLaC" hdr))))
     (stream-seek flac-file 0 :start)
     valid))
@@ -82,14 +82,14 @@
   (declare #.utils:*standard-optimize-settings*)
   (let* ((tags (make-instance 'flac-tags))
          (vendor-len (stream-read-u32 stream :endian :big-endian))
-         (vendor-str (stream-read-utf-8-string-with-len stream vendor-len))
+         (vendor-str (stream-read-utf-8-string stream vendor-len))
          (lst-len (stream-read-u32 stream :endian :big-endian)))
 
     (setf (vendor-str tags) vendor-str)
 
     (dotimes (i lst-len)
       (let* ((comment-len (stream-read-u32 stream :endian :big-endian))
-             (comment (stream-read-utf-8-string-with-len stream comment-len)))
+             (comment (stream-read-utf-8-string stream comment-len)))
         (push comment (comments tags))
         (optima:match comment ((optima.ppcre:ppcre *flac-tag-pattern* tag value)
                                (flac-add-tag tags tag value)))))
