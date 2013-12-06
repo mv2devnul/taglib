@@ -112,14 +112,20 @@ read in null-terminated ISO string w/o null at end"
 
   (let (octets)
     (if (null len)
-        (setf octets
-              (flex:with-output-to-sequence (out)
-                (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
-                    (nil)
-                  (when (zerop b)
-                    (return))           ; leave loop w/o writing
-                  (write-byte b out))))
+        (progn
+          (setf octets
+                (flex:with-output-to-sequence (out)
+                  (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
+                      (nil)
+                    (when (zerop b)
+                      (return))         ; leave loop w/o writing
+                    (write-byte b out))))
+          (setf len (length octets)))
         (setf octets (stream-read-sequence instream len)))
+
+    (when (= 0 len)
+      (return-from stream-read-iso-string ""))
+
     (flex:octets-to-string octets :external-format :iso-8859-1)))
 
 (defun get-byte-order-mark (octets)
@@ -163,6 +169,9 @@ byte-order marks, so we have to do that here before calling."
       (warn-user "UCS string has odd length, decrementing by 1")
       (decf len 1))
 
+    (when (= 0 len)
+      (return-from stream-read-ucs-string ""))
+
     (when (eql kind :ucs-2)
       (setf start 2)
       (let ((bom (get-byte-order-mark octets)))
@@ -178,14 +187,20 @@ byte-order marks, so we have to do that here before calling."
 
   (let (octets)
     (if (null len)
-        (setf octets (flex:with-output-to-sequence (out)
-                  (do ((b (stream-read-u8 instream)
-                          (stream-read-u8 instream)))
-                      (nil)
-                    (when (zerop b)
-                      (return))
-                    (write-byte b out))))
+        (progn
+          (setf octets (flex:with-output-to-sequence (out)
+                         (do ((b (stream-read-u8 instream)
+                                 (stream-read-u8 instream)))
+                             (nil)
+                           (when (zerop b)
+                             (return))
+                           (write-byte b out))))
+          (setf len (length octets)))
         (setf octets  (stream-read-sequence instream len)))
+
+    (when (= 0 len)
+      (return-from stream-read-utf-8-string ""))
+
     (flex:octets-to-string octets :external-format :utf-8)))
 
 
