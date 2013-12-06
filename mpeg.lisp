@@ -328,7 +328,7 @@ Bits   1-0 (2  bits): the emphasis"
         (setf vbr (make-instance 'vbr-info))
         (let ((v (make-audio-stream (payload me))))
           (stream-seek v i :start)      ; seek to Xing/Info offset
-          (setf (tag vbr)   (stream-read-iso-string-with-len v 4)
+          (setf (tag vbr)   (stream-read-iso-string v 4)
                 (flags vbr) (stream-read-u32 v))
 
           (when (logand (flags vbr) +vbr-frames+)

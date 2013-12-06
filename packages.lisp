@@ -8,7 +8,8 @@
   (:use #:common-lisp))
 
 (defpackage #:utils
-  (:export #:warn-user *break-on-warn-user* #:printable-array #:upto-null
+  (:export #:octet #:octets #:make-octets
+           #:warn-user *break-on-warn-user* #:printable-array #:upto-null
            #:redirect #:memoize #:it #:*standard-optimize-settings*
            #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword
            #:dump-data #:timings #:dbg #:dbg-helper)
@@ -23,20 +24,14 @@
   (:use #:common-lisp :utils))
 
 (defpackage #:audio-streams
-  (:export #:octets #:octets #:make-octets *get-audio-info*
+  (:export *get-audio-info*
            #:make-audio-stream #:stream-filename #:stream-read-u8
            #:stream-read-u16 #:stream-read-u24 #:stream-read-u32
            #:stream-read-u64 #:stream-read-u128 #:stream-read-octets
-           #:stream-decode-iso-string #:stream-deocode-ucs-string
-           #:stream-decode-ucs-be-string #:stream-decode-utf-8-string
-           #:stream-decode-string #:stream-read-iso-string-with-len
-           #:stream-read-ucs-string-with-len
-           #:stream-read-ucs-be-string-with-len
-           #:stream-read-utf-8-string-with-len
-           #:stream-read-string-with-len #:stream-read-iso-string
-           #:stream-read-ucs-string #:stream-read-ucs-be-string
-           #:stream-read-utf-8-string #:stream-read-string
-           #:stream-read-string #:stream-read-sequence #:stream-size
+           #:stream-read-iso-string
+           #:stream-read-ucs-string
+           #:stream-read-utf-8-string
+           #:stream-read-sequence #:stream-size
            #:stream-seek #:open-audio-file)
   (:use #:common-lisp #:utils))
 

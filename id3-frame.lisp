@@ -3,7 +3,33 @@
 
 (in-package #:id3-frame)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ID3 header/extended header/v2.1 header ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ID3 string encoding support
+(defun id3-read-string (instream &key (len nil) (encoding 0))
+  "Read in a string of a given encoding of length 'len'. Encoding
+is from the ID3 'spec'"
+  (declare #.utils:*standard-optimize-settings*)
+  (dbg nil 'id3-read-string instream len encoding)
+  (if (and len (<= len 0))
+      nil
+      (ecase encoding
+        (0 (stream-read-iso-string instream len))
+        (1 (stream-read-ucs-string instream :len len :kind :ucs-2))
+        (2 (stream-read-ucs-string instream :len len :kind :ucs-2be))
+        (3 (stream-read-utf-8-string instream len)))))
+
+(defun id3-decode-string (octets &key (encoding 0 ) (start 0) (end (length octets)))
+  "Decode a string of a given encoding of length 'len'. Encoding
+is from the ID3 'spec'"
+  (declare #.utils:*standard-optimize-settings*)
+
+  (dbg nil 'id3-decode-ring octets start end)
+  (ecase encoding
+    (0 (flex:octets-to-string octets :external-format :iso-8859-1 :start start :end end))
+    (1 (flex:octets-to-string octets :external-format :ucs-2 :start start :end end))
+    (2 (flex:octets-to-string octets :external-format :ucs-2be :start start :end end))
+    (3 (flex:octets-to-string octets :external-format :utf-8 :start start :end end))))
+
+;;;; ID3 header/extended header/v2.1 header
 (defclass id3-header ()
   ((version        :accessor version        :initarg :version        :initform 0   :documentation "ID3 version: 2, 3, or 4")
    (revision       :accessor revision       :initarg :revision       :initform 0   :documentation "ID3 revision---is this ever non-zero?")
@@ -34,10 +60,10 @@
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (title artist album year comment genre track) me
-    (setf title    (upto-null (stream-read-string-with-len instream 30))
-          artist   (upto-null (stream-read-string-with-len instream 30))
-          album    (upto-null (stream-read-string-with-len instream 30))
-          year     (upto-null (stream-read-string-with-len instream 4)))
+    (setf title    (upto-null (stream-read-iso-string instream 30))
+          artist   (upto-null (stream-read-iso-string instream 30))
+          album    (upto-null (stream-read-iso-string instream 30))
+          year     (upto-null (stream-read-iso-string instream 4)))
 
     ;; In V21, a comment can be split into comment and track #
     ;; find the first #\Null then check to see if that index < 28.  If so, the check the last two bytes being
@@ -174,18 +200,19 @@ NB: 2.3 and 2.4 extended flags are different..."
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (version revision flags size ext-header frames v21-tag-header) me
     (stream-seek instream 128 :end)
-    (when (string= "TAG" (stream-read-string-with-len instream 3))
+    (when (string= "TAG" (stream-read-iso-string instream 3))
       (handler-case
           (setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
         (condition (c)
           (utils:warn-user "initialize id3-header got condition ~a" c))))
 
     (stream-seek instream 0 :start)
-    (when (string= "ID3" (stream-read-string-with-len instream 3))
+    (when (string= "ID3" (stream-read-iso-string instream 3))
       (setf version  (stream-read-u8 instream)
             revision (stream-read-u8 instream)
             flags    (stream-read-u8 instream)
             size     (stream-read-u32 instream :bits-per-byte 7))
+      (dbg nil 'id3-header-init version revision flags size (stream-seek instream 0 :current))
       (assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -211,12 +238,14 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (declare #.utils:*standard-optimize-settings*)
   (let* ((old-pos  (stream-seek instream))
-         (name     (stream-read-string instream :encoding name-encoding))
+         (name     (id3-read-string instream :encoding name-encoding))
          (name-len (- (stream-seek instream) old-pos))
          (value))
+    (dbg nil 'get-name-value-pair len name-len (- len name-len) name-encoding value-encoding)
 
     (setf value (if (>= value-encoding 0)
-                    (stream-read-string-with-len instream (- len name-len) :encoding value-encoding)
+                    (id3-read-string instream :len (- len name-len)
+                                              :encoding value-encoding)
                     (stream-read-sequence instream (- len name-len)))) ; if < 0, then just read as octets
 
     (values name value)))
@@ -349,7 +378,7 @@ NB: 2.3 and 2.4 extended flags are different..."
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (len encoding lang desc val) me
     (setf encoding (stream-read-u8 instream)
-          lang     (stream-read-iso-string-with-len instream 3))
+          lang     (stream-read-iso-string instream 3))
     (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
       (setf desc n)
 
@@ -387,7 +416,7 @@ NB: 2.3 and 2.4 extended flags are different..."
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (id len encoding img-format ptype desc data) me
     (setf encoding   (stream-read-u8 instream)
-          img-format (stream-read-iso-string-with-len instream 3)
+          img-format (stream-read-iso-string instream 3)
           ptype      (stream-read-u8 instream))
     (multiple-value-bind (n v) (get-name-value-pair instream (- len 5) encoding -1)
       (setf desc n
@@ -417,22 +446,25 @@ NB: 2.3 and 2.4 extended flags are different..."
   (with-slots (version flags len encoding info) me
     (let ((read-len len))
 
-      ;; In version 4 frames, each frame may also have an unsync flag.  since we have unsynced already
-      ;; the only thing we need to do here is check for the optional DATALEN field.  If it is present
-      ;; then it has the actual number of octets to read
+      ;; In version 4 frames, each frame may also have an unsync flag.  since we
+      ;; have unsynced already the only thing we need to do here is check for
+      ;; the optional DATALEN field.  If it is present then it has the actual
+      ;; number of octets to read
       (when (and (= version 4) (frame-24-unsynch-p flags))
         (if (frame-24-datalen-p flags)
             (setf read-len (stream-read-u32 instream :bits-per-byte 7))))
 
       (setf encoding (stream-read-u8 instream)
-            info     (stream-read-string-with-len instream (1- read-len) :encoding encoding)))
+            info     (id3-read-string instream :len (1- read-len) :encoding encoding)))
 
-    ;; A null is ok, but according to the "spec", you're supposed to ignore anything after a 'Null'
+    ;; A null is ok, but according to the "spec", you're supposed to
+    ;; ignore anything after a 'Null'
     (setf info (upto-null info))))
 
 (defmethod vpprint ((me frame-text-info) stream)
   (with-slots (len encoding info) me
-    (format stream "frame-text-info: ~a, encoding = ~d, info = <~a>" (vpprint-frame-header me) encoding info)))
+    (format stream "frame-text-info: ~a, encoding = ~d, info = <~a>"
+            (vpprint-frame-header me) encoding info)))
 
 (defclass frame-tal (frame-text-info) ())
 (defclass frame-tbp (frame-text-info) ())
@@ -453,10 +485,14 @@ NB: 2.3 and 2.4 extended flags are different..."
             ((= 1 len) (if (= 0 (aref octets 0)) "0" "1"))
             ((= 2 len) (if (= #x30 (aref octets 1)) "0" "1"))
             ((= 3 len) (if (typep me 'frame-tcp)
-                           (upto-null (stream-decode-string octets :start 1 :encoding (aref octets 0)))
+                           (upto-null (id3-decode-string octets
+                                                         :start 1
+                                                         :encoding (aref octets 0)))
                            "0"))
             ((= 4 len) "0")
-            (t (upto-null (stream-decode-string octets :start 1 :encoding (aref octets 0))))))))
+            (t (upto-null (id3-decode-string octets
+                                             :start 1
+                                             :encoding (aref octets 0))))))))
 
 (defmethod vpprint ((me frame-itunes-compilation) stream)
   (with-slots (octets info) me
@@ -702,7 +738,7 @@ NB: 2.3 and 2.4 extended flags are different..."
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (encoding lang len desc val) me
     (setf encoding (stream-read-u8 instream)
-          lang     (stream-read-iso-string-with-len instream 3))
+          lang     (stream-read-iso-string instream 3))
     (multiple-value-bind (n v) (get-name-value-pair instream (- len 1 3) encoding encoding)
       (setf desc n)
 
@@ -809,7 +845,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defmethod initialize-instance :after ((me frame-url-link) &key instream)
   (declare #.utils:*standard-optimize-settings*)
   (with-slots (id len url) me
-    (setf url (stream-read-iso-string-with-len instream len))))
+    (setf url (stream-read-iso-string instream len))))
 
 (defmethod vpprint ((me frame-url-link) stream)
   (with-slots (url) me
@@ -888,8 +924,12 @@ NB: 2.3 and 2.4 extended flags are different..."
       (return-from make-frame nil))     ; hit padding
 
     (setf frame-name
-          (concatenate 'string (string (code-char byte)) (stream-read-string-with-len instream (ecase version (2 2) (3 3) (4 3)))))
-
+          (concatenate 'string (string (code-char byte))
+                       (id3-read-string instream :len (ecase version
+                                                        (2 2)
+                                                        (3 3)
+                                                        (4 3)))))
+    (dbg nil 'make-frame fn frame-name)
     (setf frame-len (ecase version
                       (2 (stream-read-u24 instream))
                       (3 (stream-read-u32 instream))
@@ -908,6 +948,7 @@ NB: 2.3 and 2.4 extended flags are different..."
               (null frame-class))
       (error "bad frame at position ~d found: ~a" pos frame-name))
 
+    (dbg nil 'make-frame frame-class pos version frame-name frame-len frame-flags)
     (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream)))
 
 (defun is-valid-mp3-file (instream)
@@ -923,11 +964,11 @@ NB: 2.3 and 2.4 extended flags are different..."
 
     (when (> (stream-size instream) 4)
       (stream-seek instream 0 :start)
-      (setf id3     (stream-read-string-with-len instream 3)
+      (setf id3     (stream-read-iso-string instream 3)
             version (stream-read-u8 instream))
       (when (> (stream-size instream) 128)
         (stream-seek instream 128 :end)
-        (setf tag (stream-read-string-with-len instream 3)))
+        (setf tag (stream-read-iso-string instream 3)))
 
       (setf valid (or (and (string= "ID3" id3)
                            (or (= 2 version) (= 3 version) (= 4 version)))
@@ -951,6 +992,7 @@ NB: 2.3 and 2.4 extended flags are different..."
              (let (frames this-frame)
                (do ()
                    ((>= (stream-seek stream) (stream-size stream)))
+                 (dbg nil 'parse-audio-file "top-of-loop")
                  (handler-case
                      (progn
                        (setf this-frame (make-frame version stream
@@ -974,6 +1016,7 @@ NB: 2.3 and 2.4 extended flags are different..."
         ;; memory stream rationale: it may need to be unsysnc'ed and it helps
         ;; prevent run-away reads with mis-formed frames
         (when (not (zerop size))
+          (dbg nil 'parse-audio-file size frames flags version)
           (let ((mem-stream
                   (make-audio-stream (stream-read-sequence
                                       instream size
@@ -982,6 +1025,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
             ;; Make extended header here since it is subject to unsynchronization.
             (when (header-extended-p flags)
+              (dbg nil 'parse-audio-file "make-ext-header")
               (setf ext-header (make-instance 'id3-ext-header
                                               :instream mem-stream
                                               :version version)))
