@@ -2,50 +2,32 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:mp4-atom)
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ATOMS
 ;;;
-;;; A word about atoms (aka "boxes").  There are three kinds of atoms: ones that are containers, ones
-;;; that are data, and ones that are both. A lot of the source code for taggers out there mostly ignore
-;;; the third class and treat "container atoms that also have data" as a big blob of data that they
-;;; rummage around in via indices.  Seems sort of broken, IMHO, so we'll try to handle all three if
+;;; A word about atoms (aka "boxes").  There are three kinds of atoms: ones that
+;;; are containers, ones that are data, and ones that are both. A lot of the
+;;; taggers out there mostly ignore third class and treat "container atoms that
+;;; also have data" as a big blob of data that they rummage around in via
+;;; indices.  Seems sort of broken, IMHO, so we'll try to handle all three if
 ;;; at all possible.
 ;;;
 
-(defun as-int (str)
-  "Given a 4-byte string, return an integer type equivalent.
-(ie (as-int \"hdlr\" == +audioprop-hdlr+))"
-  (declare #.utils:*standard-optimize-settings*)
-  (declare (type (simple-array character 1) str))
-
-  (let ((int 0))
-    (declare (fixnum int))
-    (setf (ldb (byte 8 24) int) (char-code (aref str 0))
-          (ldb (byte 8 16) int) (char-code (aref str 1))
-          (ldb (byte 8 8) int)  (char-code (aref str 2))
-          (ldb (byte 8 0) int)  (char-code (aref str 3)))
-
-    int))
-
-(defun as-string (atom-type)
-  "The inverse of as-int: given an integer, return the
-string representation"
-  (declare #.utils:*standard-optimize-settings*)
-  (declare (fixnum atom-type))
-  (with-output-to-string (s nil)
-    (write-char (code-char (ldb (byte 8 24) atom-type)) s)
-    (write-char (code-char (ldb (byte 8 16) atom-type)) s)
-    (write-char (code-char (ldb (byte 8 8)  atom-type)) s)
-    (write-char (code-char (ldb (byte 8 0)  atom-type)) s)))
-(utils:memoize 'as-string)
-
 (defun mk-atom-class-name (name)
   "Create an atom class name by concatenating ATOM- with NAME"
-(declare #.utils:*standard-optimize-settings*)
-  (string-upcase (concatenate 'string "atom-" (as-string name))))
-
+  (declare #.utils:*standard-optimize-settings*)
+  (string-upcase (concatenate 'string "atom-" name)))
 (utils:memoize 'mk-atom-class-name)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun as-string (atom-type)
+    "Given an integer, return the string representation"
+    (declare #.utils:*standard-optimize-settings*)
+    (with-output-to-string (s nil)
+      (write-char (code-char (ldb (byte 8 24) atom-type)) s)
+      (write-char (code-char (ldb (byte 8 16) atom-type)) s)
+      (write-char (code-char (ldb (byte 8 8)  atom-type)) s)
+      (write-char (code-char (ldb (byte 8 0)  atom-type)) s)))
+
   (defun as-octet (c)
     "Used below so that we can create atom 'types' from char/ints"
     (declare #.utils:*standard-optimize-settings*)
@@ -54,13 +36,12 @@ string representation"
           (t (error "can only handle characters and integers"))))
 
   (defmacro mk-mp4-atom-type (l1 l2 l3 l4)
-    "Given 4 chars/ints, create a 32-bit word representing an atom 'type' (aka name)"
-    `(let ((retval 0))
-       (setf (ldb (byte 8 24) retval) ,(as-octet l1)
-             (ldb (byte 8 16) retval) ,(as-octet l2)
-             (ldb (byte 8 8) retval)  ,(as-octet l3)
-             (ldb (byte 8 0) retval)  ,(as-octet l4))
-       retval)))
+    "Given 4 chars/ints, create a string for the name"
+    `(with-output-to-string (s nil)
+       (write-char (code-char ,(as-octet l1)) s)
+       (write-char (code-char ,(as-octet l2)) s)
+       (write-char (code-char ,(as-octet l3)) s)
+       (write-char (code-char ,(as-octet l4)) s))))
 
 (defconstant +root+                  (mk-mp4-atom-type #\R #\O #\O #\T)  "fake root for tree")
 (defconstant +itunes-album+          (mk-mp4-atom-type #xa9 #\a #\l #\b) "text: album name")
@@ -192,19 +173,20 @@ to read the payload of an atom."
           atom-flags   (stream-read-u24 mp4-file))
     (assert (= 0 (stream-read-u32 mp4-file)) ()
             "a data atom lacks the required null field")
+
     (setf atom-value
           (cond ((member (atom-type parent)
                          (list +itunes-album+ +itunes-album-artist+ +itunes-artist+
                                +itunes-comment+ +itunes-composer+ +itunes-copyright+
                                +itunes-year+ +itunes-encoder+ +itunes-groups+
                                +itunes-genre-x+ +itunes-lyrics+ +itunes-purchased-date+
-                               +itunes-title+ +itunes-tool+ +itunes-writer+))
-                 (stream-read-utf-8-string-with-len mp4-file (- (atom-size me) 16)))
+                               +itunes-title+ +itunes-tool+ +itunes-writer+)
+                         :test #'string=)
+                 (stream-read-utf-8-string mp4-file (- (atom-size me) 16)))
 
                 ((member (atom-type parent)
-                         (list +itunes-track+
-                               +itunes-track-n+
-                               +itunes-disk+))
+                         (list +itunes-track+ +itunes-track-n+ +itunes-disk+)
+                         :test #'string=)
                  (stream-read-u16 mp4-file) ; throw away
                  (let* ((a (stream-read-u16 mp4-file))
                         (b (stream-read-u16 mp4-file)))
@@ -212,14 +194,19 @@ to read the payload of an atom."
                    (list a b)))
 
                 ((member (atom-type parent)
-                         (list +itunes-tempo+ +itunes-genre+))
+                         (list +itunes-tempo+ +itunes-genre+)
+                         :test #'string=)
                  (stream-read-u16 mp4-file))
 
-                ((= (atom-type parent) +itunes-compilation+)
+                ((string= (atom-type parent) +itunes-compilation+)
                  (stream-read-u8 mp4-file))
 
-                ((= (atom-type parent) +itunes-cover-art+)
-                 (stream-read-sequence mp4-file (- (atom-size me) 16)))))))
+                ((string= (atom-type parent) +itunes-cover-art+)
+                 (stream-read-sequence mp4-file (- (atom-size me) 16)))
+
+                (t
+                 (error "fell through all cases of ilst data atoms: parent-type = ~a"
+                        (atom-type parent)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; AUDIO PROPERTY ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass atom-trak (mp4-container-atom) ())
@@ -396,9 +383,23 @@ reading the container atoms"
            flags   (stream-read-u24 mp4-file)))
   (call-next-method))
 
+;;; XXX
+;;; This needs to be enhanced by accounting for all atom-types,
+;;; else we get potential runaways. For now, just brute-force it
+(defun is-valid (str)
+  (assert (= 4 (length str)))
+  (loop for c across str do
+    (assert (or (alphanumericp c)
+                (char= #\- c)
+                (= (char-code c) #xa9))
+              nil "Bad atom type name: c = ~a, str = <~a>" c str)))
+
 (defun find-atom-class (id)
   "Search by concatenating 'atom-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
+
+  (is-valid id)
+
   (let ((found-class-symbol (find-symbol (mk-atom-class-name id) :MP4-ATOM)))
 
     ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
@@ -415,19 +416,20 @@ reading the container atoms"
   (declare #.utils:*standard-optimize-settings*)
   (let* ((pos (stream-seek mp4-file))
          (siz (stream-read-u32 mp4-file))
-         (typ (stream-read-u32 mp4-file))
+         (typ (as-string (stream-read-u32 mp4-file)))
          (atom))
-    (declare (type fixnum pos siz typ))
+    (declare (fixnum pos siz))
 
     (when (= 0 siz)
       (error "trying to make an atom ~a with size of 0 at offset ~:d in file ~a"
-             (as-string typ) pos (stream-filename mp4-file)))
+             typ pos (stream-filename mp4-file)))
 
-    (setf atom (make-instance (find-atom-class typ) :atom-size siz
-                                                    :atom-type typ
-                                                    :atom-file-pos pos
-                                                    :parent parent
-                                                    :mp4-file mp4-file))
+    (setf atom (make-instance (find-atom-class typ)
+                              :atom-size siz
+                              :atom-type typ
+                              :atom-file-pos pos
+                              :parent parent
+                              :mp4-file mp4-file))
     atom))
 
 (defmethod vpprint ((me mp4-atom) stream)
@@ -435,13 +437,14 @@ reading the container atoms"
   (format stream "~a"
           (with-output-to-string (s)
             (with-mp4-atom-slots (me)
-              (format s "ATOM: type: <~a> @ ~:d of size ~:d"
-                      (as-string atom-type) atom-file-pos atom-size))
+              (format s "atom:: type: <~a> @ ~:d of size ~:d"
+                      atom-type atom-file-pos atom-size))
             (if (typep me 'atom-data)
                 (with-slots (atom-version atom-flags atom-value atom-type) me
-                  (format s " having ilst fields:verison = ~d, flags = ~x, data = ~x"
+                  (format s " having ilst fields: verison = ~d, flags = ~x, data = ~x"
                           atom-version atom-flags
-                          (if (typep atom-value 'array) (printable-array atom-value) atom-value)))))))
+                          (if (typep atom-value 'array)
+                              (printable-array atom-value) atom-value)))))))
 
 (defun is-valid-m4-file (mp4-file)
   "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?
@@ -453,9 +456,9 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     (when (> (stream-size mp4-file) 8)
       (stream-seek mp4-file 0 :start)
       (setf size   (stream-read-u32 mp4-file)
-            header (stream-read-u32 mp4-file)
+            header (as-string (stream-read-u32 mp4-file))
             valid  (and (<= size (stream-size mp4-file))
-                        (= header +m4-ftyp+))))
+                        (string= header +m4-ftyp+))))
     (stream-seek mp4-file 0 :start)
     valid))
 
@@ -498,20 +501,25 @@ one of the +iTunes- constants")
   "Helper function to extract text from ILST atom's data atom"
   (declare #.utils:*standard-optimize-settings*)
   (setf (nth 5 *ilst-data*) atom-type)
-  (aif (tree:at-path atoms *ilst-data* (lambda (x y)
-                                         (= (mp4-atom:atom-type (tree:data x)) y)))
+  (aif (tree:at-path atoms *ilst-data*
+                     (lambda (x y)
+                       (string= (atom-type (tree:data x)) y)))
        (atom-value (tree:data it))
        nil))
 
 (defun mp4-show-raw-tag-atoms (mp4-file-stream out-stream)
   "Show all the iTunes data atoms"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((top-node (tree:at-path (mp4-atoms mp4-file-stream)
-                                (list +root+ +mp4-atom-moov+ +mp4-atom-udta+ +mp4-atom-meta+ +mp4-atom-ilst+)
-                                (lambda (x y) (= (mp4-atom:atom-type (tree:data x)) y)))))
+  (let ((top-node
+          (tree:at-path (mp4-atoms mp4-file-stream)
+                        (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
+                              +mp4-atom-meta+ +mp4-atom-ilst+)
+                        (lambda (x y)
+                          (string= (atom-type (tree:data x)) y)))))
+
     (loop for node = (tree:first-child top-node)
             then (tree:next-sibling node) until (null node) do
-            (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
+              (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
 
 (defun get-audio-properties-atoms (mp4-file)
   "Get the audio property atoms from MP4-FILE.
@@ -519,9 +527,19 @@ MP4A audio info is held in under root.moov.trak.mdia.mdhd,
 root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
   (declare #.utils:*standard-optimize-settings*)
 
-  (let ((mdhd (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mdhd+))))
-        (mp4a (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-mp4a+))))
-        (esds (tree:find-tree (mp4-atoms mp4-file) (lambda (x) (= (atom-type (tree:data x)) +audioprop-esds+)))))
+  (let ((mdhd
+          (tree:find-tree
+           (mp4-atoms mp4-file)
+           (lambda (x)
+             (string= (atom-type (tree:data x)) +audioprop-mdhd+))))
+        (mp4a (tree:find-tree
+               (mp4-atoms mp4-file)
+               (lambda (x)
+                 (string= (atom-type (tree:data x)) +audioprop-mp4a+))))
+        (esds (tree:find-tree
+               (mp4-atoms mp4-file)
+               (lambda (x)
+                 (string= (atom-type (tree:data x)) +audioprop-esds+)))))
 
     (if (and mdhd mp4a esds)
         (values (tree:data (first mdhd))
