@@ -164,7 +164,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
         (return-from genre str))))
 
   (if (id3-frame:v21-tag-header (id3-frame:id3-header me))
-      (get-id3v1-genre (genre (id3-frame:v21-tag-header (id3-frame:id3-header me))))
+      (get-id3v1-genre (id3-frame:genre (id3-frame:v21-tag-header (id3-frame:id3-header me))))
       nil))
 
 ;;;; No V2.1 tags for any of these
