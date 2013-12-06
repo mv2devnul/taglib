@@ -145,20 +145,23 @@ byte-order marks, so we have to do that here before calling."
         (start 0))
 
     (if (null len)
-        (setf octets (flex:with-output-to-sequence (out)
-                       (do* ((b0 (stream-read-u8 instream)
-                                 (stream-read-u8 instream))
-                             (b1 (stream-read-u8 instream)
-                                 (stream-read-u8 instream)))
-                            (nil)
-                         (when (and (zerop b0) (zerop b1))
-                           (return))
-                         (dbg nil 'read-ucs b0 b1)
-                         (write-byte b0 out)
-                         (write-byte b1 out))))
+        (progn
+          (setf octets (flex:with-output-to-sequence (out)
+                         (do* ((b0 (stream-read-u8 instream)
+                                   (stream-read-u8 instream))
+                               (b1 (stream-read-u8 instream)
+                                   (stream-read-u8 instream)))
+                              (nil)
+                           (when (and (zerop b0) (zerop b1))
+                             (return))
+                           (write-byte b0 out)
+                           (write-byte b1 out))))
+          (setf len (length octets)))
         (setf octets (stream-read-sequence instream len)))
 
-    (dbg nil 'read-ucs instream kind octets)
+    (when (oddp len)
+      (warn-user "UCS string has odd length, decrementing by 1")
+      (decf len 1))
 
     (when (eql kind :ucs-2)
       (setf start 2)
@@ -167,7 +170,7 @@ byte-order marks, so we have to do that here before calling."
           (#xfffe (setf kind :ucs-2le))
           (#xfeff (setf kind :ucs-2be)))))
 
-    (flex:octets-to-string octets :external-format kind :start start)))
+    (flex:octets-to-string octets :external-format kind :start start :end len)))
 
 (defun stream-read-utf-8-string (instream &optional (len nil))
   "Read an UTF-8 string of length LEN.  If LEN is nil, read until we get a null."
