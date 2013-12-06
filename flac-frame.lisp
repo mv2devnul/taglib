@@ -3,13 +3,13 @@
 (in-package #:flac-frame)
 
 ;;; FLAC header types
-(defconstant +metadata-streaminfo+  0)
-(defconstant +metadata-padding+     1)
-(defconstant +metadata-application+ 2)
-(defconstant +metadata-seektable+   3)
-(defconstant +metadata-comment+     4)
-(defconstant +metadata-cuesheet+    5)
-(defconstant +metadata-picture+     6)
+(defconstant* +metadata-streaminfo+  0)
+(defconstant* +metadata-padding+     1)
+(defconstant* +metadata-application+ 2)
+(defconstant* +metadata-seektable+   3)
+(defconstant* +metadata-comment+     4)
+(defconstant* +metadata-cuesheet+    5)
+(defconstant* +metadata-picture+     6)
 
 (defclass flac-header ()
   ((pos         :accessor pos         :initarg :pos

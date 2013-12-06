@@ -2,6 +2,11 @@
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 (in-package #:utils)
 
+(defmacro defconstant* (name value &optional doc)
+  "Make sure VALUE is evaluated only once \(to appease SBCL)."
+  `(cl:defconstant ,name (if (boundp ',name) (symbol-value ',name) ,value)
+     ,@(when doc (list doc))))
+
 (eval-when (:compile-toplevel :load-toplevel :execute)
   #+dbg
   (defvar *standard-optimize-settings* '(optimize (debug 3)))

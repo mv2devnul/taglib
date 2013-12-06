@@ -4,13 +4,13 @@
 ;;; Parsing MPEG audio frames.  See http://www.datavoyage.com/mpgscript/mpeghdr.htm for format of a frame.
 (in-package #:mpeg)
 
-(defconstant +sync-word+  #x7ff "NB: this is 11 bits so as to be able to recognize V2.5")
+(defconstant* +sync-word+  #x7ff "NB: this is 11 bits so as to be able to recognize V2.5")
 
 ;;; the versions
-(defconstant +mpeg-2.5+   0)
-(defconstant +v-reserved+ 1)
-(defconstant +mpeg-2+     2)
-(defconstant +mpeg-1+     3)
+(defconstant* +mpeg-2.5+   0)
+(defconstant* +v-reserved+ 1)
+(defconstant* +mpeg-2+     2)
+(defconstant* +mpeg-1+     3)
 
 (defun valid-version (version)
   (declare #.utils:*standard-optimize-settings*)
@@ -23,10 +23,10 @@
   (nth version '("MPEG 2.5" "Reserved" "MPEG 2" "MPEG 1")))
 
 ;;; the layers
-(defconstant +layer-reserved+  0)
-(defconstant +layer-3+         1)
-(defconstant +layer-2+         2)
-(defconstant +layer-1+         3)
+(defconstant* +layer-reserved+  0)
+(defconstant* +layer-3+         1)
+(defconstant* +layer-2+         2)
+(defconstant* +layer-1+         3)
 
 (defun valid-layer (layer)
   (declare #.utils:*standard-optimize-settings*)
@@ -39,19 +39,19 @@
   (nth layer '("Reserved" "Layer III" "Layer II" "Layer I")))
 
 ;;; the modes
-(defconstant +channel-mode-stereo+ 0)
-(defconstant +channel-mode-joint+  1)
-(defconstant +channel-mode-dual+   2)
-(defconstant +channel-mode-mono+   3)
+(defconstant* +channel-mode-stereo+ 0)
+(defconstant* +channel-mode-joint+  1)
+(defconstant* +channel-mode-dual+   2)
+(defconstant* +channel-mode-mono+   3)
 (defun get-channel-mode-string (mode)
   (declare #.utils:*standard-optimize-settings*)
   (nth mode '("Stereo" "Joint" "Dual" "Mono")))
 
 ;;; the emphases
-(defconstant +emphasis-none+     0)
-(defconstant +emphasis-50-15+    1)
-(defconstant +emphasis-reserved+ 2)
-(defconstant +emphasis-ccit+     3)
+(defconstant* +emphasis-none+     0)
+(defconstant* +emphasis-50-15+    1)
+(defconstant* +emphasis-reserved+ 2)
+(defconstant* +emphasis-ccit+     3)
 
 (defun get-emphasis-string (e)
   (declare #.utils:*standard-optimize-settings*)
@@ -64,10 +64,10 @@
       (= (the fixnum e) (the fixnum +emphasis-ccit+))))
 
 ;;; the modes
-(defconstant +mode-extension-0+ 0)
-(defconstant +mode-extension-1+ 1)
-(defconstant +mode-extension-2+ 2)
-(defconstant +mode-extension-3+ 3)
+(defconstant* +mode-extension-0+ 0)
+(defconstant* +mode-extension-1+ 1)
+(defconstant* +mode-extension-2+ 2)
+(defconstant* +mode-extension-3+ 3)
 (defun get-mode-extension-string (channel-mode layer mode-extension)
   (declare #.utils:*standard-optimize-settings*)
   (if (not (= channel-mode +channel-mode-joint+))
@@ -296,10 +296,10 @@ Bits   1-0 (2  bits): the emphasis"
   `(with-slots (tag flags frames bytes tocs scale) ,instance
      ,@body))
 
-(defconstant +vbr-frames+  1)
-(defconstant +vbr-bytes+   2)
-(defconstant +vbr-tocs+    4)
-(defconstant +vbr-scale+   8)
+(defconstant* +vbr-frames+  1)
+(defconstant* +vbr-bytes+   2)
+(defconstant* +vbr-tocs+    4)
+(defconstant* +vbr-scale+   8)
 
 (defun get-side-info-size (version channel-mode)
   (declare #.utils:*standard-optimize-settings*)

@@ -8,7 +8,7 @@
   (:use #:common-lisp))
 
 (defpackage #:utils
-  (:export #:octet #:octets #:make-octets
+  (:export #:octet #:octets #:make-octets #:defconstant*
            #:warn-user *break-on-warn-user* #:printable-array #:upto-null
            #:redirect #:memoize #:it #:*standard-optimize-settings*
            #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword
