@@ -3,11 +3,6 @@
 
 (in-package #:audio-streams)
 
-;;;; Generic stream support
-(deftype octet () '(unsigned-byte 8))
-(deftype octets () '(simple-array octet (*)))
-(defmacro make-octets (len) `(make-array ,len :element-type 'octet))
-
 (defun make-audio-stream (arg)
   "Creates a stream for ARG"
   (declare #.utils:*standard-optimize-settings*)
@@ -17,9 +12,9 @@
                    (flex:make-flexi-stream fd :element-type 'octet)
                    nil))))
     (etypecase arg
-      (string (make-file-stream arg))
+      (string   (make-file-stream arg))
       (pathname (make-file-stream arg))
-      (vector (flex:make-in-memory-input-stream arg)))))
+      (vector   (flex:make-in-memory-input-stream arg)))))
 
 (defgeneric stream-size (stream))
 
@@ -109,168 +104,87 @@ many bits should be used from each read byte."
                           (setf last-byte-was-FF (= byte #xFF))))))
          (values octets size)))))
 
-;;;; Strings: decoders
-
-;;; Decode octets as an iso-8859-1 string (encoding == 0)
-(defun stream-decode-iso-string (octets &key (start 0) (end (length octets)))
-  (declare #.utils:*standard-optimize-settings*)
-  (flex:octets-to-string octets :start start
-                                         :end end :external-format :iso-8859-1))
-
-;;;
-;;; XXX: Coded this way because I can't seem to get a simple :external-format
-;;; :ucs-2 to work correctly AND some taggers encode a UCS-2 empty string w/o
-;;; a byte-order mark (i.e. null strings are sometimes encoded as #(00 00))
-(defun stream-decode-ucs-string (octets &key (start 0) (end (length octets)))
-  "Decode octets as a UCS string with a BOM (encoding == 1)"
-  (declare #.utils:*standard-optimize-settings*)
-  (labels ((get-byte-order-mark (octets)
-             (let ((retval 0))
-               (setf (ldb (byte 8 0) retval) (aref octets 1)
-                     (ldb (byte 8 8) retval) (aref octets 0))
-               (when (not (or (= #xfffe retval) (= #xfeff retval)))
-                 (error
-                  "Got invalid byte-order mark of ~x in STREAM-DECODE-UCS-STRING"
-                  retval))
-               retval)))
-
-    ;; special case: empty (and mis-coded) string
-    (cond ((zerop (length octets))
-           (make-string 0))
-          (t
-           ;;
-           ;; else, we have a (hopefully) properly encoded string
-           (when (oddp end)
-             (warn-user
-              "Malformed UCS string, length (~d) is odd---decrementing by 1"
-              end)
-             (setf end (1- end)))
-
-           (let ((bom (get-byte-order-mark octets)))
-             (ecase (the fixnum bom)
-               (#xfffe (flex:octets-to-string octets
-                                              :start (+ 2 start)
-                                              :end end
-                                              :external-format :ucs-2le))
-               (#xfeff (flex:octets-to-string octets
-                                              :start (+ 2 start)
-                                              :end end
-                                              :external-format :ucs-2be))
-               (0      (make-string 0))))))))
-
-(defun stream-decode-ucs-be-string (octets &key (start 0) (end (length octets)))
-  "Decode octets as a UCS-BE string (encoding == 2)"
-  (declare #.utils:*standard-optimize-settings*)
-  (flex:octets-to-string octets :start start
-                                :end end :external-format :ucs-2be))
-
-(defun stream-decode-utf-8-string (octets &key (start 0) (end (length octets)))
-  "Decode octets as a utf-8 string"
-  (declare #.utils:*standard-optimize-settings*)
-  (flex:octets-to-string octets :start start :end end :external-format :utf-8))
-
-(defun stream-decode-string (octets &key (start 0)
-                                         (end (length octets))
-                                         (encoding 0))
-  "Decode octets depending on encoding"
-  (declare #.utils:*standard-optimize-settings*)
-  (ecase encoding
-    (0 (stream-decode-iso-string octets    :start start :end end))
-    (1 (stream-decode-ucs-string octets    :start start :end end))
-    (2 (stream-decode-ucs-be-string octets :start start :end end))
-    (3 (stream-decode-utf-8-string octets  :start start :end end))))
-
 ;;;; Strings: readers
-(defun stream-read-iso-string-with-len (instream len)
-  "Read an iso-8859-1 string of length 'len' (encoding = 0)"
+(defun stream-read-iso-string (instream &optional (len nil))
+  "Read an ISO-8859-1 string of &OPTIONAL LEN.  When len is NIL,
+read in null-terminated ISO string w/o null at end"
   (declare #.utils:*standard-optimize-settings*)
-  (stream-decode-iso-string (stream-read-sequence instream len)))
 
-(defun stream-read-ucs-string-with-len (instream len)
-  "Read an ucs-2 string of length 'len' (encoding = 1)"
-  (declare #.utils:*standard-optimize-settings*)
-  (stream-decode-ucs-string (stream-read-sequence instream len)))
+  (let (octets)
+    (if (null len)
+        (setf octets
+              (flex:with-output-to-sequence (out)
+                (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
+                    (nil)
+                  (when (zerop b)
+                    (return))           ; leave loop w/o writing
+                  (write-byte b out))))
+        (setf octets (stream-read-sequence instream len)))
+    (flex:octets-to-string octets :external-format :iso-8859-1)))
 
-(defun stream-read-ucs-be-string-with-len (instream len)
-  "Read an ucs-2-be string of length 'len' (encoding = 2)"
+(defun get-byte-order-mark (octets)
+  "Get the BOM from octets"
   (declare #.utils:*standard-optimize-settings*)
-  (stream-decode-ucs-be-string (stream-read-sequence instream len)))
 
-(defun stream-read-utf-8-string-with-len (instream len)
-  "Read an utf-8 string of length 'len' (encoding = 3)"
-  (declare #.utils:*standard-optimize-settings*)
-  (stream-decode-utf-8-string  (stream-read-sequence instream len)))
+  (let ((retval 0))
+    (setf (ldb (byte 8 0) retval) (aref octets 1)
+          (ldb (byte 8 8) retval) (aref octets 0))
+    (when (not (or (= #xfffe retval) (= #xfeff retval)))
+      (error
+       "Got invalid byte-order mark of ~x in STREAM-DECODE-UCS-STRING"
+       retval))
+    retval))
 
-(defun stream-read-string-with-len (instream len &key (encoding 0))
-  "Read in a string of a given encoding of length 'len'"
+(defun stream-read-ucs-string (instream &key (len nil) (kind :ucs))
+  "Read a UCS-2 string of length 'len'.  If len is nil read until we get null.
+KIND is :ucs-2, :ucs-2be or :ucs-2le.  flexi-streams doesn't appear to handle
+byte-order marks, so we have to do that here before calling."
   (declare #.utils:*standard-optimize-settings*)
-  (ecase encoding
-    (0 (stream-read-iso-string-with-len instream len))
-    (1 (stream-read-ucs-string-with-len instream len))
-    (2 (stream-read-ucs-be-string-with-len instream len))
-    (3 (stream-read-utf-8-string-with-len instream len))))
 
-(defun stream-read-iso-string (instream)
-  "Read in a null-terminated iso-8859-1 string"
-  (declare #.utils:*standard-optimize-settings*)
-  (let ((octets (flex:with-output-to-sequence (out)
-                  (do ((b (stream-read-u8 instream) (stream-read-u8 instream)))
-                      (nil)
-                    (when (zerop b)
-                      (return))         ; leave loop w/o writing
-                    (write-byte b out)))))
-    (stream-decode-iso-string octets)))
+  (let ((octets)
+        (start 0))
 
-(defun stream-read-ucs-string (instream)
-  "Read in a null-terminated UCS string."
-  (declare #.utils:*standard-optimize-settings*)
-  (let ((octets (flex:with-output-to-sequence (out)
-                  (do* ((b0 (stream-read-u8 instream)
-                            (stream-read-u8 instream))
-                        (b1 (stream-read-u8 instream)
-                            (stream-read-u8 instream)))
-                       (nil)
-                    (when (and (zerop b0) (zerop b1))
-                      (return))
-                    (write-byte b0 out)
-                    (write-byte b1 out)))))
-    (stream-decode-ucs-string octets)))
+    (if (null len)
+        (setf octets (flex:with-output-to-sequence (out)
+                       (do* ((b0 (stream-read-u8 instream)
+                                 (stream-read-u8 instream))
+                             (b1 (stream-read-u8 instream)
+                                 (stream-read-u8 instream)))
+                            (nil)
+                         (when (and (zerop b0) (zerop b1))
+                           (return))
+                         (dbg nil 'read-ucs b0 b1)
+                         (write-byte b0 out)
+                         (write-byte b1 out))))
+        (setf octets (stream-read-sequence instream len)))
 
-(defun stream-read-ucs-be-string (instream)
-  "Read in a null-terminated UCS-BE string."
-  (declare #.utils:*standard-optimize-settings*)
-  (let ((octets (flex:with-output-to-sequence (out)
-                  (do* ((b0 (stream-read-u8 instream)
-                            (stream-read-u8 instream))
-                        (b1 (stream-read-u8 instream)
-                            (stream-read-u8 instream)))
-                       (nil)
-                    (when (and (zerop b0) (zerop b1))
-                      (return))
-                    (write-byte b0 out)
-                    (write-byte b1 out)))))
-    (stream-decode-ucs-be-string octets)))
+    (dbg nil 'read-ucs instream kind octets)
 
-(defun stream-read-utf-8-string (instream)
-  "Read in a null-terminated utf-8 string (encoding == 3)"
+    (when (eql kind :ucs-2)
+      (setf start 2)
+      (let ((bom (get-byte-order-mark octets)))
+        (ecase bom
+          (#xfffe (setf kind :ucs-2le))
+          (#xfeff (setf kind :ucs-2be)))))
+
+    (flex:octets-to-string octets :external-format kind :start start)))
+
+(defun stream-read-utf-8-string (instream &optional (len nil))
+  "Read an UTF-8 string of length LEN.  If LEN is nil, read until we get a null."
   (declare #.utils:*standard-optimize-settings*)
-  (let ((octets (flex:with-output-to-sequence (out)
+
+  (let (octets)
+    (if (null len)
+        (setf octets (flex:with-output-to-sequence (out)
                   (do ((b (stream-read-u8 instream)
                           (stream-read-u8 instream)))
                       (nil)
                     (when (zerop b)
                       (return))
-                    (write-byte b out)))))
-    (stream-decode-utf-8-string octets)))
+                    (write-byte b out))))
+        (setf octets  (stream-read-sequence instream len)))
+    (flex:octets-to-string octets :external-format :utf-8)))
 
-(defun stream-read-string (instream &key (encoding 0))
-  "Read in a null-terminated string of a given encoding."
-  (declare #.utils:*standard-optimize-settings*)
-  (ecase encoding
-    (0 (stream-read-iso-string    instream))
-    (1 (stream-read-ucs-string    instream))
-    (2 (stream-read-ucs-be-string instream))
-    (3 (stream-read-utf-8-string  instream))))
 
 ;;;; Files
 (defvar *get-audio-info* t
