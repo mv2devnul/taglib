@@ -116,6 +116,23 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Concrete atoms ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defclass atom-skip (mp4-atom) ())
 
+#|
+potential atoms to explicitly skip
+moov.udta.meta.ilst.apID # apple account email address
+moov.udta.meta.ilst.atID # artist-track ID
+moov.udta.meta.ilst.cnID # iTunes Catalog ID
+moov.udta.meta.ilst.geID # genre ID
+moov.udta.meta.ilst.plID # playlist ID (identifies album)
+moov.udta.meta.ilst.sfID # iTunes store identifier (location/number)
+moov.udta.meta.ilst.cprt # copyright information
+moov.udta.meta.ilst.flvr # bitrate/video size information?
+moov.udta.meta.ilst.purd # date purchased
+moov.udta.meta.ilst.rtng # Explicit/Clean information
+moov.udta.meta.ilst.soal # Album sort name
+moov.udta.meta.ilst.stik # media type information
+moov.udta.meta.ilst.xid  # space end!
+|#
+
 (defmethod initialize-instance :after ((me atom-skip) &key mp4-file &allow-other-keys)
   "The 'skip' atom.  Used when we want to capture the header of atom, but don't want/need
 to read the payload of an atom."
@@ -389,10 +406,11 @@ reading the container atoms"
 (defun is-valid (str)
   (assert (= 4 (length str)))
   (loop for c across str do
-    (assert (or (alphanumericp c)
-                (char= #\- c)
-                (= (char-code c) #xa9))
-              nil "Bad atom type name: c = ~a, str = <~a>" c str)))
+    (when (not (or (alphanumericp c)
+                   (char= #\- c)
+                   (= (char-code c) #xa9)))
+      (warn-user "Bad atom type name: c = ~a, str = <~a>" c str)))
+  t)
 
 (defun find-atom-class (id)
   "Search by concatenating 'atom-' with ID and look for that symbol in this package"
