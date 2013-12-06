@@ -73,11 +73,9 @@ The macro expansion has relatively low overhead in space or time."
 
   (when *break-on-warn-user*
     (break "Breaking in WARN-USER"))
-
-  (format *error-output* "~&********************************************************************************~%")
-#+ccl (format *error-output* "~&WARNING in ~a:: " (ccl::%last-fn-on-stack 1))
+  (format *error-output* "~&~%WARNING:: ")
   (apply #'format *error-output* format-string args)
-  (format *error-output* "~&**********************************************************************************~%"))
+  (format *error-output* "~&~%"))
 
 (defparameter *max-raw-bytes-print-len* 10 "Max number of octets to print from an array")
 
