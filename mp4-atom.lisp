@@ -412,6 +412,8 @@ reading the container atoms"
       (warn-user "Bad atom type name: c = ~a, str = <~a>" c str)))
   t)
 
+(defparameter *skipped-atoms* nil)
+
 (defun find-atom-class (id)
   "Search by concatenating 'atom-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
@@ -425,6 +427,7 @@ reading the container atoms"
       (return-from find-atom-class (find-class found-class-symbol)))
 
     ;; didn't find a class, so return ATOM-SKIP class
+    (pushnew id *skipped-atoms*)
     'atom-skip))
 
 (utils:memoize 'find-atom-class)

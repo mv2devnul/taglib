@@ -887,6 +887,8 @@ NB: 2.3 and 2.4 extended flags are different..."
   (string-upcase (concatenate 'string "frame-" id)))
 (utils:memoize 'mk-frame-class-name)
 
+(defparameter *skipped-id3-frames* nil)
+
 (defun find-frame-class (id)
   "Search by concatenating 'frame-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
@@ -908,7 +910,7 @@ NB: 2.3 and 2.4 extended flags are different..."
                          ;; then just read it raw
                          (when (possibly-valid-frame-id? id)
                            (find-class (find-symbol "FRAME-RAW" :ID3-FRAME))))))
-
+    (pushnew id *skipped-id3-frames*)
     found-class))
 
 (utils:memoize 'find-frame-class)
