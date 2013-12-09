@@ -3,20 +3,46 @@
 (in-package #:cl-user)
 
 (defpackage #:tree
-  (:export #:make-node #:add-child #:first-child #:next-sibling #:data
-           #:traverse #:print-tree #:find-tree #:at-path)
+  (:export #:add-child
+           #:at-path
+           #:data
+           #:find-tree
+           #:first-child
+           #:make-node
+           #:next-sibling
+           #:print-tree
+           #:traverse)
   (:use #:common-lisp))
 
 (defpackage #:utils
-  (:export #:octet #:octets #:make-octets #:defconstant*
-           #:warn-user *break-on-warn-user* #:printable-array #:upto-null
-           #:redirect #:memoize #:it #:*standard-optimize-settings*
-           #:get-bitfield #:while #:aif #:awhen #:with-gensyms #:make-keyword
-           #:dump-data #:timings #:dbg #:dbg-helper)
+  (:export #:*standard-optimize-settings*
+           #:aif
+           #:awhen
+           #:dbg
+           #:dbg-helper
+           #:defconstant*
+           #:dump-data
+           #:get-bitfield
+           #:it
+           #:make-keyword
+           #:make-octets
+           #:memoize
+           #:octet
+           #:octets
+           #:printable-array
+           #:redirect
+           #:timings
+           #:upto-null
+           #:warn-user *break-on-warn-user*
+           #:while
+           #:with-gensyms)
   (:use #:common-lisp))
 
 (defpackage #:profile
-  (:export #:on #:off #:reset #:report)
+  (:export #:off
+           #:on
+           #:reset
+           #:report)
   (:use #:common-lisp))
 
 (defpackage #:iso-639-2
@@ -24,58 +50,141 @@
   (:use #:common-lisp :utils))
 
 (defpackage #:audio-streams
-  (:export *get-audio-info*
-           #:make-audio-stream #:stream-filename #:stream-read-u8
-           #:stream-read-u16 #:stream-read-u24 #:stream-read-u32
-           #:stream-read-u64 #:stream-read-u128 #:stream-read-octets
+  (:export #:make-audio-stream
+           #:open-audio-file
+           #:stream-filename
            #:stream-read-iso-string
+           #:stream-read-octets
+           #:stream-read-sequence
+           #:stream-read-u128
+           #:stream-read-u16
+           #:stream-read-u24
+           #:stream-read-u32
+           #:stream-read-u64
+           #:stream-read-u8
            #:stream-read-ucs-string
            #:stream-read-utf-8-string
-           #:stream-read-sequence #:stream-size
-           #:stream-seek #:open-audio-file)
+           #:stream-seek
+           #:stream-size
+           *get-audio-info*)
   (:use #:common-lisp #:utils))
 
 (defpackage #:flac
-  (:export #:flac-header #:vpprint
-           #:is-valid-flac-file #:find-flac-frames #:get-flac-audio-info
-           #:flac-get-tag #:get-flac-audio-info #:flac-show-raw-tag
-           #:parse-audio-file #:flac-file #:flac-headers #:audio-info
-           #:flac-tags #:filename)
+  (:export #:audio-info
+           #:filename
+           #:find-flac-frames
+           #:flac-file
+           #:flac-get-tag
+           #:flac-headers
+           #:flac-show-raw-tag
+           #:flac-tags
+           #:get-flac-audio-info
+           #:get-flac-audio-info
+           #:is-valid-flac-file
+           #:parse-audio-file
+           #:vpprint)
   (:use #:common-lisp #:utils #:audio-streams))
 
 (defpackage #:m4a
-  (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse
-           #:atom-file-pos #:atom-children #:atom-size
-           #:atom-of-interest #:atom-decoded #:atom-type #:vpprint #:*tag-path*
-           #:tag-get-value #:mp4-show-raw-tag-atoms
-           #:get-mp4-audio-info #:is-valid-m4-file #:+itunes-album+
-           #:+itunes-album-artist+ #:+itunes-artist+ #:+itunes-comment+
-           #:+itunes-composer+ #:+itunes-copyright+ #:+itunes-year+
-           #:+itunes-encoder+ #:+itunes-groups+ #:+itunes-lyrics+
-           #:+itunes-purchased-date+ #:+itunes-title+ #:+itunes-tool+
-           #:+itunes-writer+ #:+itunes-compilation+ #:+itunes-cover-art+
-           #:+itunes-disk+ #:+itunes-genre+ #:+itunes-genre-x+ #:+itunes-tempo+
-           #:+itunes-track+ #:+itunes-track-n+ #:parse-audio-file #:mp4-file
-           #:mp4-atoms #:audio-info #:filename #:*skipped-m4a-atoms*
-           #:clear-skipped)
+  (:export #:*skipped-m4a-atoms*
+           #:+itunes-album+
+           #:+itunes-album-artist+
+           #:+itunes-artist+
+           #:+itunes-comment+
+           #:+itunes-compilation+
+           #:+itunes-composer+
+           #:+itunes-copyright+
+           #:+itunes-cover-art+
+           #:+itunes-disk+
+           #:+itunes-encoder+
+           #:+itunes-genre+
+           #:+itunes-genre-x+
+           #:+itunes-groups+
+           #:+itunes-lyrics+
+           #:+itunes-purchased-date+
+           #:+itunes-tempo+
+           #:+itunes-title+
+           #:+itunes-tool+
+           #:+itunes-track+
+           #:+itunes-track-n+
+           #:+itunes-writer+
+           #:+itunes-year+
+           #:atom-decoded
+           #:atom-file-pos
+           #:atom-size
+           #:atom-type
+           #:audio-info
+           #:clear-skipped
+           #:filename
+           #:find-mp4-atoms
+           #:get-mp4-audio-info
+           #:is-valid-m4-file
+           #:map-mp4-atom
+           #:mp4-atom
+           #:mp4-atoms
+           #:mp4-file
+           #:mp4-show-raw-tag-atoms
+           #:parse-audio-file
+           #:tag-get-value
+           #:vpprint)
   (:use #:common-lisp #:audio-streams #:utils))
 
 (defpackage #:id3
-  (:export #:id3-frame #:find-id3-frames #:vpprint
-           #:header #:get-frame-info #:is-valid-mp3-file #:encoding #:lang
-           #:desc #:val #:comment #:artist #:album #:year #:comment #:year
-           #:map-id3-frames #:frames #:year #:title #:genre #:id
-           #:mp3-file #:id3-header #:audio-info #:parse-audio-file
-           #:v21-tag-header #:info #:version #:picture-info #:get-frames
-           #:filename #:skipped-id3-frames* #:clear-skipped)
+  (:export #:album
+           #:artist
+           #:audio-info
+           #:clear-skipped
+           #:comment
+           #:comment
+           #:desc
+           #:encoding
+           #:filename
+           #:find-id3-frames
+           #:frames
+           #:genre
+           #:get-frame-info
+           #:get-frames
+           #:header
+           #:id
+           #:id3-frame
+           #:id3-header
+           #:info
+           #:is-valid-mp3-file
+           #:lang
+           #:map-id3-frames
+           #:mp3-file
+           #:parse-audio-file
+           #:picture-info
+           #:skipped-id3-frames*
+           #:title
+           #:v21-tag-header
+           #:val
+           #:version
+           #:vpprint
+           #:year
+           #:year
+           #:year)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
 (defpackage #:abstract-tag
-  (:export #:show-tags #:get-id3v1-genre #:album #:album-artist #:artist
-           #:comment #:composer #:copyright #:created #:encoder #:groups
-           #:lyrics #:title #:tool #:writer)
+  (:export #:album
+           #:album-artist
+           #:artist
+           #:comment
+           #:composer
+           #:copyright
+           #:created
+           #:encoder
+           #:get-id3v1-genre
+           #:groups
+           #:lyrics
+           #:title
+           #:show-tags
+           #:tool
+           #:writer)
   (:use #:common-lisp #:audio-streams #:utils))
 
 (defpackage #:mpeg
-  (:export #:get-mpeg-audio-info #:vpprint)
+  (:export #:get-mpeg-audio-info
+           #:vpprint)
   (:use #:common-lisp #:audio-streams #:utils))
