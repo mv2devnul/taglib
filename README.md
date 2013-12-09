@@ -15,7 +15,7 @@ this code should run on any Lisp that is supported by FLEXI-STREAMS.
 All avalailable via quicklisp
 
 * optima and optima.ppcre: for quick parsing of FLAC tags
-* flexi-streams: for in-memory streams and string decoding
+* flexi-streams: for in-memory streams and string decoding (note: make sure you get the most recent one, which has a bug fix I made)
 
 # References
 
