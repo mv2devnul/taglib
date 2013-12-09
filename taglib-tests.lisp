@@ -35,41 +35,97 @@
   (awhen (open-audio-file file)
     (funcall func it)))
 
+(defstruct file-counts
+  (mp3-count   0 :type fixnum)
+  (flac-count  0 :type fixnum)
+  (mp4-count   0 :type fixnum)
+  (other-count 0 :type fixnum))
+
+(defmethod print-object ((me file-counts) stream)
+  (with-slots (mp3-count flac-count mp4-count other-count) me
+    (format stream
+            "~&~:d MP3s, ~:d MP4s, ~:d FLACs, ~:d Others, for a total of ~:d files~%"
+            mp3-count mp4-count flac-count other-count
+            (+ mp3-count mp4-count flac-count other-count))))
+
 (defun do-audio-dir (&key (dir "/home/markv/Music/Queen")
                           (file-system-encoding :utf-8)
                           (func #'abstract-tag:show-tags))
   "Walk :DIR and FUNCALL specified function for each file audio found."
   (set-pathname-encoding file-system-encoding)
-  (let ((mp3-count 0)
-        (flac-count 0)
-        (mp4-count 0)
-        (other-count 0))
-    (cl-fad:walk-directory dir
-                           (lambda (f)
-                             (do-audio-file :file f
-                               :func (lambda (s)
-                                       (cond ((typep s 'id3-frame:mp3-file)
-                                              (incf mp3-count))
-                                             ((typep s 'flac-frame:flac-file)
-                                              (incf flac-count))
-                                             ((typep s 'mp4-atom:mp4-file)
-                                              (incf mp4-count))
-                                             ((null s)
-                                              (incf other-count)))
-                                       (when (and (not (null s)) func)
-                                         (funcall func s))))))
-
-    (format t "~&~:d MP3s, ~:d MP4s, ~:d FLACs, ~:d Others, for a total of ~:d~%"
-            mp3-count mp4-count flac-count other-count
-            (+ mp3-count mp4-count flac-count other-count))))
+  (let ((file-counts (make-file-counts)))
+    (with-slots (mp3-count flac-count mp4-count other-count) file-counts
+      (cl-fad:walk-directory dir
+                             (lambda (f)
+                               (do-audio-file :file f
+                                 :func (lambda (s)
+                                         (cond ((typep s 'id3:mp3-file)
+                                                (incf mp3-count))
+                                               ((typep s 'flac:flac-file)
+                                                (incf flac-count))
+                                               ((typep s 'm4a:mp4-file)
+                                                (incf mp4-count))
+                                               ((null s)
+                                                (incf other-count)))
+                                         (when (and (not (null s)) func)
+                                           (funcall func s)))))))
+    file-counts))
 
 (defun time-test (&key (dir "/home/markv/Music/Queen")
                        (file-system-encoding :utf-8) (do-audio-processing t))
   "Time parsing of DIR."
   (set-pathname-encoding file-system-encoding)
   (let ((audio-streams:*get-audio-info* do-audio-processing))
-    (time (do-audio-dir :dir dir
-            :file-system-encoding file-system-encoding :func nil))))
+    (time (format t "~a~%"
+                  (do-audio-dir :dir dir
+                    :file-system-encoding file-system-encoding :func nil)))))
+
+;; (defun get-stats (&key (dir "/home/markv/Music/Queen")
+;;                        (file-system-encoding :utf-8)
+;;                        (do-audio-processing t))
+;;   "Gen up some interesting statistics on DIR"
+;;   (let ((m4-ht (make-hash-table :test #'equalp))
+;;         (m3-ht (make-hash-table :test #'equalp))
+;;         (fl-ht (make-hash-table :test #'equalp)))
+;;     (do-audio-dir
+;;       :dir dir
+;;       :file-system-encoding file-system-encoding
+;;       :func (lambda (s)
+;;               (cond ((typep s 'id3:mp3-file)
+;;                      (id3:map-id3-frames
+;;                       s
+;;                       :func (lambda (f)
+;;                               (multiple-value-bind (value foundp)
+;;                                   (gethash (id3:id f) m3-ht)
+;;                                 (setf (gethash (id3:id f) m3-ht)
+;;                                       (if foundp
+;;                                           (1+ value)
+;;                                           1))))))
+;;                       ((typep s 'flac:flac-file)
+;;                        t)
+;;                       ((typep s 'm4a:mp4-file)
+;;                        (tree:traverse
+;;                         (m4a:mp4-atoms s)
+;;                         (lambda (node depth)
+;;                           (declare (ignore depth))
+;;                           (setf node (tree:data node))
+;;                           (multiple-value-bind (value foundp)
+;;                               (gethash (m4a:atom-type node) m3-ht)
+;;                             (setf (gethash (m4a:atom-type node) m3-ht)
+;;                                   (if foundp
+;;                                       (1+ value)
+;;                                       1))))))
+;;                     ((null s)
+;;                      (incf other-count)))))
+;;     (format t "MP3 Stats:~%")
+;;     (loop for key being the hash-keys of m3-ht
+;;           using (hash-value value)
+;;           do (format t "~a:~:d~%" key value))
+;;     (format t "M4A Stats:~%")
+;;     (loop for key being the hash-keys of m4-ht
+;;           using (hash-value value)
+;;           do (format t "~a:~:d~%" key value))
+;;   (values m3-ht m4-ht fl-ht)))
 
 ;;;; multi-thread code below
 #+(or :ccl :sbcl :abcl)
@@ -118,11 +174,11 @@
 
                        (do-audio-file :file f
                          :func (lambda (s)
-                                 (cond ((typep s 'id3-frame:mp3-file)
+                                 (cond ((typep s 'id3:mp3-file)
                                         (incf mp3-count))
-                                       ((typep s 'flac-frame:flac-file)
+                                       ((typep s 'flac:flac-file)
                                         (incf flac-count))
-                                       ((typep s 'mp4-atom:mp4-file)
+                                       ((typep s 'm4a:mp4-file)
                                         (incf mp4-count))
                                        ((null s)
                                         (incf other-count)))

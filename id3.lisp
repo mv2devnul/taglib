@@ -1,7 +1,7 @@
-;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: ID3-FRAME; -*-
+;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: ID3; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
-(in-package #:id3-frame)
+(in-package #:id3)
 
 ;;;; ID3 string encoding support
 (defun id3-read-string (instream &key (len nil) (encoding 0))
@@ -887,12 +887,23 @@ NB: 2.3 and 2.4 extended flags are different..."
   (string-upcase (concatenate 'string "frame-" id)))
 (utils:memoize 'mk-frame-class-name)
 
-(defparameter *skipped-id3-frames* nil)
+(defparameter *skipped-id3-frames* (make-hash-table :test #'equalp))
+
+(defun clear-skipped ()
+  (setf *skipped-id3-frames* (make-hash-table :test #'equalp)))
+
+(defun add-skipped (id)
+  (multiple-value-bind (value foundp)
+      (gethash id *skipped-id3-frames*)
+    (setf (gethash id *skipped-id3-frames*)
+          (if foundp
+              (1+ value)
+              1))))
 
 (defun find-frame-class (id)
   "Search by concatenating 'frame-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((found-class-symbol (find-symbol (mk-frame-class-name id) :ID3-FRAME))
+  (let ((found-class-symbol (find-symbol (mk-frame-class-name id) :ID3))
         found-class)
 
     ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
@@ -910,7 +921,7 @@ NB: 2.3 and 2.4 extended flags are different..."
                          ;; then just read it raw
                          (when (possibly-valid-frame-id? id)
                            (find-class (find-symbol "FRAME-RAW" :ID3-FRAME))))))
-    (pushnew id *skipped-id3-frames*)
+    (add-skipped id)
     found-class))
 
 (utils:memoize 'find-frame-class)

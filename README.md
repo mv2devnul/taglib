@@ -114,8 +114,8 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
   simple array-references.  Under CCL, uses MAP-FILE-TO-OCTET-VECTOR function to mmap the file. Other Lisps just
   slurp in the whole file (probably should revisit this, but since we use displaced arrays for dissecting the file,
   this would require a rewrite.
-* __flac-frame.lisp:__ Parses FLAC files.
-* __id3-frame.lisp:__ Parses the ID3 frames in an MP3 file.
+* __flac.lisp:__ Parses FLAC files.
+* __id3.lisp:__ Parses the ID3 frames in an MP3 file.
    For each frame type we are interested in, DEFCLASS a class with
    specfic naming convention: frame-xxx/frame-xxxx, where xxx is valid ID3V2.2 frame name
    and xxxx is a valid ID3V2.[34] frame name.  Upon finding a frame name in an MP3 file,
@@ -149,7 +149,7 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 	* __writer:__ Returns name of who wrote this song.
 	* __year:__ Returns the year when the song was recorded.
 
-* __mp4-atom.lisp:__ Parses MP4 audio files.  Similar logic to __id-frame.lisp__, but has two main differnces: first,
+* __m4a:__ Parses MP4 audio files.  Similar logic to __id-frame.lisp__, but has two main differnces: first,
   it returns a tree structure (needed, since, that's how M4A atoms/boxes work), and secondly, has an *atom-skip* class
   that records the name and position of an atom, but seeks to the next atom rather than reading in contents.
 
@@ -157,7 +157,7 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
     * Pure container atoms: have no data and are only used to contain other atoms.  This is akin to a UNIX filesystem's directory notion.
     * Pure "data" atoms: has no nested atoms.  Only has a payload.
     * A mixture of both.
-* __tree.lisp:__ The tree library (used by mp4-atom).  Adapted from code from [Jorge Gajon](http://gajon.org/trees-linked-lists-common-lisp/)
+* __tree.lisp:__ The tree library (used by m4a).  Adapted from code from [Jorge Gajon](http://gajon.org/trees-linked-lists-common-lisp/)
 * __mpeg.lisp:__ Parses the audio information (ie the non-ID3 info) in an MP3 file.
 * __packages.lisp:__ Holds all the package definitions.
 * __taglib-tests.asd:__ Contains build instructions for taglib-tests.lisp.  An ASDF file.

@@ -1,6 +1,6 @@
-;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: MP4-ATOM; -*-
+;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: M4A; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
-(in-package #:mp4-atom)
+(in-package #:m4a)
 
 ;;;; ATOMS
 ;;;
@@ -412,7 +412,18 @@ reading the container atoms"
       (warn-user "Bad atom type name: c = ~a, str = <~a>" c str)))
   t)
 
-(defparameter *skipped-atoms* nil)
+(defparameter *skipped-m4a-atoms* (make-hash-table :test #'equalp))
+
+(defun clear-skipped ()
+  (setf *skipped-m4a-atoms* (make-hash-table :test #'equalp)))
+
+(defun add-skipped (id)
+  (multiple-value-bind (value foundp)
+      (gethash id *skipped-m4a-atoms*)
+    (setf (gethash id *skipped-m4a-atoms*)
+          (if foundp
+              (1+ value)
+              1))))
 
 (defun find-atom-class (id)
   "Search by concatenating 'atom-' with ID and look for that symbol in this package"
@@ -420,14 +431,14 @@ reading the container atoms"
 
   (is-valid id)
 
-  (let ((found-class-symbol (find-symbol (mk-atom-class-name id) :MP4-ATOM)))
+  (let ((found-class-symbol (find-symbol (mk-atom-class-name id) :M4A)))
 
     ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
     (when found-class-symbol
       (return-from find-atom-class (find-class found-class-symbol)))
 
     ;; didn't find a class, so return ATOM-SKIP class
-    (pushnew id *skipped-atoms*)
+    (add-skipped id)
     'atom-skip))
 
 (utils:memoize 'find-atom-class)

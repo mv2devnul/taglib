@@ -35,19 +35,19 @@
            #:stream-seek #:open-audio-file)
   (:use #:common-lisp #:utils))
 
-(defpackage #:flac-frame
-  (:export #:flac-frame-condition #:flac-header #:vpprint
+(defpackage #:flac
+  (:export #:flac-header #:vpprint
            #:is-valid-flac-file #:find-flac-frames #:get-flac-audio-info
            #:flac-get-tag #:get-flac-audio-info #:flac-show-raw-tag
            #:parse-audio-file #:flac-file #:flac-headers #:audio-info
            #:flac-tags #:filename)
   (:use #:common-lisp #:utils #:audio-streams))
 
-(defpackage #:mp4-atom
+(defpackage #:m4a
   (:export #:mp4-atom #:map-mp4-atom #:find-mp4-atoms #:traverse
-           #:mp4-atom-condition #:atom-file-pos #:atom-children #:atom-size
+           #:atom-file-pos #:atom-children #:atom-size
            #:atom-of-interest #:atom-decoded #:atom-type #:vpprint #:*tag-path*
-           #:tag-get-value #:mp4-atom-condition #:mp4-show-raw-tag-atoms
+           #:tag-get-value #:mp4-show-raw-tag-atoms
            #:get-mp4-audio-info #:is-valid-m4-file #:+itunes-album+
            #:+itunes-album-artist+ #:+itunes-artist+ #:+itunes-comment+
            #:+itunes-composer+ #:+itunes-copyright+ #:+itunes-year+
@@ -56,17 +56,18 @@
            #:+itunes-writer+ #:+itunes-compilation+ #:+itunes-cover-art+
            #:+itunes-disk+ #:+itunes-genre+ #:+itunes-genre-x+ #:+itunes-tempo+
            #:+itunes-track+ #:+itunes-track-n+ #:parse-audio-file #:mp4-file
-           #:mp4-atoms #:audio-info #:filename)
+           #:mp4-atoms #:audio-info #:filename #:*skipped-m4a-atoms*
+           #:clear-skipped)
   (:use #:common-lisp #:audio-streams #:utils))
 
-(defpackage #:id3-frame
-  (:export #:id3-frame #:find-id3-frames #:id3-frame-condition #:vpprint
+(defpackage #:id3
+  (:export #:id3-frame #:find-id3-frames #:vpprint
            #:header #:get-frame-info #:is-valid-mp3-file #:encoding #:lang
            #:desc #:val #:comment #:artist #:album #:year #:comment #:year
            #:map-id3-frames #:frames #:year #:title #:genre #:id
            #:mp3-file #:id3-header #:audio-info #:parse-audio-file
            #:v21-tag-header #:info #:version #:picture-info #:get-frames
-           #:filename)
+           #:filename #:skipped-id3-frames* #:clear-skipped)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
 (defpackage #:abstract-tag

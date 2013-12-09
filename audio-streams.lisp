@@ -219,12 +219,12 @@ byte-order marks, so we have to do that here before calling."
            (setf stream (make-audio-stream filename))
            (when stream
              (setf info
-                   (cond ((id3-frame:is-valid-mp3-file stream)
-                          (id3-frame:parse-audio-file stream get-audio-info))
-                         ((mp4-atom:is-valid-m4-file stream)
-                          (mp4-atom:parse-audio-file stream get-audio-info))
-                         ((flac-frame:is-valid-flac-file stream)
-                          (flac-frame:parse-audio-file stream get-audio-info))
+                   (cond ((id3:is-valid-mp3-file stream)
+                          (id3:parse-audio-file stream get-audio-info))
+                         ((m4a:is-valid-m4-file stream)
+                          (m4a:parse-audio-file stream get-audio-info))
+                         ((flac:is-valid-flac-file stream)
+                          (flac:parse-audio-file stream get-audio-info))
                          (t nil)))))
       (when stream
         (close stream)))

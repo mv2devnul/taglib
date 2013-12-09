@@ -1,6 +1,6 @@
-;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: FLAC-FRAME; -*-
+;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: FLAC; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
-(in-package #:flac-frame)
+(in-package #:flac)
 
 ;;; FLAC header types
 (defconstant* +metadata-streaminfo+  0)

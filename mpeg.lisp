@@ -476,8 +476,8 @@ Bits   1-0 (2  bits): the emphasis"
           ;; No Xing header found. Assume CBR and calculate based on first frame
           (let* ((first (pos first-frame))
                  (last (- (stream-size instream)
-                          (if (id3-frame:v21-tag-header
-                               (id3-frame:id3-header mp3-file)) 128 0)))
+                          (if (id3:v21-tag-header
+                               (id3:id3-header mp3-file)) 128 0)))
                  (n-fr (round (/ (float (- last first))
                                  (float (size first-frame)))))
                  (n-sec (round (/ (float (* (size first-frame) n-fr))
@@ -487,4 +487,4 @@ Bits   1-0 (2  bits): the emphasis"
                   n-frames 1
                   len      n-sec
                   bit-rate (float (bit-rate first-frame))))))
-    (setf (id3-frame:audio-info mp3-file) info)))
+    (setf (id3:audio-info mp3-file) info)))
