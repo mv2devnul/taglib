@@ -183,4 +183,3 @@ id to \*dead-channel\* and return (ie exit). Here are some preliminary timings:
 
 Note: threading does NOT currently work on ECL (missing support in bordeaux threads)
 or on my custom built CLISP with POSIX-THREADS turned on (fails with RECURSIVE MUTEX error).
-ABCL kinda/sorta works (seems to be a problem with ATOM-TYPE being unbound
