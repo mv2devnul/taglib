@@ -8,14 +8,14 @@ Currently reads MP3/MP4/FLAC audio files.
 
 Runs (in single-thread mode) under CCL, SBCL, CLISP, and ABCL.
 Note: my primary Lisp variant is CCL, so it's the most tested; however,
-this code should run on any Lisp that is supported by FLEXI-STREAMS
+this code should run on any Lisp that is supported by FLEXI-STREAMS.
 
 # Dependencies
 
 All avalailable via quicklisp
 
 * optima and optima.ppcre: for quick parsing of FLAC tags
-* flexi-streams: for in-memory streams
+* flexi-streams: for in-memory streams and string decoding
 
 # References
 
@@ -52,13 +52,8 @@ Things to consider adding/changing:
 # Sample Invocations and Results
 
 ````
-(let (foo)
-    (unwind-protect
-        (setf foo (parse-mp4-file "01 Keep Yourself Alive.m4a"))
-    (when foo
-	    (mp4-tag:show-tags foo)
-		(stream-close foo)))
-
+(setf foo (audio-streams:open-audio-file "01 Keep Yourself Alive.m4a"))
+(m4a:show-tags foo)
 ````
 
 Yields:
@@ -80,13 +75,8 @@ sample rate: 44100.0 Hz, # channels: 2, bits-per-sample: 16, max bit-rate: 314 K
 The show-tags methods also have a "raw" capability.  Example:
 
 ```
-(let (foo)
-    (unwind-protect
-        (setf foo (parse-mp3-file "Queen/At the BBC/06 Great King Rat.mp3"))
-    (when foo
-		  (mp3-tag:show-tags foo :raw t)
-		   (stream-close foo)))
-
+(setf foo (audio-streams:open-audio-file "06 Great King Rat.mp3")
+(m4a:show-tags foo :raw t)
 ```
 
 Yields:
