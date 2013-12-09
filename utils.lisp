@@ -69,7 +69,6 @@ The macro expansion has relatively low overhead in space or time."
 (deftype octets () '(simple-array octet (*)))
 (defmacro make-octets (len) `(make-array ,len :element-type 'octet))
 
-
 (defparameter *break-on-warn-user* nil "set to T if you'd like to stop in warn-user")
 
 (defun warn-user (format-string &rest args)
