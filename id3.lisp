@@ -935,13 +935,13 @@ NB: 2.3 and 2.4 extended flags are different..."
     ;; if not a "normal" frame-id, look at general cases of
     ;; starting with a 'T' or a 'W'
     (setf found-class (case (aref id 0)
-                        (#\T (find-class (find-symbol "FRAME-TEXT-INFO" :ID3-FRAME)))
-                        (#\W (find-class (find-symbol "FRAME-URL-LINK"  :ID3-FRAME)))
+                        (#\T (find-class (find-symbol "FRAME-TEXT-INFO" :ID3)))
+                        (#\W (find-class (find-symbol "FRAME-URL-LINK"  :ID3)))
                         (t
                          ;; we don't recognize the frame name.  if it could possibly be a real frame name,
                          ;; then just read it raw
                          (when (possibly-valid-frame-id? id)
-                           (find-class (find-symbol "FRAME-RAW" :ID3-FRAME))))))
+                           (find-class (find-symbol "FRAME-RAW" :ID3))))))
     (add-skipped id)
     found-class))
 
