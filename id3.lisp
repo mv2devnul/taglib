@@ -8,6 +8,7 @@
   "Read in a string of a given encoding of length 'len'. Encoding
 is from the ID3 'spec'"
   (declare #.utils:*standard-optimize-settings*)
+
   (if (and len (<= len 0))
       nil
       (ecase encoding
@@ -57,6 +58,7 @@ is from the ID3 'spec'"
 (defmethod initialize-instance ((me v21-tag-header) &key instream)
   "Read in a V2.1 tag.  Caller will have stream-seek'ed file to correct location and ensured that TAG was present"
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (title artist album year comment genre track) me
     (setf title    (upto-null (stream-read-iso-string instream 30))
           artist   (upto-null (stream-read-iso-string instream 30))
@@ -95,6 +97,7 @@ is from the ID3 'spec'"
 Note: extended headers are subject to unsynchronization, so make sure that INSTREAM has been made sync-safe.
 NB: 2.3 and 2.4 extended flags are different..."
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (size flags padding crc is-update restrictions) me
     (setf size  (stream-read-u32 instream)
           flags (stream-read-u16 instream)) ; reading in flags fields, must discern below 2.3/2.4
@@ -126,6 +129,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun ext-header-restrictions-grok (r)
   "Return a string that shows what restrictions are in an ext-header"
   (declare #.utils:*standard-optimize-settings*)
+
   (if (zerop r)
       "No restrictions"
       (with-output-to-string (s)
@@ -196,6 +200,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defmethod initialize-instance :after ((me id3-header) &key instream &allow-other-keys)
   "Fill in an mp3-header from INSTREAM."
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (version revision flags size ext-header frames v21-tag-header) me
     (stream-seek instream 128 :end)
     (when (string= "TAG" (stream-read-iso-string instream 3))
@@ -234,6 +239,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 ;;; the bytes an raw octets.
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((old-pos  (stream-seek instream))
          (name     (id3-read-string instream :encoding name-encoding))
          (name-len (- (stream-seek instream) old-pos))
@@ -276,12 +282,14 @@ NB: 2.3 and 2.4 extended flags are different..."
 ;; NB version 2.2 does NOT have FLAGS field in a frame; hence, the ECASE
 (defun valid-frame-flags (header-version frame-flags)
   (declare #.utils:*standard-optimize-settings*)
+
   (ecase header-version
     (3 (zerop (logand #b0001111100011111 frame-flags)))
     (4 (zerop (logand #b1000111110110000 frame-flags)))))
 
 (defun print-frame-flags (version flags stream)
   (declare #.utils:*standard-optimize-settings*)
+
   (ecase version
     (2 (format stream "None, "))
     (3 (format stream
@@ -319,6 +327,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-raw) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (pos len octets) me
     (setf octets (stream-read-sequence instream len))))
 
@@ -372,6 +381,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-com) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (len encoding lang desc val) me
     (setf encoding (stream-read-u8 instream)
           lang     (stream-read-iso-string instream 3))
@@ -410,6 +420,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-pic) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (id len encoding img-format ptype desc data) me
     (setf encoding   (stream-read-u8 instream)
           img-format (stream-read-iso-string instream 3)
@@ -439,6 +450,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-text-info) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (version flags len encoding info) me
     (let ((read-len len))
 
@@ -475,6 +487,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defmethod initialize-instance :after ((me frame-itunes-compilation) &key &allow-other-keys)
   "iTunes compilation weirdness: I have seen this encoded soooo many ways..."
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (len octets info) me
     (setf info
           (cond
@@ -539,6 +552,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-txx) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (len encoding desc val) me
     (setf encoding (stream-read-u8 instream))
     (multiple-value-bind (n v) (get-name-value-pair instream (1- len) encoding encoding)
@@ -559,6 +573,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-ufi) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (id len name value) me
     (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
       (setf name n
@@ -678,6 +693,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun get-picture-type (n)
   "Function to return picture types for APIC frames"
   (declare #.utils:*standard-optimize-settings*)
+
   (if (and (>= n 0) (< n (length *picture-type*)))
       (nth n *picture-type*)
       "Unknown"))
@@ -699,6 +715,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-apic) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (id len encoding mime ptype desc data) me
     (setf encoding (stream-read-u8 instream)
           mime     (stream-read-iso-string instream)
@@ -732,6 +749,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-comm) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (encoding lang len desc val) me
     (setf encoding (stream-read-u8 instream)
           lang     (stream-read-iso-string instream 3))
@@ -758,6 +776,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-pcnt) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (play-count len) me
     (assert (= 4 len) () "Ran into a play count with ~d bytes" len)
     (setf play-count (stream-read-u32 instream)))) ; probably safe---play count *can* be longer than 4 bytes, but...
@@ -777,6 +796,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-priv) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (id len name value) me
     (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
       (setf name n
@@ -822,6 +842,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-ufid) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (id len name value) me
     (multiple-value-bind (n v) (get-name-value-pair instream len 0 -1)
       (setf name n
@@ -840,6 +861,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defmethod initialize-instance :after ((me frame-url-link) &key instream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (id len url) me
     (setf url (stream-read-iso-string instream len))))
 
@@ -865,6 +887,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun possibly-valid-frame-id? (frame-id)
   "test to see if a string is a potentially valid frame id"
   (declare #.utils:*standard-optimize-settings*)
+
   (labels ((numeric-char-p (c)
              (let ((code (char-code c)))
                (and (>= code (char-code #\0))
@@ -880,6 +903,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defun mk-frame-class-name (id)
   (declare #.utils:*standard-optimize-settings*)
+
   (string-upcase (concatenate 'string "frame-" id)))
 (utils:memoize 'mk-frame-class-name)
 
@@ -899,6 +923,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun find-frame-class (id)
   "Search by concatenating 'frame-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((found-class-symbol (find-symbol (mk-frame-class-name id) :ID3))
         found-class)
 
@@ -925,6 +950,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun make-frame (version instream fn)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((pos  (stream-seek instream))
          (byte (stream-read-u8 instream))
          frame-name frame-len frame-flags frame-class)
@@ -995,6 +1021,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun parse-audio-file (instream &optional get-audio-info)
   "Parse an MP3 file"
   (declare #.utils:*standard-optimize-settings*)
+
   (labels ((read-loop (version stream)
              (let (frames this-frame)
                (do ()
@@ -1008,7 +1035,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 
                        (push this-frame frames))
                    (condition (c)
-                     (utils:warn-user "find-id3-frame got condition ~a" c)
+                     (utils:warn-user "id3 parse-audio-file got condition ~a" c)
                      (return-from read-loop (values nil (nreverse frames))))))
 
                (values t (nreverse frames))))) ; frames in "file order"
@@ -1047,11 +1074,15 @@ NB: 2.3 and 2.4 extended flags are different..."
 
 (defun map-id3-frames (mp3 &key (func (constantly t)))
   "Iterates through the ID3 frames found in an MP3 file"
+  (declare #.utils:*standard-optimize-settings*)
+
   (mapcar func (frames (id3-header mp3))))
 
 (defun get-frames (mp3 names)
   "Given a MP3 file's info, search its frames for NAMES.
 Return file-order list of matching frames"
+  (declare #.utils:*standard-optimize-settings*)
+
   (let (found-frames)
     (map-id3-frames mp3
                     :func (lambda (f)

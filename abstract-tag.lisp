@@ -47,6 +47,7 @@ Ignores case and returns first complete match"
   "Given N, a supposed ID3 genre, range check it to make sure it
 is > 0 and < (sizeof *ID3V1-GENRES*)"
   (declare #.utils:*standard-optimize-settings*)
+
   (if (or (> n (1- (length *id3v1-genres*)))
             (< n 0))
         "BAD GENRE"
@@ -73,6 +74,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 ;;;; MP3
 (defmethod cover ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((pictures)
         (frames (id3:get-frames me '("PIC" "APIC"))))
     (when frames
@@ -82,6 +84,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod album ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TAL" "TALB"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one album tag")
@@ -92,6 +95,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod artist ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TP1" "TPE1"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one artist tag")
@@ -102,6 +106,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod comment ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("COM" "COMM"))))
     (when frames
       (let ((new-frames))
@@ -117,6 +122,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod year ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TRD" "TDRC"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one year tag")
@@ -127,6 +133,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod title ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TT2" "TIT2"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one title tag")
@@ -137,6 +144,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod genre ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TCO" "TCON"))))
     (when frames
       (when (> (length frames) 1)
@@ -170,6 +178,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 ;;;; No V2.1 tags for any of these
 (defmethod album-artist ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TP2" "TPE2"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one album-artist tag")
@@ -178,6 +187,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod composer ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TCM" "TCOM"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one composer tag")
@@ -186,6 +196,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod copyright ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TCR" "TCOP"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one copyright tag")
@@ -194,6 +205,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod encoder ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TEN" "TENC"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one encoder tag")
@@ -202,6 +214,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod groups ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TT1" "TTE1"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one group tag")
@@ -210,6 +223,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod lyrics ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("ULT" "USLT"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one lyrics tag")
@@ -218,6 +232,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod writer ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TCM" "TCOM"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one composer tag")
@@ -226,6 +241,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod compilation ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TCMP" "TCP"))))
     (if frames
         (id3:info (first frames))
@@ -233,6 +249,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod disk ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TPA" "TPOS"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one disk number tag")
@@ -241,6 +258,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod tempo ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TBP" "TBPM"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one tempo tag")
@@ -250,6 +268,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 (defun mk-lst (str)
   "Transform 'N/M' to (N M)"
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((pos (position #\/ str)))
     (if (null pos)
         (list str)
@@ -257,6 +276,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 (defmethod track ((me id3:mp3-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((frames (id3:get-frames me '("TRK" "TRCK"))))
     (when frames
       (assert (= 1 (length frames)) () "There can be only one track number tag")
@@ -267,6 +287,7 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
   "Show the tags for an MP3.  If RAW is non-nil, dump all the frames;
 else, print out a subset."
   (declare #.utils:*standard-optimize-settings*)
+
   (if raw
       (format t "~a~%~a~%" (id3:filename me)
               (with-output-to-string (s)
@@ -336,6 +357,7 @@ else, print out a subset."
 
 (defmethod genre        ((me m4a:mp4-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((genre   (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-genre+))
         (genre-x (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-genre-x+)))
     (assert (not (and genre genre-x)))
@@ -346,6 +368,7 @@ else, print out a subset."
 
 (defmethod track ((me m4a:mp4-file))
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((track   (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-track+))
         (track-n (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-track-n+)))
     (assert (not (and track track-n)))
@@ -422,6 +445,8 @@ else show subset of DATA atoms"
 (defmethod genre        ((me flac:flac-file)) (get-flac-tag-info me "genre"))
 
 (defmethod track        ((me flac:flac-file))
+  (declare #.utils:*standard-optimize-settings*)
+
   (let ((tr (get-flac-tag-info me "tracknumber"))
         (tn (get-flac-tag-info me "tracktotal")))
     (if tn (list tr tn) tr)))

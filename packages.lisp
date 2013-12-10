@@ -54,7 +54,6 @@
            #:open-audio-file
            #:stream-filename
            #:stream-read-iso-string
-           #:stream-read-octets
            #:stream-read-sequence
            #:stream-read-u128
            #:stream-read-u16
@@ -72,7 +71,6 @@
 (defpackage #:flac
   (:export #:audio-info
            #:filename
-           #:find-flac-frames
            #:flac-file
            #:flac-get-tag
            #:flac-headers
@@ -109,17 +107,15 @@
            #:+itunes-track-n+
            #:+itunes-writer+
            #:+itunes-year+
-           #:atom-decoded
            #:atom-file-pos
            #:atom-size
            #:atom-type
            #:audio-info
            #:clear-skipped
            #:filename
-           #:find-mp4-atoms
            #:get-mp4-audio-info
            #:is-valid-m4-file
-           #:map-mp4-atom
+           #:map-mp4-atoms
            #:mp4-atom
            #:mp4-atoms
            #:mp4-file
@@ -139,12 +135,9 @@
            #:desc
            #:encoding
            #:filename
-           #:find-id3-frames
            #:frames
            #:genre
-           #:get-frame-info
            #:get-frames
-           #:header
            #:id
            #:id3-frame
            #:id3-header
@@ -155,15 +148,13 @@
            #:mp3-file
            #:parse-audio-file
            #:picture-info
-           #:skipped-id3-frames*
            #:title
            #:v21-tag-header
            #:val
            #:version
            #:vpprint
            #:year
-           #:year
-           #:year)
+           #:*skipped-id3-frames*)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
 (defpackage #:abstract-tag
@@ -173,14 +164,13 @@
            #:comment
            #:composer
            #:copyright
-           #:created
            #:encoder
            #:get-id3v1-genre
            #:groups
            #:lyrics
+           #:*raw-tags*
            #:title
            #:show-tags
-           #:tool
            #:writer)
   (:use #:common-lisp #:audio-streams #:utils))
 

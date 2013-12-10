@@ -70,16 +70,19 @@
 
 (defmethod flac-add-tag ((me flac-tags) new-tag new-val)
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((l-new-tag (string-downcase new-tag)))
     (setf (gethash l-new-tag (tags me)) new-val)))
 
 (defmethod flac-get-tag ((me flac-tags) key)
   (declare #.utils:*standard-optimize-settings*)
+
   (gethash (string-downcase key) (tags me)))
 
 (defun flac-get-tags (stream)
   "Loop through file and find all comment tags."
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((tags (make-instance 'flac-tags))
          (vendor-len (stream-read-u32 stream :endian :big-endian))
          (vendor-str (stream-read-utf-8-string stream vendor-len))
@@ -111,7 +114,6 @@
   "Loop through file and find all FLAC headers. If we find comment or audio-info
 headers, go ahead and parse them too."
   (declare #.utils:*standard-optimize-settings*)
-
   (declare (ignore get-audio-info)) ; audio info comes for "free"
 
   (stream-seek instream 4 :start)

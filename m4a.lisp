@@ -22,6 +22,7 @@
   (defun as-string (atom-type)
     "Given an integer, return the string representation"
     (declare #.utils:*standard-optimize-settings*)
+
     (with-output-to-string (s nil)
       (write-char (code-char (ldb (byte 8 24) atom-type)) s)
       (write-char (code-char (ldb (byte 8 16) atom-type)) s)
@@ -31,6 +32,7 @@
   (defun as-octet (c)
     "Used below so that we can create atom 'types' from char/ints"
     (declare #.utils:*standard-optimize-settings*)
+
     (cond ((typep c 'standard-char) (coerce (char-code c) '(unsigned-byte 8)))
           ((typep c 'integer) (coerce c '(unsigned-byte 8)))
           (t (error "can only handle characters and integers"))))
@@ -86,8 +88,8 @@
 (defconstant* +mp4-atom-trak+         (mk-mp4-atom-type #\t #\r #\a #\k))
 (defconstant* +mp4-atom-udta+         (mk-mp4-atom-type #\u #\d #\t #\a))
 
-(defvar *in-progress* nil "the node currently being worked upon")
-(defvar *tree*        nil "the root of the atom tree")
+(defparameter *in-progress* nil "the node currently being worked upon")
+(defparameter *tree*        nil "the root of the atom tree")
 
 (defclass mp4-atom ()
   ((atom-file-pos :accessor atom-file-pos :initarg :atom-file-pos :initform nil)
@@ -97,6 +99,7 @@
 
 (defmethod initialize-instance :around ((me mp4-atom) &key &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((old *in-progress*)
          (*in-progress* (tree:make-node me)))
     (if old
@@ -137,6 +140,7 @@ moov.udta.meta.ilst.xid  # space end!
   "The 'skip' atom.  Used when we want to capture the header of atom, but don't want/need
 to read the payload of an atom."
   (declare #.utils:*standard-optimize-settings*)
+
   (with-mp4-atom-slots (me)
     (stream-seek mp4-file (- atom-size 8) :current)))
 
@@ -145,6 +149,7 @@ to read the payload of an atom."
 
 (defmethod initialize-instance :after ((me mp4-container-atom) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-mp4-atom-slots (me)
     (loop for end = (+ atom-file-pos atom-size)
           for current = (stream-seek mp4-file) then (stream-seek mp4-file)
@@ -185,6 +190,7 @@ to read the payload of an atom."
 
 (defmethod initialize-instance :after ((me atom-data) &key mp4-file parent &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (atom-size atom-type atom-version atom-flags atom-value) me
     (setf atom-version (stream-read-u8 mp4-file)
           atom-flags   (stream-read-u24 mp4-file))
@@ -245,6 +251,7 @@ to read the payload of an atom."
 
 (defmethod initialize-instance :after ((me atom-hdlr) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (version flags qtype mtype resv rflag rmask mhdlr atom-size) me
     (setf version  (stream-read-u8 mp4-file)
           flags    (stream-read-u24 mp4-file)
@@ -268,6 +275,7 @@ to read the payload of an atom."
 
 (defmethod initialize-instance :after ((me atom-mdhd) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (version flags c-time m-time scale duration lang quality) me
     (setf version  (stream-read-u8 mp4-file)
           flags    (stream-read-u24 mp4-file)
@@ -297,6 +305,7 @@ to read the payload of an atom."
 (defun read-descriptor-len (instream)
   "Get the ES descriptor's length."
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((tmp (stream-read-u8 instream))
          (len (logand tmp #x7f)))
     (declare (type (unsigned-byte 8) tmp))
@@ -328,6 +337,7 @@ to read the payload of an atom."
 
 (defmethod initialize-instance :after ((me atom-esds) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
     (setf version (stream-read-u8 mp4-file)
           flags (stream-read-u24 mp4-file))
@@ -355,6 +365,7 @@ to read the payload of an atom."
 
 (defmethod initialize-instance :after ((me atom-stsd) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (flags version num-entries) me
     (setf version     (stream-read-u8 mp4-file)
           flags       (stream-read-u24 mp4-file)
@@ -395,6 +406,7 @@ reading the container atoms"
 
 (defmethod initialize-instance :around ((me atom-meta) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
+
    (with-slots (version flags) me
      (setf version (stream-read-u8 mp4-file)
            flags   (stream-read-u24 mp4-file)))
@@ -404,6 +416,8 @@ reading the container atoms"
 ;;; This needs to be enhanced by accounting for all atom-types,
 ;;; else we get potential runaways. For now, just brute-force it
 (defun is-valid (str)
+  (declare #.utils:*standard-optimize-settings*)
+
   (assert (= 4 (length str)))
   (loop for c across str do
     (when (not (or (alphanumericp c)
@@ -445,6 +459,7 @@ reading the container atoms"
 
 (defun make-mp4-atom (mp4-file parent)
   "Get current file position, read in size/type, then construct the correct atom."
+
   (declare #.utils:*standard-optimize-settings*)
   (let* ((pos (stream-seek mp4-file))
          (siz (stream-read-u32 mp4-file))
@@ -466,6 +481,7 @@ reading the container atoms"
 
 (defmethod vpprint ((me mp4-atom) stream)
   (declare #.utils:*standard-optimize-settings*)
+
   (format stream "~a"
           (with-output-to-string (s)
             (with-mp4-atom-slots (me)
@@ -482,6 +498,7 @@ reading the container atoms"
   "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?
 Written in this fashion so as to be 'crash-proof' when passed an arbitrary file."
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((valid)
         (size)
         (header))
@@ -532,6 +549,7 @@ one of the +iTunes- constants")
 (defmethod tag-get-value (atoms atom-type)
   "Helper function to extract text from ILST atom's data atom"
   (declare #.utils:*standard-optimize-settings*)
+
   (setf (nth 5 *ilst-data*) atom-type)
   (aif (tree:at-path atoms *ilst-data*
                      (lambda (x y)
@@ -542,6 +560,7 @@ one of the +iTunes- constants")
 (defun mp4-show-raw-tag-atoms (mp4-file-stream out-stream)
   "Show all the iTunes data atoms"
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((top-node
           (tree:at-path (mp4-atoms mp4-file-stream)
                         (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
@@ -590,6 +609,7 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
 
 (defmethod vpprint ((me audio-info) stream)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me
     (format stream "sample rate: ~:d Hz, # channels: ~d, bits-per-sample: ~:d, max bit-rate: ~:d Kbps, avg bit-rate: ~:d Kbps, duration: ~:d:~2,'0d"
             (if sample-rate sample-rate 0)
@@ -603,6 +623,7 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
 (defun get-mp4-audio-info (mp4-file)
   "Find and parse the audio information in MP4-FILE"
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((info (make-instance 'audio-info)))
     (multiple-value-bind (mdhd mp4a esds) (get-audio-properties-atoms mp4-file)
       (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) info
@@ -618,3 +639,13 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
           (setf avg-bit-rate (avg-bit-rate esds)
                 max-bit-rate (max-bit-rate esds))))))
     info))
+
+(defun map-mp4-atoms (m4a &key (func (constantly t)))
+  "Visit each atom we found in M4A"
+  (declare #.utils:*standard-optimize-settings*)
+
+  (tree:traverse
+   (m4a:mp4-atoms m4a)
+   (lambda (node depth)
+     (declare (ignore depth))
+     (funcall func (tree:data node)))))

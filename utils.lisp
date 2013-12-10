@@ -98,10 +98,12 @@ The macro expansion has relatively low overhead in space or time."
 (defun upto-null (string)
   "Trim STRING to end at first NULL found"
   (declare #.utils:*standard-optimize-settings*)
+
   (subseq string 0 (position #\Null string)))
 
 (defun dump-data (file-name data)
   (declare #.utils:*standard-optimize-settings*)
+
   (with-open-file (f file-name :direction :output :if-exists :supersede :element-type '(unsigned-byte 8))
     (write-sequence data f)))
 
@@ -116,6 +118,7 @@ The macro expansion has relatively low overhead in space or time."
   "Create a bit mask that begins at bit START (31 is MSB) and is WIDTH bits wide.
 Example: (get-bitmask 31 11) -->> #xffe00000"
   (declare #.utils:*standard-optimize-settings*)
+
   (ash (- (ash 1 width) 1) (- (1+ start) width)))
 
 (defmacro get-bitfield (int start width)
@@ -173,6 +176,7 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 (defun mk-memoize (func-name)
   "Takes a normal function object and returns a memoized one"
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((func (symbol-function func-name))
          (the-hash-table (make-locked-hash-table
                           :lock (make-lock)
@@ -192,6 +196,7 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
 
 (defun timings (function)
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((real-base (get-internal-real-time)))
     (funcall function)
     (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))

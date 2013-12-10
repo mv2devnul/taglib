@@ -6,6 +6,7 @@
 (defun make-audio-stream (arg)
   "Creates a stream for ARG"
   (declare #.utils:*standard-optimize-settings*)
+
   (labels ((make-file-stream (name)
              (let ((fd (open name :direction :input :element-type 'octet)))
                (if fd
@@ -37,6 +38,7 @@
   "Move the FILE-POSITION of a stream"
   (declare #.utils:*standard-optimize-settings*)
   (declare (fixnum offset))
+
   (ecase from
     (:start (file-position stream offset))
     (:current (file-position stream (+ (file-position stream) offset)))
@@ -70,18 +72,28 @@ many bits should be used from each read byte."
            finally (return-from read-n-bytes value)))))
 
 ;;;; Number readers
+(declaim (inline stream-read-u8
+                 stream-read-u16
+                 stream-read-u32
+                 stream-read-u64
+                 stream-read-u128))
+
 (defun stream-read-u8 (stream)
   (declare #.utils:*standard-optimize-settings*)
   (read-byte stream nil nil))
 
 (defun stream-read-u16  (stream &key (bits-per-byte 8) (endian :little-endian))
   (read-n-bytes stream 2  :bits-per-byte bits-per-byte :endian endian))
+
 (defun stream-read-u24  (stream &key (bits-per-byte 8) (endian :little-endian))
   (read-n-bytes stream 3  :bits-per-byte bits-per-byte :endian endian))
+
 (defun stream-read-u32  (stream &key (bits-per-byte 8) (endian :little-endian))
   (read-n-bytes stream 4  :bits-per-byte bits-per-byte :endian endian))
+
 (defun stream-read-u64  (stream &key (bits-per-byte 8) (endian :little-endian))
   (read-n-bytes stream 8  :bits-per-byte bits-per-byte :endian endian))
+
 (defun stream-read-u128 (stream &key (bits-per-byte 8) (endian :little-endian))
   (read-n-bytes stream 16 :bits-per-byte bits-per-byte :endian endian))
 
@@ -89,6 +101,7 @@ many bits should be used from each read byte."
 (defun stream-read-sequence (stream size &key (bits-per-byte 8))
   "Read in a sequence of octets at BITS-PER-BYTE"
   (declare #.utils:*standard-optimize-settings*)
+
   (ecase bits-per-byte
     (8 (let ((octets (make-octets size)))
          (values octets (read-sequence octets stream))))
@@ -205,12 +218,14 @@ byte-order marks, so we have to do that here before calling."
 
 
 ;;;; Files
-(defvar *get-audio-info* t
-  "controls whether the parsing functions parse audio info like bit-rate, etc")
+(defparameter *get-audio-info* t
+  "Controls whether the parsing functions parse audio info like bit-rate, etc")
 
 (defun open-audio-file (filename &optional (get-audio-info *get-audio-info*))
-  "Open and parse FILENAME for tag and optionally audio info"
+  "Open and parse FILENAME for tag and optionally audio info. Closes underlying
+file upon return."
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((stream)
         (info))
 
