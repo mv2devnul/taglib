@@ -1,7 +1,7 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: CL-USER; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
-(pushnew :dbg *features*)
+;;;;(pushnew :dbg *features*)
 
 (asdf:defsystem #:taglib
   :description "Pure Lisp implementation to read (and write, perhaps, one day) tags"

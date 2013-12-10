@@ -8,7 +8,6 @@
   "Read in a string of a given encoding of length 'len'. Encoding
 is from the ID3 'spec'"
   (declare #.utils:*standard-optimize-settings*)
-  (dbg nil 'id3-read-string instream len encoding)
   (if (and len (<= len 0))
       nil
       (ecase encoding
@@ -22,7 +21,6 @@ is from the ID3 'spec'"
 is from the ID3 'spec'"
   (declare #.utils:*standard-optimize-settings*)
 
-  (dbg nil 'id3-decode-ring octets start end)
   (ecase encoding
     (0 (flex:octets-to-string octets :external-format :iso-8859-1 :start start :end end))
     (1 (flex:octets-to-string octets :external-format :ucs-2 :start start :end end))
@@ -212,7 +210,6 @@ NB: 2.3 and 2.4 extended flags are different..."
             revision (stream-read-u8 instream)
             flags    (stream-read-u8 instream)
             size     (stream-read-u32 instream :bits-per-byte 7))
-      (dbg nil 'id3-header-init version revision flags size (stream-seek instream 0 :current))
       (assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -241,7 +238,6 @@ NB: 2.3 and 2.4 extended flags are different..."
          (name     (id3-read-string instream :encoding name-encoding))
          (name-len (- (stream-seek instream) old-pos))
          (value))
-    (dbg nil 'get-name-value-pair len name-len (- len name-len) name-encoding value-encoding)
 
     (setf value (if (>= value-encoding 0)
                     (id3-read-string instream :len (- len name-len)
@@ -942,7 +938,6 @@ NB: 2.3 and 2.4 extended flags are different..."
                                                         (2 2)
                                                         (3 3)
                                                         (4 3)))))
-    (dbg nil 'make-frame fn frame-name)
     (setf frame-len (ecase version
                       (2 (stream-read-u24 instream))
                       (3 (stream-read-u32 instream))
@@ -961,7 +956,6 @@ NB: 2.3 and 2.4 extended flags are different..."
               (null frame-class))
       (error "bad frame at position ~d found: ~a" pos frame-name))
 
-    (dbg nil 'make-frame frame-class pos version frame-name frame-len frame-flags)
     (make-instance frame-class :pos pos :version version :id frame-name :len frame-len :flags frame-flags :instream instream)))
 
 (defun is-valid-mp3-file (instream)
@@ -1005,7 +999,6 @@ NB: 2.3 and 2.4 extended flags are different..."
              (let (frames this-frame)
                (do ()
                    ((>= (stream-seek stream) (stream-size stream)))
-                 (dbg nil 'parse-audio-file "top-of-loop")
                  (handler-case
                      (progn
                        (setf this-frame (make-frame version stream
@@ -1029,7 +1022,6 @@ NB: 2.3 and 2.4 extended flags are different..."
         ;; memory stream rationale: it may need to be unsysnc'ed and it helps
         ;; prevent run-away reads with mis-formed frames
         (when (not (zerop size))
-          (dbg nil 'parse-audio-file size frames flags version)
           (let ((mem-stream
                   (make-audio-stream (stream-read-sequence
                                       instream size
@@ -1038,7 +1030,6 @@ NB: 2.3 and 2.4 extended flags are different..."
 
             ;; Make extended header here since it is subject to unsynchronization.
             (when (header-extended-p flags)
-              (dbg nil 'parse-audio-file "make-ext-header")
               (setf ext-header (make-instance 'id3-ext-header
                                               :instream mem-stream
                                               :version version)))
