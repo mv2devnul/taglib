@@ -17,7 +17,9 @@ is from the ID3 'spec'"
         (2 (stream-read-ucs-string instream :len len :kind :ucs-2be))
         (3 (stream-read-utf-8-string instream len)))))
 
-(defun id3-decode-string (octets &key (encoding 0 ) (start 0) (end (length octets)))
+(defun id3-decode-string (octets &key (encoding 0)
+                                      (start 0)
+                                      (end (length octets)))
   "Decode a string of a given encoding of length 'len'. Encoding
 is from the ID3 'spec'"
   (declare #.utils:*standard-optimize-settings*)
@@ -66,9 +68,9 @@ is from the ID3 'spec'"
           year     (upto-null (stream-read-iso-string instream 4)))
 
     ;; In V21, a comment can be split into comment and track #
-    ;; find the first #\Null then check to see if that index < 28.  If so, the check the last two bytes being
-    ;; non-zero---if so, then track can be set to integer value of last two bytes
-
+    ;; find the first #\Null then check to see if that index < 28.  If so,
+    ;; check the last two bytes being non-zero---if so, track can be set to
+    ;; integer value of last two bytes
     (let* ((c (stream-read-sequence instream 30))
            (first-null (find 0 c))
            (trck 0))
@@ -93,9 +95,10 @@ is from the ID3 'spec'"
   (:documentation "Class representing a V2.3/4 extended header"))
 
 (defmethod initialize-instance :after ((me id3-ext-header) &key instream version)
-  "Read in the extended header.  Caller will have stream-seek'ed to correct location in file.
-Note: extended headers are subject to unsynchronization, so make sure that INSTREAM has been made sync-safe.
-NB: 2.3 and 2.4 extended flags are different..."
+  "Read in the extended header.  Caller will have stream-seek'ed to correct
+location in file. Note: extended headers are subject to unsynchronization, so
+make sure that INSTREAM has been made sync-safe. NB: 2.3 and 2.4 extended flags
+are different..."
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (size flags padding crc is-update restrictions) me
@@ -106,24 +109,32 @@ NB: 2.3 and 2.4 extended flags are different..."
        (setf padding (stream-read-u32 instream))
        (when (logand flags #x8000)
          (if (not (= size 10))
-             (warn-user "CRC bit set in extended header, but not enough bytes to read")
+             (warn-user "file ~a:~%CRC bit set in extended header, but not enough bytes to read"
+                        audio-streams:*current-file*)
              (setf crc (stream-read-u32 instream)))))
       (4
        (when (not (= (logand #xff00 flags) 1))
-         (warn-user "v2.4 extended flags length is not 1"))
+         (warn-user "file ~a:~%v2.4 extended flags length is not 1"
+                    audio-streams:*current-file*))
        (setf flags (logand flags #xff)) ; lop off type byte (the flags length)
        (let ((len 0))
          (when (logand #x3000 flags)
            (setf len (stream-read-u8 instream))
-           (when (not (zerop len)) (warn-user "v2.4 extended header is-tag length is ~d" len))
+           (when (not (zerop len))
+             (warn-user "file ~a:~%v2.4 extended header is-tag length is ~d"
+                        audio-streams:*current-file* len))
            (setf is-update t))
          (when (logand #x2000 flags)
            (setf len (stream-read-u8 instream))
-           (when (not (= 5 len)) (warn-user "v2.4 extended header crc length is ~d" len))
+           (when (not (= 5 len))
+             (warn-user "file ~a:~%v2.4 extended header crc length is ~d"
+                        audio-streams:*current-file* len))
            (setf crc (stream-read-u32 instream :bits-per-byte 7)))
          (when (logand #x1000 flags)
            (setf len (stream-read-u8 instream))
-           (when (not (= 5 1)) (warn-user "v2.4 extended header restrictions length is ~d" len))
+           (when (not (= 5 1))
+             (warn-user "file ~a:~%v2.4 extended header restrictions length is ~d"
+                        audio-streams:*current-file* len))
            (setf restrictions (stream-read-u8 instream))))))))
 
 (defun ext-header-restrictions-grok (r)
@@ -165,8 +176,9 @@ NB: 2.3 and 2.4 extended flags are different..."
     (format stream "extended header: size: ~d, flags: ~x, padding ~:d, crc = ~x is-update ~a, restrictions = ~x/~a~%"
             size flags padding crc is-update restrictions (ext-header-restrictions-grok restrictions))))
 
-;;; NB: v2.2 only really defines bit-7. It does document bit-6 as being the compression flag, but then states
-;;; that if it is set, the software should "ignore the entire tag if this (bit-6) is set"
+;;; NB: v2.2 only really defines bit-7. It does document bit-6 as being the
+;;; compression flag, but then states that if it is set, the software should
+;;; "ignore the entire tag if this (bit-6) is set"
 (defmacro header-unsynchronized-p (flags) `(logbitp 7 ,flags)) ; all share this flag
 (defmacro header-extended-p (flags)       `(logbitp 6 ,flags)) ; 2.3/2.4
 (defmacro header-experimental-p (flags)   `(logbitp 5 ,flags)) ; 2.3/2.4
@@ -207,7 +219,8 @@ NB: 2.3 and 2.4 extended flags are different..."
       (handler-case
           (setf v21-tag-header (make-instance 'v21-tag-header :instream instream))
         (condition (c)
-          (utils:warn-user "initialize id3-header got condition ~a" c))))
+          (warn-user "file ~a:~%Initialize id3-header got condition ~a"
+                           audio-streams:*current-file* c))))
 
     (stream-seek instream 0 :start)
     (when (string= "ID3" (stream-read-iso-string instream 3))
@@ -217,26 +230,29 @@ NB: 2.3 and 2.4 extended flags are different..."
             size     (stream-read-u32 instream :bits-per-byte 7))
       (assert (not (header-footer-p flags)) () "Can't decode ID3 footer's yet"))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Frames
 ;;;
-;;; General plan: for each frame type we are interested in, DEFCLASS a class with
-;;; specfic naming convention: frame-xxx/frame-xxxx, where xxx is valid ID3V2.2 frame name
-;;; and xxxx is a valid ID3V2.[34] frame name.  Upon finding a frame name in an MP3 file,
-;;; we can then do a FIND-CLASS on the "frame-xxx", and a MAKE-INSTANCE on the found class
-;;; to read in that class (each defined class is assumed to have an INITIALIZE-INSTANCE method
-;;; that reads in data to build class.
+;;; General plan: for each frame type we are interested in, DEFCLASS a
+;;; class with specfic naming convention: frame-xxx/frame-xxxx, where xxx
+;;; is valid ID3V2.2 frame name and xxxx is a valid ID3V2.[34] frame name.
+;;; Upon finding a frame name in an MP3 file, we can then do a FIND-CLASS
+;;; on the "frame-xxx", and a MAKE-INSTANCE on the found class to read in
+;;; that class (each defined class is assumed to have an
+;;; INITIALIZE-INSTANCE method that reads in data to build class.
 ;;;
-;;; Each frame class assumes that the STREAM being passed has been made sync-safe.
+;;; Each frame class assumes that the STREAM being passed has been made
+;;; sync-safe.
 ;;;
-;;; For any class we don't want to parse (eg, haven't gotten around to it yet, etc), we create
-;;; a RAW-FRAME class that can be subclassed.  RAW-FRAME simply reads in the frame header, and then
-;;; the frame "payload" as raw OCTETS.
+;;; For any class we don't want to parse (eg, haven't gotten around to it
+;;; yet, etc), we create a RAW-FRAME class that can be subclassed.
+;;; RAW-FRAME simply reads in the frame header, and then the frame
+;;; "payload" as raw OCTETS.
 
-;;;
-;;; many ID3 tags are name/value pairs, with the name/value encoded in various ways
-;;; this routine assumes that the "name" is always a string with a "normal" encoding (i.e. 0, 1, 2, or 3).
-;;; The "value" field accepts "normal" encoding, but also accepts any negative number, which means read
-;;; the bytes an raw octets.
+;;; Many ID3 tags are name/value pairs, with the name/value encoded in
+;;; various ways this routine assumes that the "name" is always a string
+;;; with a "normal" encoding (i.e. 0, 1, 2, or 3).  The "value" field
+;;; accepts "normal" encoding, but also accepts any negative number, which
+;;; means read the bytes an raw octets.
 (defun get-name-value-pair (instream len name-encoding value-encoding)
   (declare #.utils:*standard-optimize-settings*)
 
@@ -291,9 +307,9 @@ NB: 2.3 and 2.4 extended flags are different..."
   (declare #.utils:*standard-optimize-settings*)
 
   (ecase version
-    (2 (format stream "None, "))
+    (2 (format stream "None"))
     (3 (format stream
-               "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~], "
+               "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0~;group~]"
                flags
                (frame-23-altertag-p flags)
                (frame-23-alterfile-p flags)
@@ -302,7 +318,7 @@ NB: 2.3 and 2.4 extended flags are different..."
                (frame-23-encrypt-p flags)
                (frame-23-group-p flags)))
     (4 (format stream
-               "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~], "
+               "flags: 0x~4,'0x: ~:[0/~;tag-alter-preservation/~]~:[0/~;file-alter-preservation/~]~:[0/~;read-only/~]~:[0/~;group-id/~]~:[0/~;compress/~]~:[0/~;encypt/~]~:[0/~;unsynch/~]~:[0~;datalen~]"
                flags
                (frame-24-altertag-p flags)
                (frame-24-alterfile-p flags)
@@ -316,9 +332,10 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defun vpprint-frame-header (id3-frame)
   (with-output-to-string (stream)
     (with-slots (pos version id len flags) id3-frame
-      (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d, ~a" pos version id len
+      (format stream "offset: ~:d, version = ~d, id: ~a, len: ~:d, ~a"
+              pos version id len
               (if flags
-                  (print-frame-flags version flags stream)
+                  (print-frame-flags version flags nil)
                   "flags: none")))))
 
 (defclass frame-raw (id3-frame)
@@ -335,7 +352,9 @@ NB: 2.3 and 2.4 extended flags are different..."
   (with-slots (octets) me
     (format stream "frame-raw: ~a, ~a" (vpprint-frame-header me) (printable-array octets))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V2.2 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; V2.2 frames
+
+;;; Frames we need to implement someday
 (defclass frame-buf (frame-raw) ())
 (defclass frame-cnt (frame-raw) ())
 (defclass frame-cra (frame-raw) ())
@@ -478,6 +497,10 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-tbp (frame-text-info) ())
 (defclass frame-tcm (frame-text-info) ())
 (defclass frame-tco (frame-text-info) ())
+(defclass frame-tsa (frame-text-info) ())
+(defclass frame-tsc (frame-text-info) ())
+(defclass frame-tsp (frame-text-info) ())
+(defclass frame-ts2 (frame-text-info) ())
 
 (defclass frame-itunes-compilation (frame-raw)
   ((info :accessor info)))
@@ -583,7 +606,9 @@ NB: 2.3 and 2.4 extended flags are different..."
   (with-slots (id len name value) me
     (format stream "frame-ufi: ~a, name: <~a>, value: ~a" (vpprint-frame-header me) name (printable-array value))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; V23/V24 frames ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; V23/V24 frames
+
+;;; Frames we need to implement someday
 (defclass frame-aenc (frame-raw) ())
 (defclass frame-aspi (frame-raw) ())
 (defclass frame-comr (frame-raw) ())
@@ -602,6 +627,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-popm (frame-raw) ())
 (defclass frame-poss (frame-raw) ())
 (defclass frame-rbuf (frame-raw) ())
+(defclass frame-rgad (frame-raw) ())
 (defclass frame-rva2 (frame-raw) ())
 (defclass frame-rvad (frame-raw) ())
 (defclass frame-rvrb (frame-raw) ())
@@ -610,6 +636,8 @@ NB: 2.3 and 2.4 extended flags are different..."
 (defclass frame-sylt (frame-raw) ())
 (defclass frame-sytc (frame-raw) ())
 (defclass frame-user (frame-raw) ())
+(defclass frame-xdor (frame-raw) ())
+(defclass frame-xsop (frame-raw) ())
 
 ;;; V23/V24 text-info frames
 (defclass frame-talb (frame-text-info) ())
@@ -882,7 +910,7 @@ NB: 2.3 and 2.4 extended flags are different..."
 ;;; Identical to frame-txx
 (defclass frame-wxxx (frame-txx) ())
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; frame finding/creation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Frame finding/creation
 
 (defun possibly-valid-frame-id? (frame-id)
   "test to see if a string is a potentially valid frame id"
@@ -900,12 +928,13 @@ NB: 2.3 and 2.4 extended flags are different..."
                        (and (alpha-char-p c) (upper-case-p c))))
           (return-from possibly-valid-frame-id? nil))))
     t))
+(memoize 'possibly-valid-frame-id?)
 
 (defun mk-frame-class-name (id)
   (declare #.utils:*standard-optimize-settings*)
 
   (string-upcase (concatenate 'string "frame-" id)))
-(utils:memoize 'mk-frame-class-name)
+(memoize 'mk-frame-class-name)
 
 (defparameter *skipped-id3-frames* (make-hash-table :test #'equalp))
 
@@ -938,14 +967,17 @@ NB: 2.3 and 2.4 extended flags are different..."
                         (#\T (find-class (find-symbol "FRAME-TEXT-INFO" :ID3)))
                         (#\W (find-class (find-symbol "FRAME-URL-LINK"  :ID3)))
                         (t
-                         ;; we don't recognize the frame name.  if it could possibly be a real frame name,
-                         ;; then just read it raw
+                         ;; we don't recognize the frame name.  if it could
+                         ;; possibly be a real frame name, then just read
+                         ;; it raw
                          (when (possibly-valid-frame-id? id)
+                           (add-skipped id)
+                           (warn-user "file ~a~%Unknown frame type <~a> encountered~%"
+                                      audio-streams:*current-file* id)
                            (find-class (find-symbol "FRAME-RAW" :ID3))))))
-    (add-skipped id)
     found-class))
 
-(utils:memoize 'find-frame-class)
+(memoize 'find-frame-class)
 
 (defun make-frame (version instream fn)
   "Create an appropriate mp3 frame by reading data from INSTREAM."
@@ -958,12 +990,15 @@ NB: 2.3 and 2.4 extended flags are different..."
     (when (zerop byte) ; XXX should this be correlated to PADDING in the extended header???
       (return-from make-frame nil))     ; hit padding
 
+    ;; I have seen 3-char frame names where 4-chars were supposed to be...
     (setf frame-name
-          (concatenate 'string (string (code-char byte))
-                       (id3-read-string instream :len (ecase version
-                                                        (2 2)
-                                                        (3 3)
-                                                        (4 3)))))
+          (string-right-trim '(#\Space #\Null)
+                             (concatenate 'string (string (code-char byte))
+                                          (id3-read-string instream
+                                                           :len (ecase version
+                                                                  (2 2)
+                                                                  (3 3)
+                                                                  (4 3))))))
     (setf frame-len (ecase version
                       (2 (stream-read-u24 instream))
                       (3 (stream-read-u32 instream))
@@ -972,12 +1007,13 @@ NB: 2.3 and 2.4 extended flags are different..."
     (when (or (= version 3) (= version 4))
       (setf frame-flags (stream-read-u16 instream))
       (when (not (valid-frame-flags version frame-flags))
-        (warn-user "Invalid frame flags found in ~a: ~a, will ignore" fn (print-frame-flags version frame-flags nil))))
-
+        (warn-user "file: ~a~%Invalid frame flags found: ~a; will ignore"
+                   fn
+                   (print-frame-flags version frame-flags nil))))
     (setf frame-class (find-frame-class frame-name))
 
-    ;; edge case where found a frame name, but it is not valid or where making this frame
-    ;; would blow past the end of the file/buffer
+    ;; edge case where found a frame name, but it is not valid or where
+    ;; making this frame would blow past the end of the file/buffer
     (when (or (> (+ (stream-seek instream) frame-len) (stream-size instream))
               (null frame-class))
       (error "bad frame at position ~d found: ~a" pos frame-name))
@@ -1035,7 +1071,8 @@ NB: 2.3 and 2.4 extended flags are different..."
 
                        (push this-frame frames))
                    (condition (c)
-                     (utils:warn-user "id3 parse-audio-file got condition ~a" c)
+                     (warn-user "file ~a:~%Id3 parse-audio-file got condition ~a"
+                                      audio-streams:*current-file* c)
                      (return-from read-loop (values nil (nreverse frames))))))
 
                (values t (nreverse frames))))) ; frames in "file order"
@@ -1065,7 +1102,7 @@ NB: 2.3 and 2.4 extended flags are different..."
             (multiple-value-bind (_ok _frames) (read-loop version mem-stream)
               (if (not _ok)
                   (warn-user
-                   "File ~a had errors finding mp3 frames. potentially missed frames!"
+                   "file ~a:~%Had errors finding mp3 frames. potentially missed frames!"
                    (stream-filename instream)))
               (setf frames _frames))))
         (when get-audio-info

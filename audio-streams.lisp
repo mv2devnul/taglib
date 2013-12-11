@@ -3,6 +3,9 @@
 
 (in-package #:audio-streams)
 
+(defparameter *current-file*
+  "The file currently being worked on by OPEN-AUDIO-FILE")
+
 (defun make-audio-stream (arg)
   "Creates a stream for ARG"
   (declare #.utils:*standard-optimize-settings*)
@@ -150,7 +153,8 @@ read in null-terminated ISO string w/o null at end"
           (ldb (byte 8 8) retval) (aref octets 0))
     (when (not (or (= #xfffe retval) (= #xfeff retval)))
       (error
-       "Got invalid byte-order mark of ~x in STREAM-DECODE-UCS-STRING"
+       "File ~a: Got invalid byte-order mark of ~x in STREAM-DECODE-UCS-STRING"
+       *current-file*
        retval))
     retval))
 
@@ -178,11 +182,17 @@ byte-order marks, so we have to do that here before calling."
           (setf len (length octets)))
         (setf octets (stream-read-sequence instream len)))
 
+    ;; This seems to happen a lot in MP3 files: instead of ending a
+    ;; null-terminated UCS string with #x0000, it's terminated with #x00.
+    ;; flexi-streams doesn't like this, so fix and warn only if we're deleting a
+    ;; non-null octet.
     (when (oddp len)
-      (warn-user "UCS string has odd length, decrementing by 1")
+      (when (not (zerop (aref octets (1- len))))
+        (warn-user "file ~a:~%UCS string has odd length, decrementing by 1"
+                   *current-file*))
       (decf len 1))
 
-    (when (= 0 len)
+    (when (<= 0 len)
       (return-from stream-read-ucs-string ""))
 
     (when (eql kind :ucs-2)
@@ -227,7 +237,8 @@ file upon return."
   (declare #.utils:*standard-optimize-settings*)
 
   (let ((stream)
-        (info))
+        (info)
+        (*current-file* filename))
 
     (unwind-protect
          (progn

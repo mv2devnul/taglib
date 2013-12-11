@@ -177,6 +177,6 @@ headers, go ahead and parse them too."
   "Spit out the raw form of comments we found"
   (declare #.utils:*standard-optimize-settings*)
 
-  (format out-stream "Vendor string: <~a>~%" (vendor-str (flac-tags flac-file-stream)))
+  (format out-stream "~4tVendor string: <~a>~%" (vendor-str (flac-tags flac-file-stream)))
   (dotimes (i (length (comments (flac-tags flac-file-stream))))
     (format out-stream "~4t[~d]: <~a>~%" i (nth i (comments (flac-tags flac-file-stream))))))

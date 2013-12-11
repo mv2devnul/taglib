@@ -1,7 +1,8 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: MPEG; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
-;;; Parsing MPEG audio frames.  See http://www.datavoyage.com/mpgscript/mpeghdr.htm for format of a frame.
+;;; Parsing MPEG audio frames.  See
+;;; http://www.datavoyage.com/mpgscript/mpeghdr.htm for format of a frame.
 (in-package #:mpeg)
 
 (defconstant* +sync-word+  #x7ff "NB: this is 11 bits so as to be able to recognize V2.5")
@@ -30,6 +31,7 @@
 
 (defun valid-layer (layer)
   (declare #.utils:*standard-optimize-settings*)
+
   (or (= (the fixnum +layer-3+) (the fixnum layer))
       (= (the fixnum +layer-2+) (the fixnum layer))
       (= (the fixnum +layer-1+) (the fixnum layer))))
@@ -43,8 +45,10 @@
 (defconstant* +channel-mode-joint+  1)
 (defconstant* +channel-mode-dual+   2)
 (defconstant* +channel-mode-mono+   3)
+
 (defun get-channel-mode-string (mode)
   (declare #.utils:*standard-optimize-settings*)
+
   (nth mode '("Stereo" "Joint" "Dual" "Mono")))
 
 ;;; the emphases
@@ -55,10 +59,12 @@
 
 (defun get-emphasis-string (e)
   (declare #.utils:*standard-optimize-settings*)
+
   (nth e '("None" "50/15 ms" "Reserved" "CCIT J.17")))
 
 (defun valid-emphasis (e)
   (declare #.utils:*standard-optimize-settings*)
+
   (or (= (the fixnum e) (the fixnum +emphasis-none+))
       (= (the fixnum e) (the fixnum +emphasis-50-15+))
       (= (the fixnum e) (the fixnum +emphasis-ccit+))))
@@ -68,17 +74,21 @@
 (defconstant* +mode-extension-1+ 1)
 (defconstant* +mode-extension-2+ 2)
 (defconstant* +mode-extension-3+ 3)
+
 (defun get-mode-extension-string (channel-mode layer mode-extension)
   (declare #.utils:*standard-optimize-settings*)
+
   (if (not (= channel-mode +channel-mode-joint+))
       ""
       (if (or (= layer +layer-1+)
               (= layer +layer-2+))
           (format nil "Bands ~[4~;8~;12~;16~] to 31" mode-extension)
-          (format nil "Intensity Stereo: ~[off~;on~], MS Stereo: ~[off~;on~]" (ash mode-extension -1) (logand mode-extension 1)))))
+          (format nil "Intensity Stereo: ~[off~;on~], MS Stereo: ~[off~;on~]"
+                  (ash mode-extension -1) (logand mode-extension 1)))))
 
 (defun get-samples-per-frame (version layer)
   (declare #.utils:*standard-optimize-settings*)
+
   (cond ((= (the fixnum layer) (the fixnum +layer-1+)) 384)
         ((= (the fixnum layer) (the fixnum +layer-2+)) 1152)
         ((= (the fixnum layer) (the fixnum +layer-3+))
@@ -107,9 +117,12 @@
    (vbr            :accessor vbr            :initarg :vbr)
    (payload        :accessor payload        :initarg :payload))
   (:documentation "Data in and associated with an MPEG audio frame.")
-  (:default-initargs :pos nil :hdr-u32 nil :samples 0 :sync 0 :version 0 :layer 0 :protection 0 :bit-rate 0
-                     :sample-rate 0 :padded 0 :private 0 :channel-mode 0 :mode-extension 0
-                     :copyright 0 :original 0 :emphasis 0 :size nil :vbr nil :payload nil))
+  (:default-initargs :pos nil :hdr-u32 nil :samples 0 :sync 0 :version 0
+                     :layer 0 :protection 0 :bit-rate 0
+                     :sample-rate 0 :padded 0 :private 0 :channel-mode 0
+                     :mode-extension 0
+                     :copyright 0 :original 0 :emphasis 0 :size nil :vbr nil
+                     :payload nil))
 
 (defmacro with-frame-slots ((instance) &body body)
   `(with-slots (pos hdr-u32 samples sync version layer protection bit-rate sample-rate
@@ -136,10 +149,12 @@
 
   (defun valid-bit-rate-index (br-index)
     (declare #.utils:*standard-optimize-settings*)
+
     (and (> (the fixnum br-index) 0) (< (the fixnum br-index) 15)))
 
   (defun get-bit-rate (version layer bit-rate-index)
     (declare #.utils:*standard-optimize-settings*)
+
     (let ((row (1- bit-rate-index))
           (col (cond ((= (the fixnum version) (the fixnum +mpeg-1+))
                       (cond ((= (the fixnum layer) (the fixnum +layer-1+)) 0)
@@ -159,11 +174,13 @@
 
 (defun valid-sample-rate-index (sr-index)
   (declare #.utils:*standard-optimize-settings*)
+
   (and (>= (the fixnum sr-index) 0)
        (<  (the fixnum sr-index) 3)))
 
 (defun get-sample-rate (version sr-index)
   (declare #.utils:*standard-optimize-settings*)
+
   (cond ((= (the fixnum version) (the fixnum +mpeg-1+))
          (case (the fixnum sr-index) (0 44100) (1 48000) (2 32000)))
         ((= (the fixnum version) (the fixnum +mpeg-2+))
@@ -172,6 +189,7 @@
 
 (defun get-frame-size (version layer bit-rate sample-rate padded)
   (declare #.utils:*standard-optimize-settings*)
+
   (truncate (float (cond ((= (the fixnum layer) (the fixnum +layer-1+))
                           (* 4 (+ (/ (* 12 bit-rate) sample-rate) padded)))
                          ((= (the fixnum layer) (the fixnum +layer-2+))
@@ -182,8 +200,10 @@
                               (+ (* 72  (/ bit-rate sample-rate)) padded)))))))
 
 (defmethod load-frame ((me frame) &key instream (read-payload nil))
-  "Load an MPEG frame from current file position.  If READ-PAYLOAD is set, read in frame's content."
+  "Load an MPEG frame from current file position.  If READ-PAYLOAD is set,
+read in frame's content."
   (declare #.utils:*standard-optimize-settings*)
+
   (handler-case
       (with-frame-slots (me)
         (when (null hdr-u32)            ; has header already been read in?
@@ -194,7 +214,8 @@
 
         (if (parse-header me)
             (progn
-              (setf size (get-frame-size version layer bit-rate sample-rate padded))
+              (setf size (get-frame-size version layer bit-rate sample-rate
+                                         padded))
               (when read-payload
                 (setf payload (stream-read-sequence instream (- size 4))))
               t)
@@ -219,8 +240,8 @@ Bits   5-4 (2  bits): the mode extension
 Bit      3 (1  bit ): the copyright bit
 Bit      2 (1  bit ): the original bit
 Bits   1-0 (2  bits): the emphasis"
-
   (declare #.utils:*standard-optimize-settings*)
+
   (with-frame-slots (me)
     ;; check sync word
     (setf sync (get-bitfield hdr-u32 31 11))
@@ -303,14 +324,16 @@ Bits   1-0 (2  bits): the emphasis"
 
 (defun get-side-info-size (version channel-mode)
   (declare #.utils:*standard-optimize-settings*)
+
   (cond ((= (the fixnum version) (the fixnum +mpeg-1+))
          (cond ((= (the fixnum channel-mode) (the fixnum +channel-mode-mono+)) 17)
                (t 32)))
         (t (cond ((= (the fixnum channel-mode) (the fixnum +channel-mode-mono+)) 9)
                  (t 17)))))
 
-(defmethod check-vbr ((me frame) fn)
+(defmethod check-vbr ((me frame))
   (declare #.utils:*standard-optimize-settings*)
+
   (with-frame-slots (me)
     (let ((i (get-side-info-size version channel-mode)))
       (when (>= i (length payload))
@@ -332,12 +355,7 @@ Bits   1-0 (2  bits): the emphasis"
                 (flags vbr) (stream-read-u32 v))
 
           (when (logand (flags vbr) +vbr-frames+)
-            (setf (frames vbr) (stream-read-u32 v))
-
-            ;; some VBR files have the Xing/Info header, but it is not correctly formulated.
-            ;; just warn the user.
-            (when (zerop (frames vbr))
-              (warn-user "file ~a Xing/Info header flags has FRAMES set, but field is zero." fn)))
+            (setf (frames vbr) (stream-read-u32 v)))
 
           (when (logand (flags vbr) +vbr-bytes+)
             (setf (bytes vbr) (stream-read-u32 v)))
@@ -354,7 +372,9 @@ Bits   1-0 (2  bits): the emphasis"
             tag flags frames frames bytes tocs scale)))
 
 (defun find-first-sync (instream)
+  "Scan the file looking for the first sync word."
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((hdr-u32)
         (count 0)
         (pos))
@@ -371,16 +391,18 @@ Bits   1-0 (2  bits): the emphasis"
             (let ((hdr (make-instance 'frame :hdr-u32 hdr-u32 :pos pos)))
               (if (load-frame hdr :instream instream :read-payload t)
                   (progn
-                    (check-vbr hdr (stream-filename instream))
+                    (check-vbr hdr)
                     (return-from find-first-sync hdr))))))
       (condition (c) (progn
-                       (warn-user "Condtion <~a> signaled while looking for first sync" c)
+                       (warn-user "file:~a~%Condtion <~a> signaled while looking for first sync"
+                                  audio-streams:*current-file* c)
                        (error c))))
     nil))
 
 (defmethod next-frame ((me frame) &key instream read-payload)
   "Get next frame.  If READ-PAYLOAD is true, read in contents for frame, else, seek to next frame header."
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((nxt-frame (make-instance 'frame)))
     (when (not (payload me))
       (stream-seek instream (- (size me) 4) :current))
@@ -392,8 +414,10 @@ Bits   1-0 (2  bits): the emphasis"
 (defparameter *max-frames-to-read* most-positive-fixnum "when trying to determine bit-rate, etc, read at most this many frames")
 
 (defun map-frames (in func &key (start-pos nil) (read-payload nil) (max nil))
-  "Loop through the MPEG audio frames in a file.  If *MAX-FRAMES-TO-READ* is set, return after reading that many frames."
+  "Loop through the MPEG audio frames in a file.  If *MAX-FRAMES-TO-READ*
+is set, return after reading that many frames."
   (declare #.utils:*standard-optimize-settings*)
+
   (when start-pos
     (stream-seek in start-pos :start))
 
@@ -427,6 +451,7 @@ Bits   1-0 (2  bits): the emphasis"
 (defun calc-bit-rate-exhaustive (instream start info)
   "Map every MPEG frame in INSTREAM and calculate the bit-rate"
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((total-len      0)
         (bit-rate-total 0))
 
@@ -449,6 +474,7 @@ Bits   1-0 (2  bits): the emphasis"
  If the first MPEG frame we find is a Xing/Info header, return that as info.
  Else, we assume CBR and calculate the duration, etc."
   (declare #.utils:*standard-optimize-settings*)
+
   (let ((first-frame (find-first-sync instream))
         (info        (make-instance 'mpeg-audio-info)))
 
@@ -463,9 +489,14 @@ Bits   1-0 (2  bits): the emphasis"
       (if (vbr first-frame)
           ;; found a Xing header, now check to see if it is correct
           (if (zerop (frames (vbr first-frame)))
-              ;; Xing header broken, read all frames to calc
-              (calc-bit-rate-exhaustive instream (pos first-frame) info)
-              ;; Good Xing header, use info in VBR to calc
+              (progn
+                ;; Xing header broken, read all frames to calc
+                (warn-user
+                 "file ~a:~%Xing/Info header has FRAMES set, but field is zero."
+                 audio-streams:*current-file*)
+                (calc-bit-rate-exhaustive instream (pos first-frame) info))
+
+              ;; else, good Xing header, use info in VBR to calc
               (setf n-frames 1
                     is-vbr   t
                     len      (float (* (frames (vbr first-frame))

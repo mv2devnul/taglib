@@ -1,7 +1,7 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: PROFILE; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
-;;;;;;;;;;;;;;;;;;;; Handy, dandy profile functions ;;;;;;;;;;;;;;;;;;;;
+;;;;Handy, dandy profile functions
 ;;; "profile:on" enables profiling for taglib modules
 ;;; "profile:report" shows a profile listing
 ;;; "profile:reset" clears counters

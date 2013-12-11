@@ -65,7 +65,8 @@
            #:stream-read-utf-8-string
            #:stream-seek
            #:stream-size
-           *get-audio-info*)
+           #:*get-audio-info*
+           #:*current-file*)
   (:use #:common-lisp #:utils))
 
 (defpackage #:flac
@@ -80,7 +81,8 @@
            #:get-flac-audio-info
            #:is-valid-flac-file
            #:parse-audio-file
-           #:vpprint)
+           #:vpprint
+           #:*current-file*)
   (:use #:common-lisp #:utils #:audio-streams))
 
 (defpackage #:m4a

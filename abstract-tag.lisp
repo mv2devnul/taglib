@@ -148,26 +148,28 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
   (let ((frames (id3:get-frames me '("TCO" "TCON"))))
     (when frames
       (when (> (length frames) 1)
-        (warn-user "file ~a has more than one genre frame, will only use the first"
+        (warn-user "file ~a:~%Has more than one genre frame, will only use the first"
                    (id3:filename me)))
       (let ((count)
             (end)
             (str (id3:info (first frames))))
 
-        ;; For V23/V24 TCON frames, a genre can be pretty gnarly.
-        ;; if the first byte of the TCON INFO field is a '(', what is between this '('
-        ;; and the next ')' is interpreted as an ID3v2.1 genre number.
-        ;; These can stack up (called "refinements") too.
-        ;; The INFO field can also just be a string.
-        ;; We're taking a simplistic approach here: we can handle the '(' case, but
-        ;; only allow one (no refinements) OR we can handle the simple string case
+        ;; For V23/V24 TCON frames, a genre can be pretty gnarly.  if the
+        ;; first byte of the TCON INFO field is a '(', what is between this
+        ;; '(' and the next ')' is interpreted as an ID3v2.1 genre number.
+        ;; These can stack up (called "refinements") too.  The INFO field
+        ;; can also just be a string.  We're taking a simplistic approach
+        ;; here: we can handle the '(' case, but only allow one (no
+        ;; refinements) OR we can handle the simple string case
         (when (and (>= (length str) 1) (eq #\( (aref str 0)))
           (setf count (count #\( str))
           (when (> count 1)
-            (warn-user "Don't support genre refinement yet, found ~d genres" count))
+            (warn-user "file ~a:~%Don't support genre refinement yet, found ~d genres"
+                       (id3:filename me) count))
           (setf end (position #\) str))
           (when (null end)
-            (warn-user "Bad format for genre, ending paren is missing"))
+            (warn-user "file ~a:~%Bad format for genre, ending paren is missing"
+                       (id3:filename me)))
           (setf str (get-id3v1-genre (parse-integer (subseq str 1 end)))))
         (return-from genre str))))
 
@@ -288,13 +290,13 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 else, print out a subset."
   (declare #.utils:*standard-optimize-settings*)
 
+  (format t "~a~%" (id3:filename me))
+  (when (id3:audio-info me)
+    (mpeg:vpprint (id3:audio-info me) t)
+    (format t "~%"))
+
   (if raw
-      (format t "~a~%~a~%" (id3:filename me)
-              (with-output-to-string (s)
-                (when (id3:audio-info me)
-                  (mpeg::vpprint (id3:audio-info me) s)
-                  (format s "~%"))
-                (id3:vpprint (id3:id3-header me) s)))
+      (id3:vpprint (id3:id3-header me) t)
       (let ((album (album me))
             (album-artist (album-artist me))
             (artist (artist me))
@@ -314,11 +316,7 @@ else, print out a subset."
             (writer (writer me))
             (year (year me)))
 
-        (format t "~a~%~a~%" (id3:filename me)
-                (if (id3:audio-info me)
-                    (mpeg::vpprint (id3:audio-info me) nil) ""))
-
-        (when album (format t "~4talbum: ~a~%" album))
+        (when album (format t "~&~4talbum: ~a~%" album))
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
         (when artist (format t "~4tartist: ~a~%" artist))
         (when comment (format t "~4tcomment: ~a~%" comment))
@@ -337,7 +335,7 @@ else, print out a subset."
         (when writer (format t "~4twriter: ~a~%" writer))
         (when year (format t "~4tyear: ~a~%" year)))))
 
-;;;;;;;;;;;;;;;;;;;; MP4 ;;;;;;;;;;;;;;;;;;;;
+;;;; MP4
 (defmethod album        ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-album+))
 (defmethod album-artist ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-album-artist+))
 (defmethod artist       ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-artist+))
@@ -382,11 +380,12 @@ else show subset of DATA atoms"
   (declare #.utils:*standard-optimize-settings*)
 
   (format t "~a~%" (m4a:filename me))
+  (when (m4a:audio-info me)
+      (m4a:vpprint (m4a:audio-info me) t)
+      (format t "~%"))
+
   (if raw
-      (progn
-        (if (m4a:audio-info me)
-            (m4a:vpprint (m4a:audio-info me) t))
-        (m4a:mp4-show-raw-tag-atoms me t))
+      (m4a:mp4-show-raw-tag-atoms me t)
       (let ((album (album me))
             (album-artist (album-artist me))
             (artist (artist me))
@@ -405,9 +404,6 @@ else show subset of DATA atoms"
             (track (track me))
             (writer (writer me))
             (year (year me)))
-
-        (if (m4a:audio-info me)
-            (m4a:vpprint (m4a:audio-info me) t))
 
         (when album (format t "~&~4talbum: ~a~%" album))
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
@@ -428,7 +424,7 @@ else show subset of DATA atoms"
         (when writer (format t "~4twriter: ~a~%" writer))
         (when year (format t "~4tyear: ~a~%" year)))))
 
-;;;;;;;;;;;;;;;;;;;; FLAC ;;;;;;;;;;;;;;;;;;;;
+;;;; FLAC
 (defmacro get-flac-tag-info (stream name)
   `(flac:flac-get-tag (flac:flac-tags ,stream) ,name))
 
@@ -456,6 +452,10 @@ else show subset of DATA atoms"
   (declare #.utils:*standard-optimize-settings*)
 
   (format t "~a~%" (flac:filename me))
+  (when (flac:audio-info me)
+      (flac:vpprint (flac:audio-info me) t)
+      (format t "~%"))
+
   (if raw
       (flac:flac-show-raw-tag me t)
       (let ((album (album me))
@@ -469,9 +469,6 @@ else show subset of DATA atoms"
             (title (title me))
             (track (track me))
             (year (year me)))
-
-        (if (flac:audio-info me)
-            (flac:vpprint (flac:audio-info me) t))
 
         (when album (format t "~&~4talbum: ~a~%" album))
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))

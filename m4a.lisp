@@ -116,25 +116,8 @@
   `(with-slots (atom-file-pos atom-size atom-type) ,instance
      ,@body))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; Concrete atoms ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Concrete atoms
 (defclass atom-skip (mp4-atom) ())
-
-#|
-potential atoms to explicitly skip
-moov.udta.meta.ilst.apID # apple account email address
-moov.udta.meta.ilst.atID # artist-track ID
-moov.udta.meta.ilst.cnID # iTunes Catalog ID
-moov.udta.meta.ilst.geID # genre ID
-moov.udta.meta.ilst.plID # playlist ID (identifies album)
-moov.udta.meta.ilst.sfID # iTunes store identifier (location/number)
-moov.udta.meta.ilst.cprt # copyright information
-moov.udta.meta.ilst.flvr # bitrate/video size information?
-moov.udta.meta.ilst.purd # date purchased
-moov.udta.meta.ilst.rtng # Explicit/Clean information
-moov.udta.meta.ilst.soal # Album sort name
-moov.udta.meta.ilst.stik # media type information
-moov.udta.meta.ilst.xid  # space end!
-|#
 
 (defmethod initialize-instance :after ((me atom-skip) &key mp4-file &allow-other-keys)
   "The 'skip' atom.  Used when we want to capture the header of atom, but don't want/need
@@ -143,6 +126,44 @@ to read the payload of an atom."
 
   (with-mp4-atom-slots (me)
     (stream-seek mp4-file (- atom-size 8) :current)))
+
+;;; Atoms we need to implement someday
+(defclass atom----- (atom-skip) ())
+(defclass atom-akID (atom-skip) ())
+(defclass atom-apID (atom-skip) ())
+(defclass atom-atID (atom-skip) ())
+(defclass atom-cmID (atom-skip) ())
+(defclass atom-cnID (atom-skip) ())
+(defclass atom-dinf (atom-skip) ())
+(defclass atom-drms (atom-skip) ())
+(defclass atom-edts (atom-skip) ())
+(defclass atom-flvr (atom-skip) ())
+(defclass atom-free (atom-skip) ())
+(defclass atom-ftyp (atom-skip) ())
+(defclass atom-geID (atom-skip) ())
+(defclass atom-iods (atom-skip) ())
+(defclass atom-mdat (atom-skip) ())
+(defclass atom-mvhd (atom-skip) ())
+(defclass atom-name (atom-skip) ())
+(defclass atom-pgap (atom-skip) ())
+(defclass atom-pinf (atom-skip) ())
+(defclass atom-plID (atom-skip) ())
+(defclass atom-rtng (atom-skip) ())
+(defclass atom-sbtd (atom-skip) ())
+(defclass atom-sfID (atom-skip) ())
+(defclass atom-smhd (atom-skip) ())
+(defclass atom-soaa (atom-skip) ())
+(defclass atom-soal (atom-skip) ())
+(defclass atom-soar (atom-skip) ())
+(defclass atom-soco (atom-skip) ())
+(defclass atom-sonm (atom-skip) ())
+(defclass atom-stco (atom-skip) ())
+(defclass atom-stik (atom-skip) ())
+(defclass atom-stsc (atom-skip) ())
+(defclass atom-stsz (atom-skip) ())
+(defclass atom-stts (atom-skip) ())
+(defclass atom-tkhd (atom-skip) ())
+(defclass atom-xid  (atom-skip) ()) ; NOTE: it's actually "xid#\Space"
 
 (defclass mp4-container-atom (mp4-atom)
   ((tree :accessor tree)))
@@ -156,7 +177,7 @@ to read the payload of an atom."
           while (< current end) do
             (make-mp4-atom mp4-file me))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; ILST ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; ILST ATOMS (ie atoms related to tagging)
 (defclass atom-ilst (mp4-container-atom) ())
 
 (defclass atom-©alb (atom-ilst) ())
@@ -231,7 +252,7 @@ to read the payload of an atom."
                  (error "fell through all cases of ilst data atoms: parent-type = ~a"
                         (atom-type parent)))))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;; AUDIO PROPERTY ATOMS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Audio Property Atoms
 (defclass atom-trak (mp4-container-atom) ())
 (defclass atom-minf (mp4-container-atom) ())
 (defclass atom-moov (mp4-container-atom) ())
@@ -340,13 +361,17 @@ to read the payload of an atom."
 
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
     (setf version (stream-read-u8 mp4-file)
-          flags (stream-read-u24 mp4-file))
+          flags   (stream-read-u24 mp4-file))
+
     (assert (= +MP4-ESDescrTag+ (stream-read-u8 mp4-file)) () "Expected description tag of ESDescrTag")
-    (let* ((len (read-descriptor-len mp4-file))
+
+    (let* ((len         (read-descriptor-len mp4-file))
            (end-of-atom (+ (stream-seek mp4-file) len)))
-      (setf esid (stream-read-u16 mp4-file)
+      (setf esid       (stream-read-u16 mp4-file)
             s-priority (stream-read-u8 mp4-file))
+
       (assert (= +MP4-DecConfigDescrTag+ (stream-read-u8 mp4-file)) () "Expected tag type of DecConfigDescrTag")
+
       (setf len          (read-descriptor-len mp4-file)
             obj-id       (stream-read-u8 mp4-file)
             s-type       (stream-read-u8 mp4-file)
@@ -412,20 +437,6 @@ reading the container atoms"
            flags   (stream-read-u24 mp4-file)))
   (call-next-method))
 
-;;; XXX
-;;; This needs to be enhanced by accounting for all atom-types,
-;;; else we get potential runaways. For now, just brute-force it
-(defun is-valid (str)
-  (declare #.utils:*standard-optimize-settings*)
-
-  (assert (= 4 (length str)))
-  (loop for c across str do
-    (when (not (or (alphanumericp c)
-                   (char= #\- c)
-                   (= (char-code c) #xa9)))
-      (warn-user "Bad atom type name: c = ~a, str = <~a>" c str)))
-  t)
-
 (defparameter *skipped-m4a-atoms* (make-hash-table :test #'equalp))
 
 (defun clear-skipped ()
@@ -443,8 +454,6 @@ reading the container atoms"
   "Search by concatenating 'atom-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
 
-  (is-valid id)
-
   (let ((found-class-symbol (find-symbol (mk-atom-class-name id) :M4A)))
 
     ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
@@ -453,17 +462,20 @@ reading the container atoms"
 
     ;; didn't find a class, so return ATOM-SKIP class
     (add-skipped id)
+    (warn-user "file ~a~%Unknown atom type <~a> encountered~%"
+               audio-streams:*current-file* id)
     'atom-skip))
 
 (utils:memoize 'find-atom-class)
 
 (defun make-mp4-atom (mp4-file parent)
   "Get current file position, read in size/type, then construct the correct atom."
-
   (declare #.utils:*standard-optimize-settings*)
+
   (let* ((pos (stream-seek mp4-file))
          (siz (stream-read-u32 mp4-file))
-         (typ (as-string (stream-read-u32 mp4-file)))
+         (typ (string-right-trim '(#\Space)
+                                 (as-string (stream-read-u32 mp4-file))))
          (atom))
     (declare (fixnum pos siz))
 
@@ -530,14 +542,14 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
          (parsed-info (make-instance 'mp4-file
                                      :filename (stream-filename instream))))
     (setf (mp4-atoms parsed-info)
-          (tree
-           (make-instance 'mp4-container-atom
-                          :atom-type +root+
-                          :atom-file-pos 0
-                          :atom-size (stream-size instream)
-                          :mp4-file instream)))
+          (tree      (make-instance 'mp4-container-atom
+                                    :atom-type +root+
+                                    :atom-file-pos 0
+                                    :atom-size (stream-size instream)
+                                    :mp4-file instream)))
     (when get-audio-info
       (setf (audio-info parsed-info) (get-mp4-audio-info parsed-info)))
+
     parsed-info))
 
 (defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
@@ -630,7 +642,7 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
         (when mdhd
           (setf seconds (/ (float (duration mdhd)) (float (scale mdhd)))))
         (when mp4a
-          (setf channels (num-chans mp4a)
+          (setf channels        (num-chans mp4a)
                 bits-per-sample (samp-size mp4a))
           (let* ((upper (ash (samp-rate mp4a) -16))
                  (lower (logand (samp-rate mp4a) #xffff)))

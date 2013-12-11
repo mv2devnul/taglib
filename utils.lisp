@@ -127,7 +127,7 @@ Example: (get-bitfield #xFFFBB240 31 11) -->> #x7ff.
 The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE time."
   `(ash (logand ,int ,(utils::get-bitmask start width)) ,(- ( - start width -1))))
 
-;;;;;;;;;;;;;;;;;;;; convenience macros ;;;;;;;;;;;;;;;;;;;;
+;;;; Convenience macros
 (defmacro with-gensyms (syms &body body)
   `(let ,(mapcar #'(lambda (s)
                      `(,s (gensym)))
