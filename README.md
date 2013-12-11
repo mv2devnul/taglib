@@ -100,8 +100,8 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
 
 ## The Files
 
-* __audio-streams.lisp:__ creates a STREAM-like interface to audio files and vectors, thus read/seek devolve into
-  simple array-references.
+* __audio-streams.lisp:__ creates a STREAM-like interface to audio files and vectors. Uses
+  flexi-streams.
 * __flac.lisp:__ Parses FLAC files.
 * __id3.lisp:__ Parses the ID3 frames in an MP3 file.
    For each frame type we are interested in, DEFCLASS a class with
