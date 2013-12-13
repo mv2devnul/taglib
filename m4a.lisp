@@ -501,10 +501,11 @@ reading the container atoms"
                       atom-type atom-file-pos atom-size))
             (if (typep me 'atom-data)
                 (with-slots (atom-version atom-flags atom-value atom-type) me
-                  (format s " having ilst fields: verison = ~d, flags = ~x, data = ~x"
+                  (format s ", ilst fields: verison = ~d, flags = ~x, data = ~a"
                           atom-version atom-flags
-                          (if (typep atom-value 'array)
-                              (printable-array atom-value) atom-value)))))))
+                          (if (typep atom-value 'octets)
+                              (printable-array atom-value)
+                              atom-value)))))))
 
 (defun is-valid-m4-file (mp4-file)
   "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?
@@ -582,7 +583,10 @@ one of the +iTunes- constants")
 
     (loop for node = (tree:first-child top-node)
             then (tree:next-sibling node) until (null node) do
-              (format out-stream "~2t~a~%" (vpprint (tree:data node) nil)))))
+              (format out-stream "~2t~a" (vpprint (tree:data node) nil))
+              (aif (tree:first-child node)
+                   (format out-stream ", Data ~a~%" (vpprint (tree:data it) nil))
+                   (format out-stream "~%")))))
 
 (defun get-audio-properties-atoms (mp4-file)
   "Get the audio property atoms from MP4-FILE.
