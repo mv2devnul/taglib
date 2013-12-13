@@ -3,7 +3,7 @@
 
 (in-package #:audio-streams)
 
-(defparameter *current-file*
+(defparameter *current-file* nil
   "The file currently being worked on by OPEN-AUDIO-FILE")
 
 (defun make-audio-stream (arg)
