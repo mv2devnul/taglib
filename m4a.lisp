@@ -45,6 +45,7 @@
        (write-char (code-char ,(as-octet l3)) s)
        (write-char (code-char ,(as-octet l4)) s))))
 
+;;;; Atom names/ids
 (defconstant* +root+                  (mk-mp4-atom-type #\R #\O #\O #\T)  "fake root for tree")
 (defconstant* +itunes-album+          (mk-mp4-atom-type #xa9 #\a #\l #\b) "text: album name")
 (defconstant* +itunes-album-artist+   (mk-mp4-atom-type #\a  #\A #\R #\T) "text: album artist")
@@ -68,6 +69,7 @@
 (defconstant* +itunes-track-n+        (mk-mp4-atom-type #\t  #\r #\k #\n) "octet: yet another track number")
 (defconstant* +itunes-writer+         (mk-mp4-atom-type #xa9 #\w #\r #\t) "text: who wrote the song")
 (defconstant* +itunes-year+           (mk-mp4-atom-type #xa9 #\d #\a #\y) "text: year album was released")
+
 (defconstant* +itunes-ilst-data+      (mk-mp4-atom-type #\d #\a #\t #\a)  "carries the actual data under an ilst atom")
 
 (defconstant* +m4-ftyp+               (mk-mp4-atom-type #\f #\t #\y #\p) "This should be the first atom type found in file")
@@ -89,8 +91,9 @@
 (defconstant* +mp4-atom-udta+         (mk-mp4-atom-type #\u #\d #\t #\a))
 
 (defparameter *in-progress* nil "the node currently being worked upon")
-(defparameter *tree*        nil "the root of the atom tree")
+(defparameter *tree*        nil "the root of the atom tree being constructed")
 
+;;;; Atoms
 (defclass mp4-atom ()
   ((atom-file-pos :accessor atom-file-pos :initarg :atom-file-pos :initform nil)
    (atom-size     :accessor atom-size     :initarg :atom-size     :initform nil)
@@ -127,7 +130,7 @@ to read the payload of an atom."
   (with-mp4-atom-slots (me)
     (stream-seek mp4-file (- atom-size 8) :current)))
 
-;;; Atoms we need to implement someday
+;;; Atoms we need to implement someday... maybe
 (defclass atom----- (atom-skip) ())
 (defclass atom-akID (atom-skip) ())
 (defclass atom-apID (atom-skip) ())
@@ -166,7 +169,8 @@ to read the payload of an atom."
 (defclass atom-xid  (atom-skip) ()) ; NOTE: it's actually "xid#\Space"
 
 (defclass mp4-container-atom (mp4-atom)
-  ((tree :accessor tree)))
+  ((tree :accessor tree :documentation "Note: this is ONLY set for the ROOT atom"))
+  (:documentation "An atom that 'contains' other atoms"))
 
 (defmethod initialize-instance :after ((me mp4-container-atom) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
@@ -215,9 +219,11 @@ to read the payload of an atom."
   (with-slots (atom-size atom-type atom-version atom-flags atom-value) me
     (setf atom-version (stream-read-u8 mp4-file)
           atom-flags   (stream-read-u24 mp4-file))
+
     (assert (= 0 (stream-read-u32 mp4-file)) ()
             "a data atom lacks the required null field")
 
+    ;; XXX ilst data atoms are a tad messy. need to refactor this somehow...
     (setf atom-value
           (cond ((member (atom-type parent)
                          (list +itunes-album+ +itunes-album-artist+ +itunes-artist+
@@ -227,6 +233,7 @@ to read the payload of an atom."
                                +itunes-title+ +itunes-tool+ +itunes-writer+)
                          :test #'string=)
                  (stream-read-utf-8-string mp4-file (- (atom-size me) 16)))
+
 
                 ((member (atom-type parent)
                          (list +itunes-track+ +itunes-track-n+ +itunes-disk+)
