@@ -10,6 +10,8 @@ Runs (in single-thread mode) under CCL, SBCL, CLISP, and ABCL.
 Note: my primary Lisp variant is CCL, so it's the most tested; however,
 this code should run on any Lisp that is supported by FLEXI-STREAMS.
 
+---
+
 # Dependencies
 
 All avalailable via quicklisp
@@ -17,6 +19,7 @@ All avalailable via quicklisp
 * optima and optima.ppcre: for quick parsing of FLAC tags
 * flexi-streams: for in-memory streams and string decoding (note: make sure you get the most recent one, which has a bug fix I made)
 
+---
 # References
 
 Note: There a lot of good (some great) audio file resources out there.  Here are a few of them that I found useful:
@@ -30,6 +33,8 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon.
   It would have saved me TONS of time.
 
+---
+
 # General Notes
 
 * As the author(s) of taglib state in their comments, parsing ID3s is actually pretty hard. There are so many broken taggers out there
@@ -40,7 +45,8 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * I've run this tool across my 21,000+ audio collection and compared the results to some of the tools above, with little to no variations.
   That said, I have a pretty uniform collection, mostly from ripping CDs, then iTunes-purchases/matched, and then Amazon-matched. YMMV.
 * Parsing the CBR audio info in an MP3 is hideously inefficient if done exhaustively.  Instead, this library, only looks at the first
-  MPEG frame and calculates the duration, etc from that.  In addition, if you just want TAG info, you can bind AUDIO-STREAMS:*get-audio-info* to nil.
+  MPEG frame and calculates the duration, etc from that.  In addition, if you just want TAG info, you can bind
+  AUDIO-STREAMS:\*GET-AUDIO-INFO\* to nil.
 
 Things to consider adding/changing:
 
@@ -48,6 +54,8 @@ Things to consider adding/changing:
 * Add writing of tags.
 * Improve error handling.
 * Implement a DSL ala Practical Common Lisp.
+
+---
 
 # Sample Invocations and Results
 
@@ -95,6 +103,8 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-text-info: flags: 0x0000: 0/0/0/0/0/0, offset: 121, version = 3, id: TCON, len: 5, NIL, encoding = 0, info = <(79)>
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
+
+---
 
 # Design
 
