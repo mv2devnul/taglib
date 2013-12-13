@@ -336,28 +336,31 @@ else, print out a subset."
         (when year (format t "~4tyear: ~a~%" year)))))
 
 ;;;; MP4
-(defmethod album        ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-album+))
-(defmethod album-artist ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-album-artist+))
-(defmethod artist       ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-artist+))
-(defmethod comment      ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-comment+))
-(defmethod composer     ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-composer+))
-(defmethod copyright    ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-copyright+))
-;;;(defmethod cover        ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-cover-art+))
-(defmethod year         ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-year+))
-(defmethod encoder      ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-encoder+))
-(defmethod groups       ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-groups+))
-(defmethod lyrics       ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-lyrics+))
-(defmethod title        ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-title+))
-(defmethod writer       ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-writer+))
-(defmethod compilation  ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-compilation+))
-(defmethod disk         ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-disk+))
-(defmethod tempo        ((me m4a:mp4-file)) (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-tempo+))
+(defmethod album        ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-album+)))
+(defmethod album-artist ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-album-artist+)))
+(defmethod artist       ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-artist+)))
+(defmethod comment      ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-comment+)))
+(defmethod composer     ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-composer+)))
+(defmethod copyright    ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-copyright+)))
+
+;;; NB: COVR can have more than one data atom; hence, no first used.
+(defmethod cover        ((me m4a:mp4-file)) (m4a:tag-get-value me m4a:+itunes-cover-art+))
+
+(defmethod year         ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-year+)))
+(defmethod encoder      ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-encoder+)))
+(defmethod groups       ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-groups+)))
+(defmethod lyrics       ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-lyrics+)))
+(defmethod title        ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-title+)))
+(defmethod writer       ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-writer+)))
+(defmethod compilation  ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-compilation+)))
+(defmethod disk         ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-disk+)))
+(defmethod tempo        ((me m4a:mp4-file)) (first (m4a:tag-get-value me m4a:+itunes-tempo+)))
 
 (defmethod genre        ((me m4a:mp4-file))
   (declare #.utils:*standard-optimize-settings*)
 
-  (let ((genre   (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-genre+))
-        (genre-x (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-genre-x+)))
+  (let ((genre   (first (m4a:tag-get-value me m4a:+itunes-genre+)))
+        (genre-x (first (m4a:tag-get-value me m4a:+itunes-genre-x+))))
     (assert (not (and genre genre-x)))
     (cond
       (genre   (format nil "~d (~a)" genre (get-id3v1-genre (1- genre))))
@@ -367,8 +370,8 @@ else, print out a subset."
 (defmethod track ((me m4a:mp4-file))
   (declare #.utils:*standard-optimize-settings*)
 
-  (let ((track   (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-track+))
-        (track-n (m4a:tag-get-value (m4a:mp4-atoms me) m4a:+itunes-track-n+)))
+  (let ((track   (first (m4a:tag-get-value me m4a:+itunes-track+)))
+        (track-n (first (m4a:tag-get-value me m4a:+itunes-track-n+))))
     (assert (not (and track track-n)))
     (if track
         track
@@ -393,7 +396,7 @@ else show subset of DATA atoms"
             (compilation (compilation me))
             (composer (composer me))
             (copyright (copyright me))
-;;;            (cover (cover me))
+            (cover (cover me))
             (disk (disk me))
             (encoder (encoder me))
             (genre (genre me))
@@ -412,7 +415,11 @@ else show subset of DATA atoms"
         (format t "~4tcompilation: ~[no~;yes~;unknown~]~%" (if compilation compilation 2))
         (when composer (format t "~4tcomposer: ~a~%" composer))
         (when copyright (format t "~4tcopyright: ~a~%" copyright))
-;;;        (when cover (format t "~4tcover: Number of covers: :~d~%" cover))
+        (when cover
+          (format t "~4tcover: Number of covers: ~d, lengths:" (length cover))
+          (dolist (c cover)
+            (format t " ~:d bytes;" (length c)))
+          (format t "~%"))
         (when disk (format t "~4tdisk: ~a~%" disk))
         (when encoder (format t "~4tencoder: ~a~%" encoder))
         (when genre (format t "~4tgenre: ~a~%" genre))

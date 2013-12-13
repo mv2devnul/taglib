@@ -561,20 +561,33 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
     parsed-info))
 
 (defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
-                                +mp4-atom-meta+ +mp4-atom-ilst+ nil
-                                +itunes-ilst-data+)
+                                +mp4-atom-meta+ +mp4-atom-ilst+ nil)
   "iTunes artist/album/etc path. The 5th element should be set to
 one of the +iTunes- constants")
 
-(defmethod tag-get-value (atoms atom-type)
+(defun tag-get-value (mp4-file atom-type)
   "Helper function to extract text from ILST atom's data atom"
   (declare #.utils:*standard-optimize-settings*)
 
   (setf (nth 5 *ilst-data*) atom-type)
-  (aif (tree:at-path atoms *ilst-data*
+  (aif (tree:at-path (mp4-atoms mp4-file) *ilst-data*
                      (lambda (x y)
                        (string= (atom-type (tree:data x)) y)))
-       (atom-value (tree:data it))
+
+       (let ((ret))
+         ;; NB: only the COVR atom can have more than one data atom
+         (loop for e = (tree:first-child it)
+                 then (tree:next-sibling e)
+               until (null e) do
+                 (if (typep (tree:data e) 'atom-data)
+                     (push (atom-value (tree:data e)) ret)
+                     ;; Seen this come up a couple of times where the
+                     ;; atoms under an ilst atom aren't data atoms.
+                     (warn-user
+                      "file ~a~%Unexpected atom type <~a> found when looking for <~a>."
+                      (filename mp4-file)
+                      (vpprint (tree:data e) nil) atom-type)))
+         (nreverse ret))
        nil))
 
 (defun mp4-show-raw-tag-atoms (mp4-file-stream out-stream)
