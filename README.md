@@ -10,7 +10,6 @@ Runs (in single-thread mode) under CCL, SBCL, CLISP, and ABCL.
 Note: my primary Lisp variant is CCL, so it's the most tested; however,
 this code should run on any Lisp that is supported by FLEXI-STREAMS.
 
----
 
 # Dependencies
 
@@ -19,7 +18,6 @@ All avalailable via quicklisp
 * optima and optima.ppcre: for quick parsing of FLAC tags
 * flexi-streams: for in-memory streams and string decoding (note: make sure you get the most recent one, which has a bug fix I made)
 
----
 # References
 
 Note: There a lot of good (some great) audio file resources out there.  Here are a few of them that I found useful:
@@ -31,9 +29,8 @@ Note: There a lot of good (some great) audio file resources out there.  Here are
 * [MP3Diags](http://mp3diags.sourceforge.net/): Good GUI-based-tool.  Tends to slow, but very thorough.
 * [MediaInfo](http://mediaarea.net/en/MediaInfo): C++, can dump out all the info to command line and also has a GUI.
 * [The MP4 Book](http://www.amazon.com/gp/search?index=books&linkCode=qs&keywords=0130616214): I actually didn't order this until well into writing this code.   What a maroon.
-  It would have saved me TONS of time.
+  It would have saved me *TONS* of time.
 
----
 
 # General Notes
 
@@ -54,8 +51,6 @@ Things to consider adding/changing:
 * Add writing of tags.
 * Improve error handling.
 * Implement a DSL ala Practical Common Lisp.
-
----
 
 # Sample Invocations and Results
 
@@ -103,8 +98,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
         frame-text-info: flags: 0x0000: 0/0/0/0/0/0, offset: 121, version = 3, id: TCON, len: 5, NIL, encoding = 0, info = <(79)>
         frame-txxx: flags: 0x0000: 0/0/0/0/0/0, offset: 136, version = 3, id: TXXX, len: 33, NIL, <Tagging time/2013-08-08T16:38:38>
 ```
-
----
 
 # Design
 
@@ -170,8 +163,6 @@ Header: version/revision: 3/0, flags: 0x00: 0/0/0/0, size = 11,899 bytes; No ext
   read every frame and calculate the duration/avg bit-rate that way.  The resulting calculations match those of iTunes, but it can __really__ slow
   things down.
 
-* More info later...
-
 ## Experimental Stuff
 
 I've recently added some (very) rudimentary multi-threading (see taglib-tests.lisp) using the CHANL package.
@@ -191,5 +182,5 @@ id to \*dead-channel\* and return (ie exit). Here are some preliminary timings:
 |           2 |            ~17 |
 |           1 |            ~25 |
 
-Note: threading does NOT currently work on ECL (missing support in bordeaux threads)
+Note: threading does *NOT* currently work on ECL (missing support in bordeaux threads)
 or on my custom built CLISP with POSIX-THREADS turned on (fails with RECURSIVE MUTEX error).
