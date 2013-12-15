@@ -1196,19 +1196,6 @@ are different..."
   (string-upcase (concatenate 'string "frame-" id)))
 (memoize 'mk-frame-class-name)
 
-(defparameter *skipped-id3-frames* (make-hash-table :test #'equalp))
-
-(defun clear-skipped ()
-  (setf *skipped-id3-frames* (make-hash-table :test #'equalp)))
-
-(defun add-skipped (id)
-  (multiple-value-bind (value foundp)
-      (gethash id *skipped-id3-frames*)
-    (setf (gethash id *skipped-id3-frames*)
-          (if foundp
-              (1+ value)
-              1))))
-
 (defun find-frame-class (id)
   "Search by concatenating 'frame-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
@@ -1231,7 +1218,6 @@ are different..."
                          ;; possibly be a real frame name, then just read
                          ;; it raw
                          (when (possibly-valid-frame-id? id)
-                           (add-skipped id)
                            (warn-user "file ~a~%Unknown frame type <~a> encountered~%"
                                       audio-streams:*current-file* id)
                            (find-class (find-symbol "FRAME-RAW" :ID3))))))
