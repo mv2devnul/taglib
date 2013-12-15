@@ -80,52 +80,39 @@
                   (do-audio-dir :dir dir
                     :file-system-encoding file-system-encoding :func nil)))))
 
-;; (defun get-stats (&key (dir "/home/markv/Music/Queen")
-;;                        (file-system-encoding :utf-8)
-;;                        (do-audio-processing t))
-;;   "Gen up some interesting statistics on DIR"
-;;   (let ((m4-ht (make-hash-table :test #'equalp))
-;;         (m3-ht (make-hash-table :test #'equalp))
-;;         (fl-ht (make-hash-table :test #'equalp)))
-;;     (do-audio-dir
-;;       :dir dir
-;;       :file-system-encoding file-system-encoding
-;;       :func (lambda (s)
-;;               (cond ((typep s 'id3:mp3-file)
-;;                      (id3:map-id3-frames
-;;                       s
-;;                       :func (lambda (f)
-;;                               (multiple-value-bind (value foundp)
-;;                                   (gethash (id3:id f) m3-ht)
-;;                                 (setf (gethash (id3:id f) m3-ht)
-;;                                       (if foundp
-;;                                           (1+ value)
-;;                                           1))))))
-;;                       ((typep s 'flac:flac-file)
-;;                        t)
-;;                       ((typep s 'm4a:mp4-file)
-;;                        (tree:traverse
-;;                         (m4a:mp4-atoms s)
-;;                         (lambda (node depth)
-;;                           (declare (ignore depth))
-;;                           (setf node (tree:data node))
-;;                           (multiple-value-bind (value foundp)
-;;                               (gethash (m4a:atom-type node) m3-ht)
-;;                             (setf (gethash (m4a:atom-type node) m3-ht)
-;;                                   (if foundp
-;;                                       (1+ value)
-;;                                       1))))))
-;;                     ((null s)
-;;                      (incf other-count)))))
-;;     (format t "MP3 Stats:~%")
-;;     (loop for key being the hash-keys of m3-ht
-;;           using (hash-value value)
-;;           do (format t "~a:~:d~%" key value))
-;;     (format t "M4A Stats:~%")
-;;     (loop for key being the hash-keys of m4-ht
-;;           using (hash-value value)
-;;           do (format t "~a:~:d~%" key value))
-;;   (values m3-ht m4-ht fl-ht)))
+(defun insert-into-ht (id ht)
+  (multiple-value-bind (value foundp)
+      (gethash id ht)
+    (setf (gethash id ht)
+          (if foundp
+              (1+ value)
+              1))))
+
+(defun get-stats (&key (dir "/home/markv/Music/Queen")
+                       (file-system-encoding :utf-8))
+  "Gen up some interesting statistics on DIR"
+  (let ((m4-ht (make-hash-table :test #'equalp))
+        (m3-ht (make-hash-table :test #'equalp)))
+    (do-audio-dir
+      :dir dir
+      :file-system-encoding file-system-encoding
+      :func (lambda (s)
+              (cond ((typep s 'id3:mp3-file)
+                     (id3:map-id3-frames s
+                                         :func (lambda (f)
+                                                 (insert-into-ht (id3:id f) m3-ht))))
+                    ((typep s 'm4a:mp4-file)
+                     (m4a:map-mp4-atoms s :func (lambda (f)
+                                                  (insert-into-ht (m4a:atom-type f) m4-ht)))))))
+    (format t "MP3 Stats:~%")
+    (loop for key being the hash-keys of m3-ht
+          using (hash-value value)
+          do (format t "~2t~a:~:d~%" key value))
+    (format t "~%M4A Stats:~%")
+    (loop for key being the hash-keys of m4-ht
+          using (hash-value value)
+          do (format t "~2t~a:~:d~%" key value))
+  (values m3-ht m4-ht)))
 
 ;;;; multi-thread code below
 #+(or :ccl :sbcl :abcl)
