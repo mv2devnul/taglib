@@ -200,3 +200,20 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   (let ((real-base (get-internal-real-time)))
     (funcall function)
     (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))
+
+(defun mkstr (&rest args)
+  "Given ARGS, create a string. Case of symbols in ARGS is determined by *PRINT-CASE*.
+Strings' case are as passed in
+eg:
+    (dolist (*print-case* '(:upcase :downcase :capitalize :studly))
+      (format t \"~a -->> ~a~%\" *print-case* (mkstr 'this '-is- \"SPARTA\")))
+yields:
+    UPCASE -->> THIS-IS-SPARTA
+    downcase -->> this-is-SPARTA
+    Capitalize -->> This-Is-SPARTA
+    STUDlY -->> ThiS-IS-SPARTA"
+  (format nil "~{~a~}" args))
+
+(defun mksym (&rest args)
+  "Intern a symbol in current package.  NB: we coerce to all upcase."
+  (intern (string-upcase (apply #'mkstr args))))
