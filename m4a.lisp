@@ -16,7 +16,7 @@
   "Create an atom class name by concatenating ATOM- with NAME"
   (declare #.utils:*standard-optimize-settings*)
   (string-upcase (concatenate 'string "atom-" name)))
-(utils:memoize 'mk-atom-class-name)
+(memoize 'mk-atom-class-name)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defun as-string (atom-type)
@@ -45,30 +45,31 @@
        (write-char (code-char ,(as-octet l3)) s)
        (write-char (code-char ,(as-octet l4)) s))))
 
-;;;; Atom names/ids
-(defconstant* +root+                  (mk-mp4-atom-type #\R #\O #\O #\T)  "fake root for tree")
-(defconstant* +itunes-album+          (mk-mp4-atom-type #xa9 #\a #\l #\b) "text: album name")
-(defconstant* +itunes-album-artist+   (mk-mp4-atom-type #\a  #\A #\R #\T) "text: album artist")
-(defconstant* +itunes-artist+         (mk-mp4-atom-type #xa9 #\A #\R #\T) "text: artist name")
-(defconstant* +itunes-comment+        (mk-mp4-atom-type #xa9 #\c #\m #\t) "text: comment, commonly used by iTunes for sound info, etc")
-(defconstant* +itunes-compilation+    (mk-mp4-atom-type #\c  #\p #\i #\l) "byte/boolean: is this file part of a compilation?")
-(defconstant* +itunes-composer+       (mk-mp4-atom-type #xa9 #\c #\o #\m) "text: composer name")
-(defconstant* +itunes-copyright+      (mk-mp4-atom-type #\c  #\p #\r #\t) "text: copyright info")
-(defconstant* +itunes-cover-art+      (mk-mp4-atom-type #\c  #\o #\v #\r) "octets: cover art, PNG, etc")
-(defconstant* +itunes-disk+           (mk-mp4-atom-type #\d  #\i #\s #\k) "octets: disk number, can be n of N")
-(defconstant* +itunes-encoder+        (mk-mp4-atom-type #xa9 #\e #\n #\c) "text: who encoded")
-(defconstant* +itunes-genre+          (mk-mp4-atom-type #\g  #\n #\r #\e) "octets: genre of file")
-(defconstant* +itunes-genre-x+        (mk-mp4-atom-type #xa9 #\g #\e #\n) "text: yet another genre atom")
-(defconstant* +itunes-groups+         (mk-mp4-atom-type #xa9 #\g #\r #\p) "text: ???")
-(defconstant* +itunes-lyrics+         (mk-mp4-atom-type #xa9 #\l #\y #\r) "text: lyrics tag")
-(defconstant* +itunes-purchased-date+ (mk-mp4-atom-type #\p  #\u #\r #\d) "text: when song was purchased")
-(defconstant* +itunes-tempo+          (mk-mp4-atom-type #\t  #\m #\p #\o) "octet: tempo of song")
-(defconstant* +itunes-title+          (mk-mp4-atom-type #xa9 #\n #\a #\m) "text: title of song")
-(defconstant* +itunes-tool+           (mk-mp4-atom-type #xa9 #\t #\o #\o) "text: what tool encoded this file")
-(defconstant* +itunes-track+          (mk-mp4-atom-type #xa9 #\t #\r #\k) "octet: track number")
-(defconstant* +itunes-track-n+        (mk-mp4-atom-type #\t  #\r #\k #\n) "octet: yet another track number")
-(defconstant* +itunes-writer+         (mk-mp4-atom-type #xa9 #\w #\r #\t) "text: who wrote the song")
-(defconstant* +itunes-year+           (mk-mp4-atom-type #xa9 #\d #\a #\y) "text: year album was released")
+;;;; Atom names/ids. Each one of these has an associated "value"(nee data) atom under it
+(defconstant* +root+                  (mk-mp4-atom-type #\R #\O #\O #\T)  "fake root for atom tree")
+
+;; (defconstant* +itunes-album+          (mk-mp4-atom-type #xa9 #\a #\l #\b) "text: album name")
+;; (defconstant* +itunes-album-artist+   (mk-mp4-atom-type #\a  #\A #\R #\T) "text: album artist")
+;; (defconstant* +itunes-artist+         (mk-mp4-atom-type #xa9 #\A #\R #\T) "text: artist name")
+;; (defconstant* +itunes-comment+        (mk-mp4-atom-type #xa9 #\c #\m #\t) "text: comment, commonly used by iTunes for sound info, etc")
+;; (defconstant* +itunes-compilation+    (mk-mp4-atom-type #\c  #\p #\i #\l) "byte/boolean: is this file part of a compilation?")
+;; (defconstant* +itunes-composer+       (mk-mp4-atom-type #xa9 #\c #\o #\m) "text: composer name")
+;; (defconstant* +itunes-copyright+      (mk-mp4-atom-type #\c  #\p #\r #\t) "text: copyright info")
+;; (defconstant* +itunes-cover-art+      (mk-mp4-atom-type #\c  #\o #\v #\r) "octets: cover art, PNG, etc")
+;; (defconstant* +itunes-disk+           (mk-mp4-atom-type #\d  #\i #\s #\k) "octets: disk number, can be n of N")
+;; (defconstant* +itunes-encoder+        (mk-mp4-atom-type #xa9 #\e #\n #\c) "text: who encoded")
+;; (defconstant* +itunes-genre+          (mk-mp4-atom-type #\g  #\n #\r #\e) "octets: genre of file")
+;; (defconstant* +itunes-genre-x+        (mk-mp4-atom-type #xa9 #\g #\e #\n) "text: yet another genre atom")
+;; (defconstant* +itunes-groups+         (mk-mp4-atom-type #xa9 #\g #\r #\p) "text: ???")
+;; (defconstant* +itunes-lyrics+         (mk-mp4-atom-type #xa9 #\l #\y #\r) "text: lyrics tag")
+;; (defconstant* +itunes-purchased-date+ (mk-mp4-atom-type #\p  #\u #\r #\d) "text: when song was purchased")
+;; (defconstant* +itunes-tempo+          (mk-mp4-atom-type #\t  #\m #\p #\o) "octet: tempo of song")
+;; (defconstant* +itunes-title+          (mk-mp4-atom-type #xa9 #\n #\a #\m) "text: title of song")
+;; (defconstant* +itunes-tool+           (mk-mp4-atom-type #xa9 #\t #\o #\o) "text: what tool encoded this file")
+;; (defconstant* +itunes-track+          (mk-mp4-atom-type #xa9 #\t #\r #\k) "octet: track number")
+;; (defconstant* +itunes-track-n+        (mk-mp4-atom-type #\t  #\r #\k #\n) "octet: yet another track number")
+;; (defconstant* +itunes-writer+         (mk-mp4-atom-type #xa9 #\w #\r #\t) "text: who wrote the song")
+;; (defconstant* +itunes-year+           (mk-mp4-atom-type #xa9 #\d #\a #\y) "text: year album was released")
 
 (defconstant* +itunes-ilst-data+      (mk-mp4-atom-type #\d #\a #\t #\a)  "carries the actual data under an ilst atom")
 
@@ -130,38 +131,51 @@ to read the payload of an atom."
   (with-mp4-atom-slots (me)
     (stream-seek mp4-file (- atom-size 8) :current)))
 
-;;; Atoms we need to implement someday... maybe
+;; (defclass utf8-atom (mp4-atom)
+;;   ((astring :accessor astring :initform nil))
+;;   (:documentation "UTF-8 atom" ))
+
+;; (defmethod initialize-instance :after ((me utf8-atom) &key mp4-file &allow-other-keys)
+;;   "Create and read in UTF-8 string atom"
+;;   (declare #.utils:*standard-optimize-settings*)
+;;   (setf (astring me) (stream-read-utf-8-string mp4-file (- (atom-size me) 8))))
+
+;; (defclass u8-atom (mp4-atom)
+;;   ((val :accessor val :initform nil))
+;;   (:documentation "8-bit atom" ))
+
+;; (defmethod initialize-instance :after ((me u8-atom) &key mp4-file &allow-other-keys)
+;;   "Create and read in UTF-8 string atom"
+;;   (declare #.utils:*standard-optimize-settings*)
+;;   (setf (val me) (stream-read-u8 mp4-file)))
+
+;; (defclass u16-atom (mp4-atom)
+;;   ((val :accessor val :initform nil))
+;;   (:documentation "8-bit atom" ))
+
+;; (defmethod initialize-instance :after ((me u16-atom) &key mp4-file &allow-other-keys)
+;;   "Create and read in UTF-8 string atom"
+;;   (declare #.utils:*standard-optimize-settings*)
+;;   (setf (val me) (stream-read-u16 mp4-file)))
+
+;;; For atoms we don't implement yet, subclass atom-skip
 (defclass atom----- (atom-skip) ())
-(defclass atom-akID (atom-skip) ())
-(defclass atom-apID (atom-skip) ())
-(defclass atom-atID (atom-skip) ())
-(defclass atom-cmID (atom-skip) ())
-(defclass atom-cnID (atom-skip) ())
+(defclass atom-cmID (atom-skip) ()) ; ???
 (defclass atom-dinf (atom-skip) ())
 (defclass atom-drms (atom-skip) ())
 (defclass atom-edts (atom-skip) ())
 (defclass atom-flvr (atom-skip) ())
 (defclass atom-free (atom-skip) ())
 (defclass atom-ftyp (atom-skip) ())
-(defclass atom-geID (atom-skip) ())
 (defclass atom-iods (atom-skip) ())
 (defclass atom-mdat (atom-skip) ())
 (defclass atom-mvhd (atom-skip) ())
 (defclass atom-name (atom-skip) ())
-(defclass atom-pgap (atom-skip) ())
 (defclass atom-pinf (atom-skip) ())
 (defclass atom-plID (atom-skip) ())
-(defclass atom-rtng (atom-skip) ())
 (defclass atom-sbtd (atom-skip) ())
-(defclass atom-sfID (atom-skip) ())
 (defclass atom-smhd (atom-skip) ())
-(defclass atom-soaa (atom-skip) ())
-(defclass atom-soal (atom-skip) ())
-(defclass atom-soar (atom-skip) ())
-(defclass atom-soco (atom-skip) ())
-(defclass atom-sonm (atom-skip) ())
 (defclass atom-stco (atom-skip) ())
-(defclass atom-stik (atom-skip) ())
 (defclass atom-stsc (atom-skip) ())
 (defclass atom-stsz (atom-skip) ())
 (defclass atom-stts (atom-skip) ())
@@ -184,80 +198,135 @@ to read the payload of an atom."
 ;;;; ILST ATOMS (ie atoms related to tagging)
 (defclass atom-ilst (mp4-container-atom) ())
 
-(defclass atom-©alb (atom-ilst) ())
-(defclass atom-aART (atom-ilst) ())
-(defclass atom-©art (atom-ilst) ())
-(defclass atom-©cmt (atom-ilst) ())
-(defclass atom-cpil (atom-ilst) ())
-(defclass atom-©com (atom-ilst) ())
-(defclass atom-cprt (atom-ilst) ())
-(defclass atom-covr (atom-ilst) ())
-(defclass atom-disk (atom-ilst) ())
-(defclass atom-©enc (atom-ilst) ())
-(defclass atom-gnre (atom-ilst) ())
-(defclass atom-©gen (atom-ilst) ())
-(defclass atom-©grp (atom-ilst) ())
-(defclass atom-©lyr (atom-ilst) ())
-(defclass atom-purd (atom-ilst) ())
-(defclass atom-tmpo (atom-ilst) ())
-(defclass atom-©nam (atom-ilst) ())
-(defclass atom-©too (atom-ilst) ())
-(defclass atom-©trk (atom-ilst) ())
-(defclass atom-trkn (atom-ilst) ())
-(defclass atom-©wrt (atom-ilst) ())
-(defclass atom-©day (atom-ilst) ())
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (defparameter *ilst-atoms*
+    '(("account-type"      "akID")
+      ("album"             "©alb")
+      ("album-artist"      "aART")
+      ("artist"            "©art")
+      ("at-id"             "atID")
+      ("cn-id"             "cnID")
+      ("comment"           "©cmt")
+      ("compilation"       "cpil")
+      ("composer"          "©com")
+      ("content-rating"    "rtng")
+      ("copyright"         "cprt")
+      ("cover-art"         "covr")
+      ("disk"              "disk")
+      ("encoder"           "©enc")
+      ("gapless-playback"  "pgap")
+      ("ge-id"             "geID")
+      ("genre"             "gnre")
+      ("genre-x"           "©gen")
+      ("groups"            "©grp")
+      ("lyrics"            "©lyr")
+      ("media-type"        "stik")
+      ("purchase-account"  "apID")
+      ("purchased-date"    "purd")
+      ("sort-album"        "soal")
+      ("sort-album-artist" "soaa")
+      ("sort-artist"       "soar")
+      ("sort-composer"     "soco")
+      ("sort-name"         "sonm")
+      ("store"             "sfID")
+      ("tempo"             "tmpo")
+      ("title"             "©nam")
+      ("tool"              "©too")
+      ("track"             "©trk")
+      ("track-n"           "trkn")
+      ("writer"            "©wrt")
+      ("year"              "©day"))
+    "This is the list of ILST atoms we handle. Each entry is constant-name/class-name")
+
+  (defmacro mk-ilst-atoms-constants ()
+    `(progn
+       ,@(loop for e in *ilst-atoms*
+               collect
+               `(progn
+                  (defclass ,(mksym "atom-" (second e)) (atom-ilst) ())
+                  (defconstant* ,(mksym "+itunes-" (first e) "+") ,(second e))
+                  (export ',(mksym "+itunes-" (first e) "+")))))))
+
+(mk-ilst-atoms-constants)
+
+;; (defclass atom-aART (atom-ilst) ())
+;; (defclass atom-akID (atom-ilst) ())
+;; (defclass atom-apID (atom-ilst) ())
+;; (defclass atom-atID (atom-ilst) ())
+;; (defclass atom-cnID (atom-ilst) ())
+;; (defclass atom-covr (atom-ilst) ())
+;; (defclass atom-cpil (atom-ilst) ())
+;; (defclass atom-cprt (atom-ilst) ())
+;; (defclass atom-disk (atom-ilst) ())
+;; (defclass atom-geID (atom-ilst) ())
+;; (defclass atom-gnre (atom-ilst) ())
+;; (defclass atom-pgap (atom-ilst) ())
+;; (defclass atom-purd (atom-ilst) ())
+;; (defclass atom-rtng (atom-ilst) ())
+;; (defclass atom-sfID (atom-ilst) ())
+;; (defclass atom-soaa (atom-ilst) ())
+;; (defclass atom-soal (atom-ilst) ())
+;; (defclass atom-soar (atom-ilst) ())
+;; (defclass atom-soco (atom-ilst) ())
+;; (defclass atom-sonm (atom-ilst) ())
+;; (defclass atom-stik (atom-ilst) ())
+;; (defclass atom-tmpo (atom-ilst) ())
+;; (defclass atom-trkn (atom-ilst) ())
+;; (defclass atom-©alb (atom-ilst) ())
+;; (defclass atom-©art (atom-ilst) ())
+;; (defclass atom-©cmt (atom-ilst) ())
+;; (defclass atom-©com (atom-ilst) ())
+;; (defclass atom-©day (atom-ilst) ())
+;; (defclass atom-©enc (atom-ilst) ())
+;; (defclass atom-©gen (atom-ilst) ())
+;; (defclass atom-©grp (atom-ilst) ())
+;; (defclass atom-©lyr (atom-ilst) ())
+;; (defclass atom-©nam (atom-ilst) ())
+;; (defclass atom-©too (atom-ilst) ())
+;; (defclass atom-©trk (atom-ilst) ())
+;; (defclass atom-©wrt (atom-ilst) ())
 
 (defclass atom-data (mp4-atom)
   ((atom-version :accessor atom-version :initarg :atom-version :initform nil)
    (atom-flags   :accessor atom-flags   :initarg :atom-flags   :initform nil)
+   (atom-locale  :accessor atom-locale  :initarg :atom-locale  :initform nil)
    (atom-value   :accessor atom-value   :initarg :atom-value   :initform nil))
   (:documentation "Represents the 'data' portion of ilst data atom"))
 
 (defmethod initialize-instance :after ((me atom-data) &key mp4-file parent &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
-  (with-slots (atom-size atom-type atom-version atom-flags atom-value) me
+  (with-slots (atom-size atom-type atom-version atom-flags atom-value atom-locale) me
     (setf atom-version (stream-read-u8 mp4-file)
-          atom-flags   (stream-read-u24 mp4-file))
+          atom-flags   (stream-read-u24 mp4-file)
+          atom-locale  (stream-read-u32 mp4-file))
 
-    (assert (= 0 (stream-read-u32 mp4-file)) ()
-            "a data atom lacks the required null field")
-
-    ;; XXX ilst data atoms are a tad messy. need to refactor this somehow...
+    ;; Ideally, we would be able to read the atom's value by looking
+    ;; solely at the atom-flags; however, when atom-flags == 0, then
+    ;; things get crazy---I can NOT for the life of me figure out
+    ;; the trck/trkn/disk integer format, hence the mess below.
     (setf atom-value
-          (cond ((member (atom-type parent)
-                         (list +itunes-album+ +itunes-album-artist+ +itunes-artist+
-                               +itunes-comment+ +itunes-composer+ +itunes-copyright+
-                               +itunes-year+ +itunes-encoder+ +itunes-groups+
-                               +itunes-genre-x+ +itunes-lyrics+ +itunes-purchased-date+
-                               +itunes-title+ +itunes-tool+ +itunes-writer+)
-                         :test #'string=)
-                 (stream-read-utf-8-string mp4-file (- (atom-size me) 16)))
+          (ecase atom-flags
+            (1
+             (stream-read-utf-8-string mp4-file (- atom-size 16)))
 
+            ((13 14)
+             (stream-read-sequence mp4-file (- atom-size 16)))
 
-                ((member (atom-type parent)
-                         (list +itunes-track+ +itunes-track-n+ +itunes-disk+)
-                         :test #'string=)
-                 (stream-read-u16 mp4-file) ; throw away
-                 (let* ((a (stream-read-u16 mp4-file))
-                        (b (stream-read-u16 mp4-file)))
-                   (stream-seek mp4-file (- (atom-size me) 16 6) :current)
-                   (list a b)))
+            ((0 21)
+             (cond      ; messy!
+               ((member (atom-type parent)
+                        (list +itunes-track+ +itunes-track-n+ +itunes-disk+)
+                        :test #'string=)
+                (stream-read-u16 mp4-file) ; throw away
+                (let* ((a (stream-read-u16 mp4-file))
+                       (b (stream-read-u16 mp4-file)))
+                  (stream-seek mp4-file (- atom-size 16 6) :current)
+                  (list a b)))
 
-                ((member (atom-type parent)
-                         (list +itunes-tempo+ +itunes-genre+)
-                         :test #'string=)
-                 (stream-read-u16 mp4-file))
-
-                ((string= (atom-type parent) +itunes-compilation+)
-                 (stream-read-u8 mp4-file))
-
-                ((string= (atom-type parent) +itunes-cover-art+)
-                 (stream-read-sequence mp4-file (- (atom-size me) 16)))
-
-                (t
-                 (error "fell through all cases of ilst data atoms: parent-type = ~a"
-                        (atom-type parent)))))))
+               (t (ecase (- atom-size 16)
+                    (2 (stream-read-u16 mp4-file))
+                    (1 (stream-read-u8 mp4-file))))))))))
 
 ;;;; Audio Property Atoms
 (defclass atom-trak (mp4-container-atom) ())
@@ -444,19 +513,6 @@ reading the container atoms"
            flags   (stream-read-u24 mp4-file)))
   (call-next-method))
 
-(defparameter *skipped-m4a-atoms* (make-hash-table :test #'equalp))
-
-(defun clear-skipped ()
-  (setf *skipped-m4a-atoms* (make-hash-table :test #'equalp)))
-
-(defun add-skipped (id)
-  (multiple-value-bind (value foundp)
-      (gethash id *skipped-m4a-atoms*)
-    (setf (gethash id *skipped-m4a-atoms*)
-          (if foundp
-              (1+ value)
-              1))))
-
 (defun find-atom-class (id)
   "Search by concatenating 'atom-' with ID and look for that symbol in this package"
   (declare #.utils:*standard-optimize-settings*)
@@ -468,12 +524,10 @@ reading the container atoms"
       (return-from find-atom-class (find-class found-class-symbol)))
 
     ;; didn't find a class, so return ATOM-SKIP class
-    (add-skipped id)
     (warn-user "file ~a~%Unknown atom type <~a> encountered~%"
                audio-streams:*current-file* id)
     'atom-skip))
-
-(utils:memoize 'find-atom-class)
+(memoize 'find-atom-class)
 
 (defun make-mp4-atom (mp4-file parent)
   "Get current file position, read in size/type, then construct the correct atom."
@@ -575,18 +629,13 @@ one of the +iTunes- constants")
                        (string= (atom-type (tree:data x)) y)))
 
        (let ((ret))
-         ;; NB: only the COVR atom can have more than one data atom
+         ;; NB: only the COVR atom can have more than one data atom,
+         ;; and it can be "data", "name", or "itif"(???).
          (loop for e = (tree:first-child it)
                  then (tree:next-sibling e)
                until (null e) do
-                 (if (typep (tree:data e) 'atom-data)
-                     (push (atom-value (tree:data e)) ret)
-                     ;; Seen this come up a couple of times where the
-                     ;; atoms under an ilst atom aren't data atoms.
-                     (warn-user
-                      "file ~a~%Unexpected atom type <~a> found when looking for <~a>."
-                      (filename mp4-file)
-                      (vpprint (tree:data e) nil) atom-type)))
+                 (when (typep (tree:data e) 'atom-data)
+                   (push (atom-value (tree:data e)) ret)))
          (nreverse ret))
        nil))
 

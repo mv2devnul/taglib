@@ -27,6 +27,8 @@
            #:make-keyword
            #:make-octets
            #:memoize
+           #:mkstr
+           #:mksym
            #:octet
            #:octets
            #:printable-array
@@ -86,34 +88,10 @@
   (:use #:common-lisp #:utils #:audio-streams))
 
 (defpackage #:m4a
-  (:export #:*skipped-m4a-atoms*
-           #:+itunes-album+
-           #:+itunes-album-artist+
-           #:+itunes-artist+
-           #:+itunes-comment+
-           #:+itunes-compilation+
-           #:+itunes-composer+
-           #:+itunes-copyright+
-           #:+itunes-cover-art+
-           #:+itunes-disk+
-           #:+itunes-encoder+
-           #:+itunes-genre+
-           #:+itunes-genre-x+
-           #:+itunes-groups+
-           #:+itunes-lyrics+
-           #:+itunes-purchased-date+
-           #:+itunes-tempo+
-           #:+itunes-title+
-           #:+itunes-tool+
-           #:+itunes-track+
-           #:+itunes-track-n+
-           #:+itunes-writer+
-           #:+itunes-year+
-           #:atom-file-pos
+  (:export #:atom-file-pos
            #:atom-size
            #:atom-type
            #:audio-info
-           #:clear-skipped
            #:filename
            #:get-mp4-audio-info
            #:is-valid-m4-file
@@ -155,8 +133,7 @@
            #:val
            #:version
            #:vpprint
-           #:year
-           #:*skipped-id3-frames*)
+           #:year)
   (:use #:common-lisp #:audio-streams #:utils #:iso-639-2))
 
 (defpackage #:abstract-tag
