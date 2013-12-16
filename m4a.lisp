@@ -13,9 +13,9 @@
 ;;;
 
 (defun mk-atom-class-name (name)
-  "Create an atom class name by concatenating ATOM- with NAME"
+  "Create an atom class name by concatenating ATOM- with NAME, preserving case"
   (declare #.utils:*standard-optimize-settings*)
-  (string-upcase (concatenate 'string "atom-" name)))
+  (mkstr "atom-" name))
 (memoize 'mk-atom-class-name)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
@@ -109,28 +109,28 @@ to read the payload of an atom."
     (stream-seek mp4-file (- atom-size 8) :current)))
 
 ;;; For atoms we don't implement yet, subclass atom-skip
-(defclass atom----- (atom-skip) ())
-(defclass atom-cmID (atom-skip) ()) ; ???
-(defclass atom-dinf (atom-skip) ())
-(defclass atom-drms (atom-skip) ())
-(defclass atom-edts (atom-skip) ())
-(defclass atom-flvr (atom-skip) ())
-(defclass atom-free (atom-skip) ())
-(defclass atom-ftyp (atom-skip) ())
-(defclass atom-iods (atom-skip) ())
-(defclass atom-mdat (atom-skip) ())
-(defclass atom-mvhd (atom-skip) ())
-(defclass atom-name (atom-skip) ())
-(defclass atom-pinf (atom-skip) ())
-(defclass atom-plID (atom-skip) ())
-(defclass atom-sbtd (atom-skip) ())
-(defclass atom-smhd (atom-skip) ())
-(defclass atom-stco (atom-skip) ())
-(defclass atom-stsc (atom-skip) ())
-(defclass atom-stsz (atom-skip) ())
-(defclass atom-stts (atom-skip) ())
-(defclass atom-tkhd (atom-skip) ())
-(defclass atom-xid  (atom-skip) ()) ; NOTE: it's actually "xid#\Space"
+(defclass |atom-----| (atom-skip) ())
+(defclass |atom-cmID| (atom-skip) ()) ; ???
+(defclass |atom-dinf| (atom-skip) ())
+(defclass |atom-drms| (atom-skip) ())
+(defclass |atom-edts| (atom-skip) ())
+(defclass |atom-flvr| (atom-skip) ())
+(defclass |atom-free| (atom-skip) ())
+(defclass |atom-ftyp| (atom-skip) ())
+(defclass |atom-iods| (atom-skip) ())
+(defclass |atom-mdat| (atom-skip) ())
+(defclass |atom-mvhd| (atom-skip) ())
+(defclass |atom-name| (atom-skip) ())
+(defclass |atom-pinf| (atom-skip) ())
+(defclass |atom-plID| (atom-skip) ())
+(defclass |atom-sbtd| (atom-skip) ())
+(defclass |atom-smhd| (atom-skip) ())
+(defclass |atom-stco| (atom-skip) ())
+(defclass |atom-stsc| (atom-skip) ())
+(defclass |atom-stsz| (atom-skip) ())
+(defclass |atom-stts| (atom-skip) ())
+(defclass |atom-tkhd| (atom-skip) ())
+(defclass |atom-xid | (atom-skip) ()) ; NOTE: it's actually "xid#\Space"
 
 (defclass mp4-container-atom (mp4-atom)
   ((tree :accessor tree :documentation "Note: this is ONLY set for the ROOT atom"))
@@ -146,14 +146,14 @@ to read the payload of an atom."
             (make-mp4-atom mp4-file me))))
 
 ;;;; ILST ATOMS (ie atoms related to tagging)
-(defclass atom-ilst (mp4-container-atom) ())
+(defclass |atom-ilst| (mp4-container-atom) ())
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (defparameter *ilst-atoms*
     '(("account-type"      "akID")
       ("album"             "©alb")
       ("album-artist"      "aART")
-      ("artist"            "©art")
+      ("artist"            "©ART")
       ("at-id"             "atID")
       ("cn-id"             "cnID")
       ("comment"           "©cmt")
@@ -193,22 +193,22 @@ to read the payload of an atom."
        ,@(loop for e in *ilst-atoms*
                collect
                `(progn
-                  (defclass ,(mksym "atom-" (second e)) (atom-ilst) ())
-                  (defconstant* ,(mksym "+itunes-" (first e) "+") ,(second e))
-                  (export ',(mksym "+itunes-" (first e) "+")))))))
+                  (defclass ,(mksym nil "atom-" (second e)) (|atom-ilst|) ())
+                  (defconstant* ,(mksym t "+itunes-" (first e) "+") ,(second e))
+                  (export ',(mksym t "+itunes-" (first e) "+")))))))
 
 ;;; generate the ilst atoms/constants/exports
 (mk-ilst-atoms-constants)
 
 
-(defclass atom-data (mp4-atom)
+(defclass |atom-data| (mp4-atom)
   ((atom-version :accessor atom-version :initarg :atom-version :initform nil)
    (atom-flags   :accessor atom-flags   :initarg :atom-flags   :initform nil)
    (atom-locale  :accessor atom-locale  :initarg :atom-locale  :initform nil)
    (atom-value   :accessor atom-value   :initarg :atom-value   :initform nil))
   (:documentation "Represents the 'data' portion of ilst data atom"))
 
-(defmethod initialize-instance :after ((me atom-data) &key mp4-file parent &allow-other-keys)
+(defmethod initialize-instance :after ((me |atom-data|) &key mp4-file parent &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (atom-size atom-type atom-version atom-flags atom-value atom-locale) me
@@ -240,18 +240,19 @@ to read the payload of an atom."
                   (list a b)))
 
                (t (ecase (- atom-size 16)
+                    (4 (stream-read-u32 mp4-file))
                     (2 (stream-read-u16 mp4-file))
                     (1 (stream-read-u8 mp4-file))))))))))
 
 ;;;; Audio Property Atoms
-(defclass atom-trak (mp4-container-atom) ())
-(defclass atom-minf (mp4-container-atom) ())
-(defclass atom-moov (mp4-container-atom) ())
-(defclass atom-udta (mp4-container-atom) ())
-(defclass atom-mdia (mp4-container-atom) ())
-(defclass atom-stbl (mp4-container-atom) ())
+(defclass |atom-trak| (mp4-container-atom) ())
+(defclass |atom-minf| (mp4-container-atom) ())
+(defclass |atom-moov| (mp4-container-atom) ())
+(defclass |atom-udta| (mp4-container-atom) ())
+(defclass |atom-mdia| (mp4-container-atom) ())
+(defclass |atom-stbl| (mp4-container-atom) ())
 
-(defclass atom-hdlr (mp4-atom)
+(defclass |atom-hdlr| (mp4-atom)
   ((version :accessor version) ; 1 byte
    (flags   :accessor flags)   ; 3 bytes
    (qtype   :accessor qtype)   ; 4 bytes
@@ -261,7 +262,7 @@ to read the payload of an atom."
    (rmask   :accessor rmask)   ; 4 bytes
    (mhdlr   :accessor mhdlr))) ; null-terminated string (but we're reading it as octets)
 
-(defmethod initialize-instance :after ((me atom-hdlr) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :after ((me |atom-hdlr|) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (version flags qtype mtype resv rflag rmask mhdlr atom-size) me
@@ -275,7 +276,7 @@ to read the payload of an atom."
           mhdlr    (stream-read-sequence mp4-file (- atom-size 32))) ; 32 is 8-bytes of header plus fields above
     ))
 
-(defclass atom-mdhd (mp4-atom)
+(defclass |atom-mdhd| (mp4-atom)
   ((version  :accessor version)
    (flags    :accessor flags)
    (c-time   :accessor c-time)
@@ -285,7 +286,7 @@ to read the payload of an atom."
    (lang     :accessor lang)
    (quality  :accessor quality)))
 
-(defmethod initialize-instance :after ((me atom-mdhd) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :after ((me |atom-mdhd|) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (version flags c-time m-time scale duration lang quality) me
@@ -298,7 +299,7 @@ to read the payload of an atom."
           lang     (stream-read-u16 mp4-file)
           quality  (stream-read-u16 mp4-file))))
 
-(defclass atom-esds (mp4-atom)
+(defclass |atom-esds| (mp4-atom)
   ((version      :accessor version)       ; 1 byte
    (flags        :accessor flags)         ; 3 bytes
    (esid         :accessor esid)          ; 2 bytes
@@ -347,7 +348,7 @@ to read the payload of an atom."
 (defconstant* +mp4-extdescrtagsstart+       #x80)
 (defconstant* +mp4-extdescrtagsend+         #xfe)
 
-(defmethod initialize-instance :after ((me atom-esds) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :after ((me |atom-esds|) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (version flags esid s-priority obj-id s-type buf-size max-bit-rate avg-bit-rate) me
@@ -374,12 +375,12 @@ to read the payload of an atom."
       ;; but for now, we have what we want, so just seek to end of atom
       (stream-seek mp4-file end-of-atom :start))))
 
-(defclass atom-stsd (mp4-atom)
+(defclass |atom-stsd| (mp4-atom)
   ((flags       :accessor flags)
    (version     :accessor version)
    (num-entries :accessor num-entries)))
 
-(defmethod initialize-instance :after ((me atom-stsd) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :after ((me |atom-stsd|) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (flags version num-entries) me
@@ -387,7 +388,7 @@ to read the payload of an atom."
           flags       (stream-read-u24 mp4-file)
           num-entries (stream-read-u32 mp4-file))))
 
-(defclass atom-mp4a (mp4-container-atom)
+(defclass |atom-mp4a| (mp4-container-atom)
   ((reserved    :accessor reserved)    ; 6 bytes
    (d-ref-idx   :accessor d-ref-idx)   ; 2 bytes
    (version     :accessor version)     ; 2 bytes
@@ -399,7 +400,7 @@ to read the payload of an atom."
    (packet-size :accessor packet-size) ; 2 bytes
    (samp-rate   :accessor samp-rate))) ; 4 bytes
 
-(defmethod initialize-instance :around ((me atom-mp4a) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :around ((me |atom-mp4a|) &key mp4-file &allow-other-keys)
   "Note: this MUST be an AROUND method so that the atom's data can be read in before
 reading the container atoms"
   (declare #.utils:*standard-optimize-settings*)
@@ -416,11 +417,11 @@ reading the container atoms"
           samp-rate   (stream-read-u32 mp4-file))) ; fixed 16.16 floating point number
   (call-next-method))
 
-(defclass atom-meta (mp4-container-atom)
+(defclass |atom-meta| (mp4-container-atom)
   ((version  :accessor version)
    (flags    :accessor flags)))
 
-(defmethod initialize-instance :around ((me atom-meta) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :around ((me |atom-meta|) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
    (with-slots (version flags) me
@@ -450,8 +451,7 @@ reading the container atoms"
 
   (let* ((pos (stream-seek mp4-file))
          (siz (stream-read-u32 mp4-file))
-         (typ (string-right-trim '(#\Space)
-                                 (as-string (stream-read-u32 mp4-file))))
+         (typ (as-string (stream-read-u32 mp4-file)))
          (atom))
     (declare (fixnum pos siz))
 
@@ -475,7 +475,7 @@ reading the container atoms"
             (with-mp4-atom-slots (me)
               (format s "atom:: type: <~a> @ ~:d of size ~:d"
                       atom-type atom-file-pos atom-size))
-            (if (typep me 'atom-data)
+            (if (typep me '|atom-data|)
                 (with-slots (atom-version atom-flags atom-value atom-type) me
                   (format s ", ilst fields: verison = ~d, flags = ~x, data = ~a"
                           atom-version atom-flags
@@ -549,7 +549,7 @@ one of the +iTunes- constants")
          (loop for e = (tree:first-child it)
                  then (tree:next-sibling e)
                until (null e) do
-                 (when (typep (tree:data e) 'atom-data)
+                 (when (typep (tree:data e) '|atom-data|)
                    (push (atom-value (tree:data e)) ret)))
          (nreverse ret))
        nil))
