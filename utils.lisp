@@ -195,6 +195,7 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
   `(setf (symbol-function ,func-name) (utils::mk-memoize ,func-name)))
 
 (defun timings (function)
+  "Time a function."
   (declare #.utils:*standard-optimize-settings*)
 
   (let ((real-base (get-internal-real-time)))
@@ -202,18 +203,17 @@ The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE tim
     (float (/ (- (get-internal-real-time) real-base) internal-time-units-per-second))))
 
 (defun mkstr (&rest args)
-  "Given ARGS, create a string. Case of symbols in ARGS is determined by *PRINT-CASE*.
-Strings' case are as passed in
-eg:
-    (dolist (*print-case* '(:upcase :downcase :capitalize :studly))
-      (format t \"~a -->> ~a~%\" *print-case* (mkstr 'this '-is- \"SPARTA\")))
-yields:
-    UPCASE -->> THIS-IS-SPARTA
-    downcase -->> this-is-SPARTA
-    Capitalize -->> This-Is-SPARTA
-    STUDlY -->> ThiS-IS-SPARTA"
+  "Suprise!  Makes a string from ARGS."
+  (declare #.utils:*standard-optimize-settings*)
+
   (format nil "~{~a~}" args))
 
-(defun mksym (&rest args)
-  "Intern a symbol in current package.  NB: we coerce to all upcase."
-  (intern (string-upcase (apply #'mkstr args))))
+(defun mksym (ansi &rest args)
+  "Intern a symbol in current package.  If ANSI is true, then up-case symbol,
+else, leave args as is."
+  (declare #.utils:*standard-optimize-settings*)
+
+  (let ((str (apply #'mkstr args)))
+    (intern (if ansi
+                (string-upcase str)
+                str))))
