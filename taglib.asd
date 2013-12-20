@@ -12,7 +12,7 @@
   :components ((:file "packages")
                (:file "profile"       :depends-on ("packages"))
                (:file "utils"         :depends-on ("packages"))
-               (:file "tree"          :depends-on ("packages"))
+               (:file "tree"          :depends-on ("packages" "utils"))
                (:file "audio-streams" :depends-on ("packages" "utils"))
                (:file "mpeg"          :depends-on ("packages" "audio-streams" "utils"))
                (:file "iso-639-2"     :depends-on ("packages" "utils"))
