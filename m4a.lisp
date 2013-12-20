@@ -19,6 +19,15 @@
 (memoize 'mk-atom-class-name)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
+  (defun as-octets (str)
+    (declare #.utils:*standard-optimize-settings*)
+    (let ((ret 0))
+      (setf (ldb (byte 8 24) ret) (char-code (aref str 0)))
+      (setf (ldb (byte 8 16) ret) (char-code (aref str 1)))
+      (setf (ldb (byte 8  8) ret) (char-code (aref str 2)))
+      (setf (ldb (byte 8  0) ret) (char-code (aref str 3)))
+      ret))
+
   (defun as-string (atom-type)
     "Given an integer, return the string representation"
     (declare #.utils:*standard-optimize-settings*)
@@ -44,29 +53,6 @@
        (write-char (code-char ,(as-octet l2)) s)
        (write-char (code-char ,(as-octet l3)) s)
        (write-char (code-char ,(as-octet l4)) s))))
-
-;;;; Atom names/ids. Each one of these has an associated "value"(nee data) atom under it
-(defconstant* +root+                  (mk-mp4-atom-type #\R #\O #\O #\T)  "fake root for atom tree")
-
-(defconstant* +itunes-ilst-data+      (mk-mp4-atom-type #\d #\a #\t #\a)  "carries the actual data under an ilst atom")
-
-(defconstant* +m4-ftyp+               (mk-mp4-atom-type #\f #\t #\y #\p) "This should be the first atom type found in file")
-
-(defconstant* +mp4-atom-hdlr+         (mk-mp4-atom-type #\h #\d #\l #\r) "Found under trak.mdia and tells what kind of handler it is")
-
-(defconstant* +audioprop-mdhd+        (mk-mp4-atom-type #\m #\d #\h #\d) "Found under trak.mdia and holds data to calculate length of audio")
-(defconstant* +audioprop-stsd+        (mk-mp4-atom-type #\s #\t #\s #\d) "Container atom: found under trak.mdia.minf.stbl and holds bit-rate, etc")
-(defconstant* +audioprop-mp4a+        (mk-mp4-atom-type #\m #\p #\4 #\a) "Found under trak.mdia.minf.stbl")
-(defconstant* +audioprop-esds+        (mk-mp4-atom-type #\e #\s #\d #\s) "Found under trak.mdia.minf.stbl.mp4a")
-
-(defconstant* +mp4-atom-ilst+         (mk-mp4-atom-type #\i #\l #\s #\t))
-(defconstant* +mp4-atom-mdia+         (mk-mp4-atom-type #\m #\d #\i #\a))
-(defconstant* +mp4-atom-meta+         (mk-mp4-atom-type #\m #\e #\t #\a))
-(defconstant* +mp4-atom-minf+         (mk-mp4-atom-type #\m #\i #\n #\f))
-(defconstant* +mp4-atom-moov+         (mk-mp4-atom-type #\m #\o #\o #\v))
-(defconstant* +mp4-atom-stbl+         (mk-mp4-atom-type #\s #\t #\b #\l))
-(defconstant* +mp4-atom-trak+         (mk-mp4-atom-type #\t #\r #\a #\k))
-(defconstant* +mp4-atom-udta+         (mk-mp4-atom-type #\u #\d #\t #\a))
 
 (defparameter *in-progress* nil "the node currently being worked upon")
 (defparameter *tree*        nil "the root of the atom tree being constructed")
@@ -108,35 +94,11 @@ to read the payload of an atom."
   (with-mp4-atom-slots (me)
     (stream-seek mp4-file (- atom-size 8) :current)))
 
-;;; For atoms we don't implement yet, subclass atom-skip
-(defclass |atom-----| (atom-skip) ())
-(defclass |atom-cmID| (atom-skip) ()) ; ???
-(defclass |atom-dinf| (atom-skip) ())
-(defclass |atom-drms| (atom-skip) ())
-(defclass |atom-edts| (atom-skip) ())
-(defclass |atom-flvr| (atom-skip) ())
-(defclass |atom-free| (atom-skip) ())
-(defclass |atom-ftyp| (atom-skip) ())
-(defclass |atom-iods| (atom-skip) ())
-(defclass |atom-mdat| (atom-skip) ())
-(defclass |atom-mvhd| (atom-skip) ())
-(defclass |atom-name| (atom-skip) ())
-(defclass |atom-pinf| (atom-skip) ())
-(defclass |atom-plID| (atom-skip) ())
-(defclass |atom-sbtd| (atom-skip) ())
-(defclass |atom-smhd| (atom-skip) ())
-(defclass |atom-stco| (atom-skip) ())
-(defclass |atom-stsc| (atom-skip) ())
-(defclass |atom-stsz| (atom-skip) ())
-(defclass |atom-stts| (atom-skip) ())
-(defclass |atom-tkhd| (atom-skip) ())
-(defclass |atom-xid | (atom-skip) ()) ; NOTE: it's actually "xid#\Space"
-
-(defclass mp4-container-atom (mp4-atom)
+(defclass atom-container (mp4-atom)
   ((tree :accessor tree :documentation "Note: this is ONLY set for the ROOT atom"))
   (:documentation "An atom that 'contains' other atoms"))
 
-(defmethod initialize-instance :after ((me mp4-container-atom) &key mp4-file &allow-other-keys)
+(defmethod initialize-instance :after ((me atom-container) &key mp4-file &allow-other-keys)
   (declare #.utils:*standard-optimize-settings*)
 
   (with-mp4-atom-slots (me)
@@ -146,60 +108,116 @@ to read the payload of an atom."
             (make-mp4-atom mp4-file me))))
 
 ;;;; ILST ATOMS (ie atoms related to tagging)
-(defclass |atom-ilst| (mp4-container-atom) ())
+;(defclass |atom-ilst| (atom-container) ())
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (defparameter *ilst-atoms*
-    '(("account-type"      "akID")
-      ("album"             "©alb")
-      ("album-artist"      "aART")
-      ("artist"            "©ART")
-      ("at-id"             "atID")
-      ("cn-id"             "cnID")
-      ("comment"           "©cmt")
-      ("compilation"       "cpil")
-      ("composer"          "©com")
-      ("content-rating"    "rtng")
-      ("copyright"         "cprt")
-      ("cover-art"         "covr")
-      ("disk"              "disk")
-      ("encoder"           "©enc")
-      ("gapless-playback"  "pgap")
-      ("ge-id"             "geID")
-      ("genre"             "gnre")
-      ("genre-x"           "©gen")
-      ("groups"            "©grp")
-      ("lyrics"            "©lyr")
-      ("media-type"        "stik")
-      ("purchase-account"  "apID")
-      ("purchased-date"    "purd")
-      ("sort-album"        "soal")
-      ("sort-album-artist" "soaa")
-      ("sort-artist"       "soar")
-      ("sort-composer"     "soco")
-      ("sort-name"         "sonm")
-      ("store"             "sfID")
-      ("tempo"             "tmpo")
-      ("title"             "©nam")
-      ("tool"              "©too")
-      ("track"             "©trk")
-      ("track-n"           "trkn")
-      ("writer"            "©wrt")
-      ("year"              "©day"))
-    "This is the list of ILST atoms we handle. Each entry is constant-name/class-name")
+  (defun generate-it (name type super-class)
+    (let ((class-name (if super-class
+                          `(defclass ,(mksym nil "atom-" type) (,super-class) ())))
+          (constant `(defconstant* ,(mksym t "+itunes-" name "+") ,type))
+          (exported `(export ',(mksym t "+itunes-" name "+"))))
+      `(progn ,constant ,exported ,class-name)))
 
-  (defmacro mk-ilst-atoms-constants ()
+  (defmacro ncls-atom-entry (a b) `(list ,a ,b nil))             ; no superclass
+  (defmacro ilst-atom-entry (a b) `(list ,a ,b '|atom-ilst|))    ; itunes tagging
+  (defmacro skip-atom-entry (a b) `(list ,a ,b 'atom-skip))      ; read and skip
+  (defmacro cont-atom-entry (a b) `(list ,a ,b 'atom-container)) ; contains other atoms, but no data
+
+  (defparameter *handled-atoms*
+    (list (ncls-atom-entry "root"                         "ROOT") ; pseudo-atom
+          (ncls-atom-entry "ilst-data"                    "data")
+          (ncls-atom-entry "atom-handler"                 "hdlr")
+          (ncls-atom-entry "media-header"                 "mdhd")
+          (ncls-atom-entry "sample-table-desc"            "stsd")
+          (ncls-atom-entry "mp4a-codec"                   "mp4a")
+          (ncls-atom-entry "elementary-stream-descriptor" "esds")
+          (ncls-atom-entry "item-list"                    "ilst")
+          (ncls-atom-entry "metadata"                     "meta")
+
+          (ilst-atom-entry "account-type"                 "akID")
+          (ilst-atom-entry "album"                        "©alb")
+          (ilst-atom-entry "album-artist"                 "aART")
+          (ilst-atom-entry "artist"                       "©ART")
+          (ilst-atom-entry "at-id"                        "atID")
+          (ilst-atom-entry "cn-id"                        "cnID")
+          (ilst-atom-entry "comment"                      "©cmt")
+          (ilst-atom-entry "compilation"                  "cpil")
+          (ilst-atom-entry "composer"                     "©com")
+          (ilst-atom-entry "content-rating"               "rtng")
+          (ilst-atom-entry "copyright"                    "cprt")
+          (ilst-atom-entry "cover-art"                    "covr")
+          (ilst-atom-entry "disk"                         "disk")
+          (ilst-atom-entry "encoder"                      "©enc")
+          (ilst-atom-entry "flavor"                       "flvr")
+          (ilst-atom-entry "gapless-playback"             "pgap")
+          (ilst-atom-entry "ge-id"                        "geID")
+          (ilst-atom-entry "genre"                        "gnre")
+          (ilst-atom-entry "genre-x"                      "©gen")
+          (ilst-atom-entry "groups"                       "©grp")
+          (ilst-atom-entry "lyrics"                       "©lyr")
+          (ilst-atom-entry "media-type"                   "stik")
+          (ilst-atom-entry "purchase-account"             "apID")
+          (ilst-atom-entry "purchased-date"               "purd")
+          (ilst-atom-entry "sort-album"                   "soal")
+          (ilst-atom-entry "sort-album-artist"            "soaa")
+          (ilst-atom-entry "sort-artist"                  "soar")
+          (ilst-atom-entry "sort-composer"                "soco")
+          (ilst-atom-entry "sort-name"                    "sonm")
+          (ilst-atom-entry "store"                        "sfID")
+          (ilst-atom-entry "tempo"                        "tmpo")
+          (ilst-atom-entry "title"                        "©nam")
+          (ilst-atom-entry "tool"                         "©too")
+          (ilst-atom-entry "track"                        "©trk")
+          (ilst-atom-entry "track-n"                      "trkn")
+          (ilst-atom-entry "writer"                       "©wrt")
+          (ilst-atom-entry "unique-id"                    "xid ") ; Note: space at the end
+          (ilst-atom-entry "year"                         "©day")
+
+          (skip-atom-entry "composer-id"                  "cmID")
+          (skip-atom-entry "mean"                         "mean")
+          (skip-atom-entry "data-ref-url"                 "url ")
+          (skip-atom-entry "data-ref-alis"                "alis")
+          (skip-atom-entry "data-ref-rsrc"                "rsrc")
+          (skip-atom-entry "unk-drm"                      "drms")
+          (skip-atom-entry "edit-atom"                    "edts")
+          (skip-atom-entry "free"                         "free")
+          (skip-atom-entry "file-type"                    "ftyp")
+          (skip-atom-entry "unk-iods"                     "iods")
+          (skip-atom-entry "media-data-atom"              "mdat")
+          (skip-atom-entry "movie-header"                 "mvhd")
+          (skip-atom-entry "name-atom"                    "name")
+          (skip-atom-entry "unk-pinf"                     "pinf")
+          (skip-atom-entry "play-list-id"                 "plID")
+          (skip-atom-entry "unk-sbtd"                     "sbtd")
+          (skip-atom-entry "sound-media-header"           "smhd")
+          (skip-atom-entry "sample-table-chunk-offset"    "stco")
+          (skip-atom-entry "sample-table-sample"          "stsc")
+          (skip-atom-entry "sample-table-size"            "stsz")
+          (skip-atom-entry "sample-table-time"            "stts")
+          (skip-atom-entry "track-header"                 "tkhd")
+
+          (cont-atom-entry "free-form"                    "----")
+          (cont-atom-entry "data-info"                    "dinf")
+          (cont-atom-entry "item-list"                    "ilst")
+          (cont-atom-entry "media"                        "mdia")
+          (cont-atom-entry "media-info"                   "minf")
+          (cont-atom-entry "movie"                        "moov")
+          (cont-atom-entry "sample-table"                 "stbl")
+          (cont-atom-entry "trak-header"                  "trak")
+          (cont-atom-entry "user-data"                    "udta"))
+ "This is the list of atoms we 'handle', where 'handle' may well indeed mean to
+skip or just define a constant. Each entry is constant-name/class-name.
+From this data structure we auto-generate (optionally) class-names
+and (always) defconstants.")
+
+  (defmacro mk-handled-atoms-constants-and-classes ()
     `(progn
-       ,@(loop for e in *ilst-atoms*
+       ,@(loop for e in *handled-atoms*
                collect
-               `(progn
-                  (defclass ,(mksym nil "atom-" (second e)) (|atom-ilst|) ())
-                  (defconstant* ,(mksym t "+itunes-" (first e) "+") ,(second e))
-                  (export ',(mksym t "+itunes-" (first e) "+")))))))
+               (generate-it (first e) (second e) (third e))))))
 
-;;; generate the ilst atoms/constants/exports
-(mk-ilst-atoms-constants)
-
+;;; generate the handled atoms/constants/exports
+(mk-handled-atoms-constants-and-classes)
 
 (defclass |atom-data| (mp4-atom)
   ((atom-version :accessor atom-version :initarg :atom-version :initform nil)
@@ -215,6 +233,8 @@ to read the payload of an atom."
     (setf atom-version (stream-read-u8 mp4-file)
           atom-flags   (stream-read-u24 mp4-file)
           atom-locale  (stream-read-u32 mp4-file))
+
+    ;(dbg 'atom-data-init atom-version atom-flags atom-locale)
 
     ;; Ideally, we would be able to read the atom's value by looking
     ;; solely at the atom-flags; however, when atom-flags == 0, then
@@ -239,18 +259,36 @@ to read the payload of an atom."
                   (stream-seek mp4-file (- atom-size 16 6) :current)
                   (list a b)))
 
-               (t (ecase (- atom-size 16)
+               (t (case (- atom-size 16)
                     (4 (stream-read-u32 mp4-file))
                     (2 (stream-read-u16 mp4-file))
-                    (1 (stream-read-u8 mp4-file))))))))))
+                    (1 (stream-read-u8 mp4-file))
+                    (otherwise
+                     ;;(warn-user "file: ~a~%unknown atom-flags: ~a, reading ~:d octets"
+                     ;;  audio-streams:*current-file* atom-flags (- atom-size 16))
+                     (stream-read-sequence mp4-file (- atom-size 16)))))))))))
 
-;;;; Audio Property Atoms
-(defclass |atom-trak| (mp4-container-atom) ())
-(defclass |atom-minf| (mp4-container-atom) ())
-(defclass |atom-moov| (mp4-container-atom) ())
-(defclass |atom-udta| (mp4-container-atom) ())
-(defclass |atom-mdia| (mp4-container-atom) ())
-(defclass |atom-stbl| (mp4-container-atom) ())
+;(defclass |atom-dinf| (atom-container) ())
+
+(defclass |atom-dref| (atom-container)
+  ((version     :accessor version)
+   (flags       :accessor flags)
+   (num-entries :accessor num-entries))
+  (:documentation "data reference atom"))
+
+(defmethod initialize-instance :around ((me |atom-dref|) &key mp4-file &allow-other-keys)
+  (declare #.utils:*standard-optimize-settings*)
+
+  (with-slots (version flags num-entries entries) me
+    (setf version     (stream-read-u8 mp4-file)
+          flags       (stream-read-u24 mp4-file)
+          num-entries (stream-read-u32 mp4-file))
+    (call-next-method)))
+
+    ;; (loop for i from 0 to (1- num-entries) do
+    ;;   (setf (aref entries i)
+    ;;         (make-instance 'data-reference
+    ;;                        :mp4-file mp4-file)))))
 
 (defclass |atom-hdlr| (mp4-atom)
   ((version :accessor version) ; 1 byte
@@ -305,7 +343,7 @@ to read the payload of an atom."
    (esid         :accessor esid)          ; 2 bytes
    (s-priority   :accessor s-priority)    ; 1 byte
    (obj-id       :accessor obj-id)        ; 1 byte
-   (s-type       :accessor s-type)        ; 1 byte (1 bit up-stream, 1-but reservered, 6-bits stream type
+   (s-type       :accessor s-type)        ; 1 byte (1 bit up-stream, 1-but reserved, 6-bits stream type
    (buf-size     :accessor buf-size)      ; 3 bytes
    (max-bit-rate :accessor max-bit-rate)  ; 4 bytes
    (avg-bit-rate :accessor avg-bit-rate)) ; 4 bytes
@@ -388,7 +426,7 @@ to read the payload of an atom."
           flags       (stream-read-u24 mp4-file)
           num-entries (stream-read-u32 mp4-file))))
 
-(defclass |atom-mp4a| (mp4-container-atom)
+(defclass |atom-mp4a| (atom-container)
   ((reserved    :accessor reserved)    ; 6 bytes
    (d-ref-idx   :accessor d-ref-idx)   ; 2 bytes
    (version     :accessor version)     ; 2 bytes
@@ -417,7 +455,7 @@ reading the container atoms"
           samp-rate   (stream-read-u32 mp4-file))) ; fixed 16.16 floating point number
   (call-next-method))
 
-(defclass |atom-meta| (mp4-container-atom)
+(defclass |atom-meta| (atom-container)
   ((version  :accessor version)
    (flags    :accessor flags)))
 
@@ -435,6 +473,8 @@ reading the container atoms"
 
   (let ((found-class-symbol (find-symbol (mk-atom-class-name id) :M4A)))
 
+    ;(dbg 'find-atom-class id found-class-symbol)
+
     ;; if we found the class name, return the class (to be used for MAKE-INSTANCE)
     (when found-class-symbol
       (return-from find-atom-class (find-class found-class-symbol)))
@@ -444,6 +484,8 @@ reading the container atoms"
                audio-streams:*current-file* id)
     'atom-skip))
 (memoize 'find-atom-class)
+
+(defparameter *stop-on-count* 0)
 
 (defun make-mp4-atom (mp4-file parent)
   "Get current file position, read in size/type, then construct the correct atom."
@@ -459,44 +501,53 @@ reading the container atoms"
       (error "trying to make an atom ~a with size of 0 at offset ~:d in file ~a"
              typ pos (stream-filename mp4-file)))
 
+    ;(dbg 'make-mp4-atom pos siz typ)
+    ;(incf *stop-on-count*)
+    ;(when (> *stop-on-count* 100)
+      ;(break))
+
     (setf atom (make-instance (find-atom-class typ)
                               :atom-size siz
                               :atom-type typ
                               :atom-file-pos pos
                               :parent parent
                               :mp4-file mp4-file))
+    ;(dbg 'make-mp4-atom (type-of atom) (vpprint atom nil))
     atom))
 
 (defmethod vpprint ((me mp4-atom) stream)
+  "Pretty print an atom"
   (declare #.utils:*standard-optimize-settings*)
 
   (format stream "~a"
           (with-output-to-string (s)
             (with-mp4-atom-slots (me)
-              (format s "atom:: type: <~a> @ ~:d of size ~:d"
+              (format s "Atom ~a @ ~:d of size ~:d"
                       atom-type atom-file-pos atom-size))
-            (if (typep me '|atom-data|)
-                (with-slots (atom-version atom-flags atom-value atom-type) me
-                  (format s ", ilst fields: verison = ~d, flags = ~x, data = ~a"
-                          atom-version atom-flags
-                          (if (typep atom-value 'octets)
-                              (printable-array atom-value)
-                              atom-value)))))))
+            (typecase me
+              (|atom-data|
+               (with-slots (atom-version atom-flags atom-value atom-type) me
+                 (format s ", ilst fields: verison = ~d, flags = ~x, data = ~a"
+                         atom-version atom-flags
+                         (if (typep atom-value 'octets)
+                             (printable-array atom-value)
+                             atom-value))))))))
 
 (defun is-valid-m4-file (mp4-file)
-  "Make sure this is an MP4 file.  Quick check: is first atom (at file-offset 4) == FSTYP?
-Written in this fashion so as to be 'crash-proof' when passed an arbitrary file."
+  "Make sure this is an MP4 file.  Quick check: is first atom type
+(at file-offset 4) == 'FSTYP'?"
   (declare #.utils:*standard-optimize-settings*)
 
   (let ((valid)
         (size)
         (header))
+
     (when (> (stream-size mp4-file) 8)
       (stream-seek mp4-file 0 :start)
       (setf size   (stream-read-u32 mp4-file)
             header (as-string (stream-read-u32 mp4-file))
             valid  (and (<= size (stream-size mp4-file))
-                        (string= header +m4-ftyp+))))
+                        (string= header +itunes-file-type+))))
     (stream-seek mp4-file 0 :start)
     valid))
 
@@ -507,7 +558,7 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
                :documentation "holds tree of parsed MP4 atoms/boxes")
    (audio-info :accessor audio-info :initform nil
                :documentation "holds the bit-rate, etc info"))
-  (:documentation "Stream for parsing MP4 audio files"))
+  (:documentation "For parsing MP4 audio files"))
 
 (defun parse-audio-file (instream &optional (get-audio-info nil))
   "Given a valid MP4 file, look for the 'right' atoms and return them."
@@ -519,8 +570,8 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
          (parsed-info (make-instance 'mp4-file
                                      :filename (stream-filename instream))))
     (setf (mp4-atoms parsed-info)
-          (tree      (make-instance 'mp4-container-atom
-                                    :atom-type +root+
+          (tree      (make-instance 'atom-container
+                                    :atom-type +itunes-root+
                                     :atom-file-pos 0
                                     :atom-size (stream-size instream)
                                     :mp4-file instream)))
@@ -529,8 +580,8 @@ Written in this fashion so as to be 'crash-proof' when passed an arbitrary file.
 
     parsed-info))
 
-(defparameter *ilst-data* (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
-                                +mp4-atom-meta+ +mp4-atom-ilst+ nil)
+(defparameter *ilst-data* (list +itunes-root+ +itunes-movie+ +itunes-user-data+
+                                +itunes-metadata+ +itunes-item-list+ nil)
   "iTunes artist/album/etc path. The 5th element should be set to
 one of the +iTunes- constants")
 
@@ -539,6 +590,8 @@ one of the +iTunes- constants")
   (declare #.utils:*standard-optimize-settings*)
 
   (setf (nth 5 *ilst-data*) atom-type)
+  ;(dbg 'tag-get-value *ilst-data*)
+
   (aif (tree:at-path (mp4-atoms mp4-file) *ilst-data*
                      (lambda (x y)
                        (string= (atom-type (tree:data x)) y)))
@@ -560,8 +613,8 @@ one of the +iTunes- constants")
 
   (let ((top-node
           (tree:at-path (mp4-atoms mp4-file-stream)
-                        (list +root+ +mp4-atom-moov+ +mp4-atom-udta+
-                              +mp4-atom-meta+ +mp4-atom-ilst+)
+                        (list +itunes-root+ +itunes-movie+ +itunes-user-data+
+                              +itunes-metadata+ +itunes-item-list+)
                         (lambda (x y)
                           (string= (atom-type (tree:data x)) y)))))
 
@@ -582,15 +635,15 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
           (tree:find-tree
            (mp4-atoms mp4-file)
            (lambda (x)
-             (string= (atom-type (tree:data x)) +audioprop-mdhd+))))
+             (string= (atom-type (tree:data x)) +itunes-media-header+))))
         (mp4a (tree:find-tree
                (mp4-atoms mp4-file)
                (lambda (x)
-                 (string= (atom-type (tree:data x)) +audioprop-mp4a+))))
+                 (string= (atom-type (tree:data x)) +itunes-mp4a-codec+))))
         (esds (tree:find-tree
                (mp4-atoms mp4-file)
                (lambda (x)
-                 (string= (atom-type (tree:data x)) +audioprop-esds+)))))
+                 (string= (atom-type (tree:data x)) +itunes-elementary-stream-descriptor+)))))
 
     (if (and mdhd mp4a esds)
         (values (tree:data (first mdhd))
@@ -608,6 +661,7 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
   (:documentation "Holds extracted audio information about an MP4 file."))
 
 (defmethod vpprint ((me audio-info) stream)
+  "Pretty print audio information"
   (declare #.utils:*standard-optimize-settings*)
 
   (with-slots (seconds channels bits-per-sample sample-rate max-bit-rate avg-bit-rate) me
@@ -640,12 +694,18 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
                 max-bit-rate (max-bit-rate esds))))))
     info))
 
-(defun map-mp4-atoms (m4a &key (func (constantly t)))
+(defun map-mp4-atoms (m4a &key (func nil))
   "Visit each atom we found in M4A"
   (declare #.utils:*standard-optimize-settings*)
-
-  (tree:traverse
-   (m4a:mp4-atoms m4a)
-   (lambda (node depth)
-     (declare (ignore depth))
-     (funcall func (tree:data node)))))
+  (let ((count 0))
+    (labels ((_internal-print (atom depth)
+               (format t "~vt~a~%" depth (vpprint atom nil))
+               (incf count)))
+      (when (null func)
+        (setf func #'_internal-print))
+      (tree:traverse
+       (m4a:mp4-atoms m4a)
+       (lambda (node depth)
+         (funcall func (tree:data node) depth))))
+    (when count
+      (format t "~:d atom~p found~%" count count))))
