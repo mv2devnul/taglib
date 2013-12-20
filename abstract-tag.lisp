@@ -365,7 +365,7 @@ else, print out a subset."
     (cond
       (genre   (format nil "~d (~a)" genre (get-id3v1-genre (1- genre))))
       (genre-x genre-x)
-      (t       "not present"))))
+      (t       nil))))
 
 (defmethod track ((me m4a:mp4-file))
   (declare #.utils:*standard-optimize-settings*)
@@ -412,11 +412,12 @@ else show subset of DATA atoms"
         (when album-artist (format t "~4talbum-artist: ~a~%" album-artist))
         (when artist (format t "~4tartist: ~a~%" artist))
         (when comment (format t "~4tcomment: ~a~%" comment))
-        (format t "~4tcompilation: ~[no~;yes~;unknown~]~%" (if compilation compilation 2))
+        (when compilation
+          (format t "~4tcompilation: ~[no~;yes~;unknown~]~%" (if compilation compilation 2)))
         (when composer (format t "~4tcomposer: ~a~%" composer))
         (when copyright (format t "~4tcopyright: ~a~%" copyright))
         (when cover
-          (format t "~4tcover: Number of covers: ~d, lengths:" (length cover))
+          (format t "~4tcover: Number of covers: ~d, length~p:" (length cover) (length cover))
           (dolist (c cover)
             (format t " ~:d bytes;" (length c)))
           (format t "~%"))
