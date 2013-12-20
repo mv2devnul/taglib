@@ -58,14 +58,15 @@
                                (do-audio-file
                                  f
                                  (lambda (s)
-                                   (cond ((typep s 'id3:mp3-file)
-                                          (incf mp3-count))
-                                         ((typep s 'flac:flac-file)
-                                          (incf flac-count))
-                                         ((typep s 'm4a:mp4-file)
-                                          (incf mp4-count))
-                                         ((null s)
-                                          (incf other-count)))
+                                   (typecase s
+                                     (id3:mp3-file
+                                      (incf mp3-count))
+                                     (flac:flac-file
+                                      (incf flac-count))
+                                     (m4a:mp4-file
+                                      (incf mp4-count))
+                                     (otherwise
+                                      (incf other-count)))
                                    (when (and (not (null s)) func)
                                      (funcall func s)))))))
     file-counts))
@@ -93,14 +94,15 @@
     (do-audio-dir
       dir
       (lambda (s)
-        (cond ((typep s 'id3:mp3-file)
-               (id3:map-id3-frames s
-                                   :func (lambda (f)
-                                           (insert-into-ht (id3:id f) m3-ht))))
-              ((typep s 'm4a:mp4-file)
-               (m4a:map-mp4-atoms s
-                                  :func (lambda (f)
-                                          (insert-into-ht (m4a:atom-type f) m4-ht)))))))
+        (typecase s
+          (id3:mp3-file
+           (id3:map-id3-frames s
+                               :func (lambda (f)
+                                       (insert-into-ht (id3:id f) m3-ht))))
+          (m4a:mp4-file
+           (m4a:map-mp4-atoms s
+                              :func (lambda (f)
+                                      (insert-into-ht (m4a:atom-type f) m4-ht)))))))
     (format t "MP3 Stats:~%")
     (loop for key being the hash-keys of m3-ht
           using (hash-value value)
@@ -156,14 +158,15 @@
 
                        (do-audio-file f
                          (lambda (s)
-                           (cond ((typep s 'id3:mp3-file)
-                                  (incf mp3-count))
-                                 ((typep s 'flac:flac-file)
-                                  (incf flac-count))
-                                 ((typep s 'm4a:mp4-file)
-                                  (incf mp4-count))
-                                 ((null s)
-                                  (incf other-count)))
+                           (typecase s
+                             (id3:mp3-file
+                              (incf mp3-count))
+                             (flac:flac-file
+                              (incf flac-count))
+                             (m4a:mp4-file
+                              (incf mp4-count))
+                             (otherwise
+                              (incf other-count)))
                            (when (and (not (null s)) func)
                              (funcall func s)))))))))
 
