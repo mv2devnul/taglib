@@ -81,7 +81,7 @@ The macro expansion has relatively low overhead in space or time."
   (apply #'format *error-output* format-string args)
   (format *error-output* "~&~%"))
 
-(defparameter *max-raw-bytes-print-len* 10 "Max number of octets to print from an array")
+(defparameter *max-raw-bytes-print-len* 30 "Max number of octets to print from an array")
 
 (defun printable-array (array &optional (max-len *max-raw-bytes-print-len*))
   "Given an array, return a string of the first *MAX-RAW-BYTES-PRINT-LEN* bytes"
@@ -89,10 +89,10 @@ The macro expansion has relatively low overhead in space or time."
 
   (let* ((len (length array))
          (print-len (min len max-len))
-         (printable-array (make-array print-len :element-type 'octet :displaced-to array)))
-    (declare (fixnum max-len len)
-             (type (array (unsigned-byte 8) 1) array))
-    (format nil "[~:d of ~:d bytes] <~x>" print-len len printable-array)))
+         (printable-array (make-array print-len :displaced-to array)))
+
+    (declare (fixnum max-len len))
+    (format nil "[~:d of ~:d bytes] <~a>" print-len len printable-array)))
 
 (declaim (inline upto-null))
 (defun upto-null (string)
