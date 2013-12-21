@@ -529,9 +529,11 @@ reading the container atoms"
                (with-slots (atom-version atom-flags atom-value atom-type) me
                  (format s ", ilst fields: verison = ~d, flags = ~x, data = ~a"
                          atom-version atom-flags
-                         (if (typep atom-value 'octets)
-                             (printable-array atom-value)
-                             atom-value))))))))
+                         (typecase atom-value
+                           (array
+                             (printable-array atom-value))
+                           (otherwise
+                            atom-value)))))))))
 
 (defun is-valid-m4-file (mp4-file)
   "Make sure this is an MP4 file.  Quick check: is first atom type
