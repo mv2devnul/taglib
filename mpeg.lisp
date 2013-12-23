@@ -5,6 +5,12 @@
 ;;; http://www.datavoyage.com/mpgscript/mpeghdr.htm for format of a frame.
 (in-package #:mpeg)
 
+(declaim (fixnum +mpeg-2.5+
+                 +sync-word+
+                 +v-reserved+
+                 +mpeg-2+
+                 +mpeg-1+))
+
 (defconstant* +sync-word+  #x7ff "NB: this is 11 bits so as to be able to recognize V2.5")
 
 ;;; the versions
@@ -15,15 +21,22 @@
 
 (defun valid-version (version)
   (declare #.utils:*standard-optimize-settings*)
-  (or ;; can't deal with 2.5's yet (= (the fixnum +mpeg-2.5+) (the fixnum version))
-      (= (the fixnum +mpeg-2+) (the fixnum version))
-      (= (the fixnum +mpeg-1+) (the fixnum version))))
+  (declare (fixnum version))
+
+  ;; can't deal with 2.5's yet
+  (or
+   (= +mpeg-2+ version)
+   (= +mpeg-1+ version)))
 
 (defun get-mpeg-version-string (version)
   (declare #.utils:*standard-optimize-settings*)
-  (nth version '("MPEG 2.5" "Reserved" "MPEG 2" "MPEG 1")))
+  (aref #("MPEG 2.5" "Reserved" "MPEG 2" "MPEG 1") version))
 
 ;;; the layers
+(declaim (fixnum +layer-reserved+
+                 +layer-3+
+                 +layer-2+
+                 +layer-1+))
 (defconstant* +layer-reserved+  0)
 (defconstant* +layer-3+         1)
 (defconstant* +layer-2+         2)
@@ -31,16 +44,23 @@
 
 (defun valid-layer (layer)
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum layer))
 
-  (or (= (the fixnum +layer-3+) (the fixnum layer))
-      (= (the fixnum +layer-2+) (the fixnum layer))
-      (= (the fixnum +layer-1+) (the fixnum layer))))
+  (or (= +layer-3+ layer)
+      (= +layer-2+ layer)
+      (= +layer-1+ layer)))
 
 (defun get-layer-string (layer)
   (declare #.utils:*standard-optimize-settings*)
-  (nth layer '("Reserved" "Layer III" "Layer II" "Layer I")))
+  (declare (fixnum layer))
+
+  (aref #("Reserved" "Layer III" "Layer II" "Layer I") layer))
 
 ;;; the modes
+(declaim (fixnum +channel-mode-stereo+
+                 +channel-mode-joint+
+                 +channel-mode-dual+
+                 +channel-mode-mono+))
 (defconstant* +channel-mode-stereo+ 0)
 (defconstant* +channel-mode-joint+  1)
 (defconstant* +channel-mode-dual+   2)
@@ -49,9 +69,13 @@
 (defun get-channel-mode-string (mode)
   (declare #.utils:*standard-optimize-settings*)
 
-  (nth mode '("Stereo" "Joint" "Dual" "Mono")))
+  (aref #("Stereo" "Joint" "Dual" "Mono") mode))
 
 ;;; the emphases
+(declaim (fixnum +emphasis-none+
+                 +emphasis-50-15+
+                 +emphasis-reserved+
+                 +emphasis-ccit+))
 (defconstant* +emphasis-none+     0)
 (defconstant* +emphasis-50-15+    1)
 (defconstant* +emphasis-reserved+ 2)
@@ -60,16 +84,19 @@
 (defun get-emphasis-string (e)
   (declare #.utils:*standard-optimize-settings*)
 
-  (nth e '("None" "50/15 ms" "Reserved" "CCIT J.17")))
+  (aref #("None" "50/15 ms" "Reserved" "CCIT J.17") e))
 
 (defun valid-emphasis (e)
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum e))
 
-  (or (= (the fixnum e) (the fixnum +emphasis-none+))
-      (= (the fixnum e) (the fixnum +emphasis-50-15+))
-      (= (the fixnum e) (the fixnum +emphasis-ccit+))))
+  (or (= e +emphasis-none+)
+      (= e +emphasis-50-15+)
+      (= e +emphasis-ccit+)))
 
 ;;; the modes
+(declaim (fixnum +mode-extension-0+ +mode-extension-1+
+                 +mode-extension-2+ +mode-extension-3+))
 (defconstant* +mode-extension-0+ 0)
 (defconstant* +mode-extension-1+ 1)
 (defconstant* +mode-extension-2+ 2)
@@ -77,6 +104,7 @@
 
 (defun get-mode-extension-string (channel-mode layer mode-extension)
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum channel-mode layer mode-extension))
 
   (if (not (= channel-mode +channel-mode-joint+))
       ""
@@ -85,6 +113,7 @@
           (format nil "Bands ~[4~;8~;12~;16~] to 31" mode-extension)
           (format nil "Intensity Stereo: ~[off~;on~], MS Stereo: ~[off~;on~]"
                   (ash mode-extension -1) (logand mode-extension 1)))))
+
 
 (defun get-samples-per-frame (version layer)
   (declare #.utils:*standard-optimize-settings*)
@@ -131,7 +160,9 @@
      ,@body))
 
 (let ((bit-array-table
-       (make-array '(14 5) :initial-contents
+       (make-array '(14 5)
+                   :element-type 'fixnum
+                   :initial-contents
                    '((32   32  32  32   8)
                      (64   48  40  48  16)
                      (96   56  48  56  24)
@@ -149,8 +180,9 @@
 
   (defun valid-bit-rate-index (br-index)
     (declare #.utils:*standard-optimize-settings*)
+    (declare (fixnum br-index))
 
-    (and (> (the fixnum br-index) 0) (< (the fixnum br-index) 15)))
+    (and (> br-index 0) (< br-index 15)))
 
   (defun get-bit-rate (version layer bit-rate-index)
     (declare #.utils:*standard-optimize-settings*)
@@ -174,9 +206,10 @@
 
 (defun valid-sample-rate-index (sr-index)
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum sr-index))
 
-  (and (>= (the fixnum sr-index) 0)
-       (<  (the fixnum sr-index) 3)))
+  (and (>= sr-index 0)
+       (<  sr-index 3)))
 
 (defun get-sample-rate (version sr-index)
   (declare #.utils:*standard-optimize-settings*)
@@ -197,7 +230,7 @@
                          ((= (the fixnum layer) (the fixnum +layer-3+))
                           (if (= (the fixnum version) (the fixnum +mpeg-1+))
                               (+ (* 144 (/ bit-rate sample-rate)) padded)
-                              (+ (* 72  (/ bit-rate sample-rate)) padded)))))))
+                              (+ (* 72 (/ bit-rate sample-rate)) padded)))))))
 
 (defmethod load-frame ((me frame) &key instream (read-payload nil))
   "Load an MPEG frame from current file position.  If READ-PAYLOAD is set,
@@ -244,44 +277,44 @@ Bits   1-0 (2  bits): the emphasis"
 
   (with-frame-slots (me)
     ;; check sync word
-    (setf sync (get-bitfield hdr-u32 31 11))
+    (setf sync (the fixnum (get-bitfield hdr-u32 31 11)))
     (when (not (= sync +sync-word+))
       (return-from parse-header nil))
 
     ;; check version
-    (setf version (get-bitfield hdr-u32 20 2))
+    (setf version (the fixnum (get-bitfield hdr-u32 20 2)))
     (when (not (valid-version version))
       (return-from parse-header nil))
 
     ;; check layer
-    (setf layer (get-bitfield hdr-u32 18 2))
+    (setf layer (the fixnum (get-bitfield hdr-u32 18 2)))
     (when (not (valid-layer layer))
       (return-from parse-header nil))
 
-    (setf protection (get-bitfield hdr-u32 16 1)
-          samples (get-samples-per-frame version layer))
+    (setf protection (the fixnum (get-bitfield hdr-u32 16 1))
+          samples    (get-samples-per-frame version layer))
 
     ;; check bit-rate
-    (let ((br-index (get-bitfield hdr-u32 15 4)))
+    (let ((br-index (the fixnum (get-bitfield hdr-u32 15 4))))
       (when (not (valid-bit-rate-index br-index))
         (return-from parse-header nil))
 
-      (setf bit-rate (get-bit-rate version layer br-index)))
+      (setf bit-rate (the fixnum (get-bit-rate version layer br-index))))
 
     ;; check sample rate
-    (let ((sr-index (get-bitfield hdr-u32 11 2)))
+    (let ((sr-index (the fixnum (get-bitfield hdr-u32 11 2))))
       (when (not (valid-sample-rate-index sr-index))
         (return-from parse-header nil))
 
-      (setf sample-rate (get-sample-rate version sr-index)))
+      (setf sample-rate (the fixnum (get-sample-rate version sr-index))))
 
-    (setf padded         (get-bitfield hdr-u32 9 1)
-          private        (get-bitfield hdr-u32 8 1)
-          channel-mode   (get-bitfield hdr-u32 7 2)
-          mode-extension (get-bitfield hdr-u32 5 2)
-          copyright      (get-bitfield hdr-u32 3 1)
-          original       (get-bitfield hdr-u32 2 1)
-          emphasis       (get-bitfield hdr-u32 1 2))
+    (setf padded         (the fixnum (get-bitfield hdr-u32 9 1))
+          private        (the fixnum (get-bitfield hdr-u32 8 1))
+          channel-mode   (the fixnum (get-bitfield hdr-u32 7 2))
+          mode-extension (the fixnum (get-bitfield hdr-u32 5 2))
+          copyright      (the fixnum (get-bitfield hdr-u32 3 1))
+          original       (the fixnum (get-bitfield hdr-u32 2 1))
+          emphasis       (the fixnum (get-bitfield hdr-u32 1 2)))
 
     ;; check emphasis
     (when (not (valid-emphasis emphasis))
@@ -324,21 +357,24 @@ Bits   1-0 (2  bits): the emphasis"
 
 (defun get-side-info-size (version channel-mode)
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum version channel-mode))
 
-  (cond ((= (the fixnum version) (the fixnum +mpeg-1+))
-         (cond ((= (the fixnum channel-mode) (the fixnum +channel-mode-mono+)) 17)
-               (t 32)))
-        (t (cond ((= (the fixnum channel-mode) (the fixnum +channel-mode-mono+)) 9)
-                 (t 17)))))
+  (if (= version +mpeg-1+)
+      (if (= channel-mode +channel-mode-mono+)
+          17
+          32)
+      (if (= channel-mode +channel-mode-mono+)
+          9
+          17)))
 
 (defmethod check-vbr ((me frame))
   (declare #.utils:*standard-optimize-settings*)
 
   (with-frame-slots (me)
     (let ((i (get-side-info-size version channel-mode)))
+      (declare (fixnum i))
       (when (>= i (length payload))
         (return-from check-vbr nil))
-
       (when (or (and (= (aref payload (+ i 0)) (char-code #\X))
                      (= (aref payload (+ i 1)) (char-code #\i))
                      (= (aref payload (+ i 2)) (char-code #\n))
