@@ -292,6 +292,7 @@ is from the ID3 'spec'"
    (revision       :accessor revision       :initarg :revision       :initform 0   :documentation "ID3 revision---is this ever non-zero?")
    (flags          :accessor flags          :initarg :flags          :initform 0   :documentation "ID3 header flags")
    (size           :accessor size           :initarg :size           :initform 0   :documentation "size of ID3 info")
+   (padding-size   :accessor padding-size   :initarg :padding-size   :initform 0   :documentation "padding size in tags")
    (ext-header     :accessor ext-header     :initarg :ext-header     :initform nil :documentation "holds v2.3/4 extended header")
    (frames         :accessor frames         :initarg :frames         :initform nil :documentation "holds ID3 frames")
    (v21-tag-header :accessor v21-tag-header :initarg :v21-tag-header :initform nil :documentation "old-style v2.1 header (if present)"))
@@ -449,11 +450,11 @@ are different..."
            (header-footer-p ,flags)))
 
 (defmethod vpprint ((me id3-header) stream)
-  (with-slots (version revision flags v21-tag-header size ext-header frames) me
+  (with-slots (version revision flags v21-tag-header padding-size size ext-header frames) me
     (format stream "~a"
             (with-output-to-string (s)
-              (format s "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; ~a; ~a"
-                      version revision (print-header-flags nil flags) size
+              (format s "Header: version/revision: ~d/~d, flags: ~a, size = ~:d bytes; padding: ~:d bytes; ~a; ~a"
+                      version revision (print-header-flags nil flags) size padding-size
                       (if (and (header-extended-p flags) ext-header)
                           (concatenate 'string "Extended header: " (vpprint ext-header nil))
                           "No extended header")
@@ -1304,27 +1305,31 @@ are different..."
   "Parse an MP3 file"
   (declare #.utils:*standard-optimize-settings*)
 
-  (labels ((read-loop (version stream)
-             (let (frames this-frame)
-               (do ()
-                   ((>= (stream-seek stream) (stream-size stream)))
-                 (handler-case
-                     (progn
-                       (setf this-frame (make-frame version stream
-                                                    (stream-filename instream)))
-                       (when (null this-frame)
-                         (return-from read-loop (values t (nreverse frames))))
+  (let ((parsed-info))
+    (labels ((read-loop (version stream)
+               (let (frames this-frame)
+                 (do ()
+                     ((>= (stream-seek stream) (stream-size stream)))
+                   (handler-case
+                       (progn
+                         (setf this-frame (make-frame version stream
+                                                      (stream-filename instream)))
+                         (when (null this-frame)
+                           (setf (padding-size (id3-header parsed-info))
+                                 (- (stream-size stream)
+                                    (stream-seek stream)))
+                           (return-from read-loop (values t (nreverse frames))))
 
-                       (push this-frame frames))
-                   (condition (c)
-                     (warn-user "file ~a:~%Id3 parse-audio-file got condition ~a"
-                                      audio-streams:*current-file* c)
-                     (return-from read-loop (values nil (nreverse frames))))))
+                         (push this-frame frames))
+                     (condition (c)
+                       (warn-user "file ~a:~%Id3 parse-audio-file got condition ~a"
+                                  audio-streams:*current-file* c)
+                       (return-from read-loop (values nil (nreverse frames))))))
 
-               (values t (nreverse frames))))) ; frames in "file order"
+                 (values t (nreverse frames))))) ; frames in "file order"
 
-    (let ((parsed-info (make-instance 'mp3-file
-                                      :filename (stream-filename instream))))
+      (setf parsed-info (make-instance 'mp3-file
+                                       :filename (stream-filename instream)))
       (setf (id3-header parsed-info) (make-instance 'id3-header :instream instream))
       (with-slots (size ext-header frames flags version) (id3-header parsed-info)
 
