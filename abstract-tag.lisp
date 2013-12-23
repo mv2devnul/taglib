@@ -55,21 +55,25 @@ is > 0 and < (sizeof *ID3V1-GENRES*)"
 
 ;;;; The abstract tag interface
 (defgeneric album (stream))
+(defgeneric album-artist (stream))
 (defgeneric artist (stream))
 (defgeneric comment (stream))
+(defgeneric compilation (stream))
 (defgeneric composer (stream))
 (defgeneric copyright (stream))
 (defgeneric cover (stream))
-(defgeneric year (stream))
+(defgeneric disk (stream))
 (defgeneric encoder (stream))
+(defgeneric genre (stream))
 (defgeneric groups (stream))
 (defgeneric lyrics (stream))
+(defgeneric tempo (stream))
+(defgeneric track (stream))
 (defgeneric title (stream))
 (defgeneric writer (stream))
-(defgeneric compilation (stream))
-(defgeneric disk (stream))
-(defgeneric tempo (stream))
-(defgeneric genre (stream))
+(defgeneric year (stream))
+
+(defgeneric show-tags (file &key &allow-other-keys))
 
 ;;;; MP3
 (defmethod cover ((me id3:mp3-file))
