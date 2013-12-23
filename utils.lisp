@@ -118,14 +118,14 @@ The macro expansion has relatively low overhead in space or time."
   "Create a bit mask that begins at bit START (31 is MSB) and is WIDTH bits wide.
 Example: (get-bitmask 31 11) -->> #xffe00000"
   (declare #.utils:*standard-optimize-settings*)
-
+  (declare (fixnum start width))
   (ash (- (ash 1 width) 1) (- (1+ start) width)))
 
 (defmacro get-bitfield (int start width)
   "Extract WIDTH bits from INT starting at START
 Example: (get-bitfield #xFFFBB240 31 11) -->> #x7ff.
 The above will expand to (ash (logand #xFFFBB240 #xFFE00000) -21) at COMPILE time."
-  `(ash (logand ,int ,(utils::get-bitmask start width)) ,(- ( - start width -1))))
+  `(the fixnum (ash (logand ,int ,(utils::get-bitmask start width)) ,(- ( - start width -1)))))
 
 ;;;; Convenience macros
 (defmacro with-gensyms (syms &body body)
