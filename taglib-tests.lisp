@@ -87,8 +87,8 @@
               1))))
 
 (defun get-stats (&optional (dir "/home/markv/Music/Queen"))
-
   "Gen up some interesting statistics on DIR"
+
   (let ((m4-ht (make-hash-table :test #'equalp))
         (m3-ht (make-hash-table :test #'equalp)))
     (do-audio-dir
@@ -101,7 +101,8 @@
                                        (insert-into-ht (id3:id f) m3-ht))))
           (m4a:mp4-file
            (m4a:map-mp4-atoms s
-                              :func (lambda (f)
+                              :func (lambda (f d)
+                                      (declare (ignore d))
                                       (insert-into-ht (m4a:atom-type f) m4-ht)))))))
     (format t "MP3 Stats:~%")
     (loop for key being the hash-keys of m3-ht

@@ -163,7 +163,7 @@ is from the ID3 'spec'"
                                   ("WCOM" "Commercial information")
                                   ("WCOP" "Copyright/Legal information")
                                   ("WOAF" "Official audio file webpage")
-                                  ("WOAR" "Official artist/performer webpage")
+                                  ("WOAR" "Official artist/performer web page")
                                   ("WOAS" "Official audio source webpage")
                                   ("WORS" "Official internet radio station homepage")
                                   ("WPAY" "Payment")

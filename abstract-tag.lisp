@@ -6,6 +6,8 @@
   "Controls whether or not we print 'raw' tags (aka frames) or
 textual representation of tags")
 
+(declaim ((simple-array string (*)) *id3-genres*))
+
 (defparameter *id3v1-genres*
   #("Blues" "Classic Rock" "Country" "Dance" "Disco" "Funk" "Grunge"
     "Hip-Hop" "Jazz" "Metal" "New Age" "Oldies" "Other" "Pop" "R&B" "Rap"
@@ -47,6 +49,7 @@ Ignores case and returns first complete match"
   "Given N, a supposed ID3 genre, range check it to make sure it
 is > 0 and < (sizeof *ID3V1-GENRES*)"
   (declare #.utils:*standard-optimize-settings*)
+  (declare (fixnum n))
 
   (if (or (> n (1- (length *id3v1-genres*)))
             (< n 0))

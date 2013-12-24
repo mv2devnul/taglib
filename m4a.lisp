@@ -699,15 +699,13 @@ root.moov.trak.mdia.minf.stbl.mp4a, and root.moov.trak.mdia.minf.stbl.mp4a.esds"
 (defun map-mp4-atoms (m4a &key (func nil))
   "Visit each atom we found in M4A"
   (declare #.utils:*standard-optimize-settings*)
-  (let ((count 0))
-    (labels ((_internal-print (atom depth)
-               (format t "~vt~a~%" depth (vpprint atom nil))
-               (incf count)))
-      (when (null func)
-        (setf func #'_internal-print))
-      (tree:traverse
-       (m4a:mp4-atoms m4a)
-       (lambda (node depth)
-         (funcall func (tree:data node) depth))))
-    (when count
-      (format t "~:d atom~p found~%" count count))))
+
+  (labels ((_internal-print (atom depth)
+             (format t "~vt~a~%" depth (vpprint atom nil))))
+
+    (when (null func)
+      (setf func #'_internal-print))
+
+    (tree:traverse
+     (m4a:mp4-atoms m4a) (lambda (node depth)
+                           (funcall func (tree:data node) depth)))))
