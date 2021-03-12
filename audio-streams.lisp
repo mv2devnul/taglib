@@ -192,7 +192,7 @@ byte-order marks, so we have to do that here before calling."
                    *current-file*))
       (decf len 1))
 
-    (when (<= 0 len)
+    (when (<= len 0)
       (return-from stream-read-ucs-string ""))
 
     (when (eql kind :ucs-2)
