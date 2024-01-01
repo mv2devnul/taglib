@@ -1,17 +1,21 @@
 ;;; -*- Mode: Lisp;  show-trailing-whitespace: t; Base: 10; indent-tabs: nil; Syntax: ANSI-Common-Lisp; Package: PROFILE; -*-
 ;;; Copyright (c) 2013, Mark VandenBrink. All rights reserved.
 
-;;;;Handy, dandy profile functions
-;;; "profile:on" enables profiling for taglib modules
-;;; "profile:report" shows a profile listing
-;;; "profile:reset" clears counters
-;;; "profile:off" turns off profiling
+;;; Handy, dandy profile functions.
+;;;   "profile:on" enables profiling for taglib modules
+;;;   "profile:report" shows a profile listing
+;;;   "profile:reset" clears counters
+;;;   "profile:off" turns off profiling
+;;;
+;;; Only for CCL (it might work on other Lisps, but I haven't tried it)
+;;;
 (in-package #:profile)
+
 #-CCL (progn
-        (defun on     () (error "Not Yet"))
-        (defun off    () (error "Not Yet"))
-        (defun report () (error "Not Yet"))
-        (defun reset  () (error "Not Yet")))
+        (defun on     () (error "Not yet implemented on this Lisp"))
+        (defun off    () (error "Not yet implemented on this Lisp"))
+        (defun report () (error "Not yet implemented on this Lisp"))
+        (defun reset  () (error "Not yet implemented on this Lisp")))
 
 #+CCL (progn
         (defun on ()

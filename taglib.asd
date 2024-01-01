@@ -8,6 +8,7 @@
   :author "Mark VandenBrink"
   :license "UNLICENSE <http://unlicense.org/>"
   :depends-on (#:optima #:optima.ppcre #:flexi-streams
+                        #+:ccl #:swank
                         #+(or :ccl :sbcl :abcl) #:bordeaux-threads)
   :components ((:file "packages")
                (:file "profile"       :depends-on ("packages"))
