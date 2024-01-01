@@ -195,6 +195,8 @@ to read the payload of an atom."
           (skip-atom-entry "sample-table-size"            "stsz")
           (skip-atom-entry "sample-table-time"            "stts")
           (skip-atom-entry "track-header"                 "tkhd")
+          (skip-atom-entry "sample-group-description"     "sgpd")
+          (skip-atom-entry "sample-to-group"              "sbgp")
 
           (cont-atom-entry "free-form"                    "----")
           (cont-atom-entry "data-info"                    "dinf")
